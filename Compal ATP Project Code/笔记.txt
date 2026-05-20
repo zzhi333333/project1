@@ -1,0 +1,41 @@
+Merge 函数：
+
+https://www.jianshu.com/p/4bed99d67d7c
+https://support.i-search.com.cn/article/1574760125361
+https://www.cnblogs.com/stream886/p/6022049.html
+https://blog.csdn.net/weixin_43097265/article/details/102910597
+
+https://blog.csdn.net/brucewong0516/article/details/82707492 （详解pandas库的pd.merge函数）
+
+https://blog.csdn.net/u010801439/article/details/80052677  pandas系列 read_excel() 和 to_excel()各参数详解
+https://www.cnblogs.com/hany-postq473111315/p/12844906.html     pandas_读取Excel并筛选特定数据
+https://blog.csdn.net/weixin_45082522/article/details/106364847        python下pandas库中读取指定行或列数据（excel或csv）
+
+https://blog.csdn.net/langdei/article/details/102499512  python 获取当前月的第一天和最后一天的方法 判断字典中是否存在key
+
+https://blog.csdn.net/weixin_42424083/article/details/95742919     python利用pandas模块来合并多个excel表格
+
+https://blog.csdn.net/qq_37928340/article/details/99679126 Pandas 细解
+
+https://blog.csdn.net/qq_32113189/article/details/83109566 python封装成exe
+
+https://blog.csdn.net/weixin_42267761/article/details/90443609 选择文件对话框
+
+https://www.cnblogs.com/onemorepoint/p/8425300.html     Pandas透视表（pivot_table）详解
+
+https://www.cnpython.com/qa/153253  在python pivot选项卡中循环
+
+https://blog.csdn.net/u010414589/article/details/51135840  
+https://blog.csdn.net/weixin_41278904/article/details/100167549
+纵向合并
+
+
+https://blog.csdn.net/MIJIGM/article/details/94766665  Python合并Excel中所有的sheet
+
+https://blog.csdn.net/chibangyuxun/article/details/53148005 逻辑回归算法 （已打印）
+
+https://blog.csdn.net/qq_20412595/article/details/82048795  （已打印）
+https://blog.csdn.net/huacha__/article/details/80919426
+决策树算法
+
+

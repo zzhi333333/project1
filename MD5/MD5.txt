@@ -1,0 +1,33 @@
+import pandas as pd
+import hashlib
+import tkinter as tk
+from tkinter import filedialog
+from tkinter import messagebox
+
+root = tk.Tk()
+root.withdraw()
+
+
+def get_md5(x):
+    md = hashlib.md5()
+    md.update(x.encode())
+    md_result = md.hexdigest()
+    return md_result
+
+
+
+def to_md5(file):
+    df = pd.read_excel(file,header=None)
+    columns = df.columns.tolist()[0] #
+    df[columns] = df[columns].astype('str')
+    df[columns] = df[columns].apply(get_md5)
+    print(df)
+    messagebox.showinfo("Notice", "Please save as")
+    filename = tk.filedialog.asksaveasfilename(filetypes=[('TXT文档', '*.txt')], initialdir='D:\\')
+    filename = filename + '.txt'
+    df.to_csv(filename,sep='\t', index=False, encoding='utf_8') # 加密后的文件
+
+
+messagebox.showinfo("Notice", "Please select your file!")
+Filepath = filedialog.askopenfilename()
+to_md5(Filepath)  # 原文件

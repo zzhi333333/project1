@@ -1,0 +1,67 @@
+
+
+df_merged 中
+
+如果'Hold Code' 中为E30，  这些符合条件的行 'PSD status'填充'Early Order', 本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果 , 'Level 1 Code' 字段下为'Shipped', 这些符合条件的行 'PSD status'填充'Shipped', 本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'RSD' 字段的日期大于本月月底最后一天，'PSD status'列中填充'Future' ，本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'Hold Code' 字段开头为9， 'PSD status'列中填充'Hold PO'，本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'Level 1 Code'字段下的值为'NPI', 这些符合条件的行 'PSD status'填充'NPI', 本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'LV SO#'中的数字前三位是'413'，'PSD status'列中填充'BA'，本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'Order Date'的日期，在2个工作日内，需要考虑中国大陆的周末和节假日， 'PSD status'列中填充'New PO'，本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'Level 1 Code'字段下的值包含Self或者Tie， 'PSD status'列中填充'Self&Tie'，本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'Ship date' 字段下的日期小于等于本月最后一天，'PSD status'列中填充'ROL'，本次填充不覆盖上一个条件的填充结果
+完成后继续如下条件填充
+如果'Ship date' 字段下的日期大于本月最后一天， 在'PSD status'中填充为'ONS'， 本次填充不覆盖上一个条件的填充结果
+
+ 生成一个Dataframe， 行索引字段为 
+
+Series， Early order， Future， Current Mon. FO， PO hit rate， Current Mon. PO,  NPI， Hold input(995/997/998)， Shipped，ROL， BA，  Self&Tie， New PO， ONS， Hold shipt.(999), Jun. PSD outlook, MTD input, Current Mon. ATB, Hard ONS, Soft  ONS, Meeting Minutes.  
+pivot df_merged 中Series字段对应的结果， 填到new_df 'Series' 列， Seriese为Str
+pivot df_merged 中
+
+1.3部分需要实现的MR 清洗和Pivot： 
+
+导入文件名为如下的文件
+current_date = datetime.now().strftime("%Y%m%d")
+f'df_merged_{current_date}.xlsx
+
+
+1．	插入MR Status列，按照如下要求填充，后面的填充不能覆盖已经填入的内容
+Level 1 Code==Shipped，写入Shipped
+
+2. MR date<=当月最后一天的： 
+month end -5天<=MR date<=当月最后一天， 写入Late MR date
+当月排除上述条件后
+MR date <=current_date, 写入MR by today
+MR date >current_date to last day of current week,   写入WK01
+MR date Next week, 写入WK02
+MR date Next week+1, 写入WK03
+以此类推一直到<Month end-5天
+
+
+3. 对于MR>当月最后一天的
+MR date·> month end, 写入MR Date Future
+
+4. 对于MR TBD的
+MR date为空值或者==TBD， MR Date Blank
+
+5.．	生成空白sheet， sheet Name== PV，要做如下四个透视表写入到PV中，
+注意在依次生成的透视表格之间留够空间放置Filter， 每个表格都从上个表格结束的行+2行开始放置
+第一个透视表， filter区域为GEO字段，选择全部， 行区域选择Series， 列区域选择PSD Status， 值求和Qty
+第二个透视表， filter区域为PSD Status， 选择ONS， 行区域选择Series，要向下填充， 分开列放置Late Reason字段， 列区域选择GEO， 值求和Qty
+第三个透视表， filter区域为 PSD Status ，选择除Future RSD的其他全部， 行区域选择Series，要向下填充，
+第四个透视表， Filter区域为 PSD Status ， 选择Future RSD， 其余跟第三个透视表一样
+
+6. FINAL版本中9/9, 9/16, 9/23 这些星期一被跑掉的原因， 分析如下
+用now输出的时间格式是，2024-09-09 16:14:28.726160， 2024-09-16 16:14:28.726160， 2024-09-23 16:14:28.726160，  但是输入的是2024/9/9  ， 2024/9/16  ， 2024/9/23  ，  所以就会导致9/9， 9/16， 9/23 被排除， 需要修正格式， 让now输出的格式不显示后面的具体时间， 只要年月日即可
+方法加上.date()， 在1.1版本更新中已修正
+

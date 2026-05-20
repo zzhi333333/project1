@@ -1,0 +1,27 @@
+pip install -r requirements.txt --upgrade
+
+
+
+QT窗口弹出添加代码
+if __name__ == "__main__":  #弹出测试窗口
+    import sys
+    my_app = QtWidgets.QApplication(sys.argv)
+    MainWindow = QtWidgets.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(my_app.exec_())
+
+
+import sys
+from PyQt5.QtWidgets import QApplication, QMainWindow
+
+import gui_file_name
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    MainWindow = QMainWindow()
+    ui = gui_file_name.Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(app.exec_())

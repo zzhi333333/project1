@@ -1,0 +1,87 @@
+import pandas as pd
+import numpy as np
+import tkinter as tk
+from tkinter import filedialog
+from tkinter import messagebox
+
+# module1 MPS 文档导入生成透视表， W2跟W1比对差值，需要注意填充空值部分 #
+root = tk.Tk()
+root.withdraw()
+
+messagebox.showinfo("Notice", "Please select MPS_version1.xls! file")
+Filepath = filedialog.askopenfilename()
+
+messagebox.showinfo("Notice", "Please select MPS_version2.xls file!")
+Filepath1 = filedialog.askopenfilename()
+
+LNB_MPS1 = Filepath
+LNB_MPS2 = Filepath1
+a=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+#keep_default_na=False， 关闭NA为空值的默认开关
+df1=pd.read_excel(LNB_MPS1, sheet_name=0, header=1, keep_default_na=False)
+
+b=[column for column in df1]
+c=[x for x in a if x in b]#两个列表都有
+d=[y for y in (a+c) if y not in c]#两个列表中的不同元素
+
+f=[]
+for i in range(len(d)):
+    f.append(0)
+
+df1[d]=f
+
+df2=pd.read_excel(LNB_MPS2, sheet_name=0, header=1, keep_default_na=False)
+
+b1=[column for column in df2]
+c1=[x for x in a if x in b1]#两个列表都有
+d1=[y for y in (a+c1) if y not in c1]#两个列表中的不同元素
+
+f1=[]
+for i in range(len(d1)):
+    f1.append(0)
+
+df2[d]=f1
+
+
+MPS1_Pivot=pd.pivot_table(df1, index = ['odm','subgeo','series'],
+                       values = a, aggfunc = np.sum)
+MPS1_Pivot_flat=MPS1_Pivot.reset_index()
+MPS1_Pivot_flat=MPS1_Pivot_flat.reindex(['odm','subgeo','series',
+                                         'Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
+'Jan','Feb','Mar'], axis=1)
+
+MPS2_Pivot=pd.pivot_table(df2, index = ['odm','subgeo','series'],
+                       values = a, aggfunc = np.sum)
+MPS2_Pivot_flat=MPS2_Pivot.reset_index()
+MPS2_Pivot_flat=MPS2_Pivot_flat.reindex(['odm','subgeo','series',
+                                         'Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
+'Jan','Feb','Mar'], axis=1)
+
+
+MPS1_Pivot_flat.to_excel('D:\Python\W2W FCST\MPS1_Piovt.xlsx', index=False)
+MPS2_Pivot_flat.to_excel('D:\Python\W2W FCST\MPS2_Piovt.xlsx', index=False)
+
+W2W_result = pd.merge(MPS2_Pivot_flat, MPS1_Pivot_flat[['odm','subgeo', 'series',
+                                                        'Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
+'Jan','Feb','Mar']],
+                  how='outer', on = ['odm','subgeo', 'series'], sort = False)
+
+W2W_result=W2W_result.fillna(0) #空值NAN填充为0
+
+W2W_result['Apr_w2w']=W2W_result['Apr_x']-W2W_result['Apr_y']
+W2W_result['May_w2w']=W2W_result['May_x']-W2W_result['May_y']
+W2W_result['Jun_w2w']=W2W_result['Jun_x']-W2W_result['Jun_y']
+W2W_result['Jul_w2w']=W2W_result['Jul_x']-W2W_result['Jul_y']
+W2W_result['Aug_w2w']=W2W_result['Aug_x']-W2W_result['Aug_y']
+W2W_result['Sep_w2w']=W2W_result['Sep_x']-W2W_result['Sep_y']
+W2W_result['Oct_w2w']=W2W_result['Oct_x']-W2W_result['Oct_y']
+W2W_result['Nov_w2w']=W2W_result['Nov_x']-W2W_result['Nov_y']
+W2W_result['Dec_w2w']=W2W_result['Dec_x']-W2W_result['Dec_y']
+W2W_result['Jan_w2w']=W2W_result['Jan_x']-W2W_result['Jan_y']
+W2W_result['Feb_w2w']=W2W_result['Feb_x']-W2W_result['Feb_y']
+W2W_result['Mar_w2w']=W2W_result['Mar_x']-W2W_result['Mar_y']
+
+W2W_result.to_excel('D:\Python\W2W FCST\W2W_result.xlsx',index=False)
+
+
