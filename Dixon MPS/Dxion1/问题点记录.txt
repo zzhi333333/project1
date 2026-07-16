@@ -1,0 +1,3 @@
+8/27: 
+1. 修复BPS output和ETA 重复问题, 
+2. 另外注意: mapping inventory的5.1 计算步骤数据初步复验没问题, 如果出现重复, 也需要考虑服用解决BPS output 和ETA 重复的方案. 

@@ -1,0 +1,677 @@
+main.py: 
+"""
+Dixon MRP V3 ‑ 全流程入口
+步骤：1.BOM → 2.MTM→SBB → 3.SBB订单 → 3.1SFG扣减 → 4.MFG_PO_BOM →
+      5.1库存匹配 → 5.2OpenPO → 5.3ETA到料&回写
+"""
+import os
+from pathlib import Path
+from datetime import datetime
+import pandas as pd
+from tkinter import messagebox
+
+from config import ENABLE_MAXFLOW
+from utils.common import save_df, select_file_gui, ensure_output_dir
+from bom.expand import expand_bom_tree
+from bom.leaf import generate_leaf_bom
+from mapping.mtm_sbb import parse_mtm_sbb_mapping_from_workbook
+from mapping.sbb_order import compute_sbb_order_qty
+from mapping.mfg_po_bom import build_mfg_po_bom_mapping
+from inventory.sfg_deduct import sfg_deduct
+from inventory.mrp5 import mrp5_1_compute, mrp5_2_compute
+from eta_enrich import run_eta_enrich
+
+
+def main():
+    try:
+        print("==== Dixon MRP V3 开始 ====")
+        today_str = datetime.now().strftime("%Y%m%d")
+
+        # ---------- STEP 1 ----------
+        bom_file = select_file_gui("请选择 BOM 文件 (DIXON+BOM+all)", "DIXON+BOM+all.csv/xlsx")
+        ext = os.path.splitext(bom_file)[1].lower()
+        raw_bom = pd.read_csv(bom_file) if ext == ".csv" else pd.read_excel(bom_file, engine="openpyxl")
+        print("[STEP1] 展开 BOM ...")
+        expanded = expand_bom_tree(raw_bom)
+        leaf = generate_leaf_bom(expanded)
+        save_df(expanded, "DIXON+BOM+all_expanded_bom_tree_sbb_roots.xlsx")
+        save_df(leaf, "DIXON+BOM+all_bom_leaf.xlsx")
+
+        # ---------- STEP 2 ----------
+        mtm_workbook = select_file_gui("请选择 Multi Product Raw Bill of Materials Export 工作簿",
+                                       "Multi Product Raw Bill of Materials Export.xlsx")
+        print("[STEP2] 解析 MTM->SBB 映射 ...")
+        mtm_map = parse_mtm_sbb_mapping_from_workbook(mtm_workbook)
+        save_df(mtm_map, "MTM_SBB_mapping.xlsx")
+
+        # ---------- STEP 3 ----------
+        dixon_po_file = select_file_gui("请选择 Dixon MFG PO 文件", "Dixon MFG PO.xlsx")
+        print("[STEP3] 计算 SBB 订单用量...")
+        dixon_po_df = pd.read_excel(dixon_po_file, engine="openpyxl")
+        sbb_order = compute_sbb_order_qty(dixon_po_df, mtm_map)
+        save_df(sbb_order, "SBB_订单用量汇总.xlsx")
+
+        # ---------- STEP 3.1 ----------
+        odm_inv_file = select_file_gui("请选择 ODM_INVERTORY 文件", "ODM_INVERTORY.xlsx")
+        sfg_map_file = select_file_gui("请选择 SFG_SBB_Mapping 文件", "SFG_SBB_Mapping.xlsx")
+        odm_inv_df = pd.read_excel(odm_inv_file, engine="openpyxl")
+        sfg_map_df = pd.read_excel(sfg_map_file, engine="openpyxl")
+        print("[STEP3.1] SFG 库存扣减 ...")
+        sbb_order_update = sfg_deduct(sbb_order, odm_inv_df, sfg_map_df)
+        save_df(sbb_order_update, "SBB_订单用量汇总_update.xlsx")
+
+        # ---------- STEP 4 ----------
+        print("[STEP4] 生成 MFG_PO_BOM_mapping ...")
+        mfg_po_bom_map = build_mfg_po_bom_mapping(leaf, sbb_order_update)
+        save_df(mfg_po_bom_map, "MFG_PO_BOM_mapping.xlsx")
+
+        # ---------- STEP 5.1 ----------
+        print("[STEP5.1] 进行组合级库存匹配 ...")
+        final_bom_agg = mrp5_1_compute(mfg_po_bom_map, odm_inv_df, enable_maxflow=ENABLE_MAXFLOW)
+        save_df(final_bom_agg, "Final_BOM_ODM_Mapping.xlsx")
+
+        # ---------- STEP 5.2 ----------
+        lnv_po_file = select_file_gui("请选择 LNV Dixon Open PO 文件", "LNV Dixon Open PO.xlsx")
+        lnv_po_df = pd.read_excel(lnv_po_file, engine="openpyxl")
+        print("[STEP5.2] 合并 Open PO 并计算 BPS/net demand ...")
+        final_df = mrp5_2_compute(final_bom_agg, lnv_po_df)
+        bps_result_path = Path("output") / f"Net_dmd_BPS_result_{today_str}.xlsx"
+        ensure_output_dir()
+        final_df.to_excel(bps_result_path, index=False)
+        print(f"[STEP5.2] 完成 -> {bps_result_path}")
+
+        # ---------- 5）把 MENGE_times_MFG_PO_Qty 挪到 Dixon_inv_Qty 之前 ----------
+        print("[STEP5.3] ETA 到料 & Description/Model 回写 ...")
+        run_eta_enrich(
+            bps_path=bps_result_path,
+            openpo_path=Path(lnv_po_file),
+            today_str=today_str
+        )
+
+        
+        print("==== 全部流程完成 ====")
+        messagebox.showinfo("完成", "Dixon MRP V3 已全部执行完毕！")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        messagebox.showerror("执行失败", str(e))
+        raise
+
+
+if __name__ == "__main__":
+    main()
+utils/common.py:
+import os
+import re
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import pandas as pd
+
+def norm(s):
+    return re.sub(r"\s+", " ", str(s)).strip().lower()
+
+def find_col(df, candidates):
+    """宽松匹配列名；返回第一个匹配的实际列名；找不到则抛 KeyError"""
+    cols = list(df.columns)
+    cnorm = {norm(c): c for c in cols}
+    for cand in candidates:
+        k = norm(cand)
+        if k in cnorm:
+            return cnorm[k]
+    # 尝试包含匹配（更宽松）
+    for c in cols:
+        for cand in candidates:
+            if norm(c).find(norm(cand)) >= 0 or norm(cand).find(norm(c)) >= 0:
+                return c
+    raise KeyError(f"未找到列匹配: {candidates}；实际列: {cols}")
+
+def ensure_output_dir():
+    if not os.path.exists("output"):
+        os.makedirs("output")
+
+def save_df(df, filename):
+    from config import SAVE_INTERMEDIATE
+    if not SAVE_INTERMEDIATE:
+        return
+    ensure_output_dir()
+    path = os.path.join("output", filename)
+    ext = os.path.splitext(path)[1].lower()
+    if ext in (".xlsx", ".xls"):
+        df.to_excel(path, index=False)
+    else:
+        df.to_csv(path, index=False, encoding="utf-8-sig")
+    print(f"[INFO] 已保存: {path}")
+
+def select_file_gui(title, example, filetypes=(("Excel/CSV", "*.xlsx;*.xls;*.csv"),)):
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showinfo("请选择文件", f"{title}\n示例文件名：{example}")
+    path = filedialog.askopenfilename(title=title, filetypes=filetypes)
+    if not path:
+        raise FileNotFoundError(f"未选择文件: {title}")
+    print(f"[INPUT] 选择文件 ({title}): {path}")
+    return path
+
+config.py:
+# ========== 配置开关 ==========
+SAVE_INTERMEDIATE = True    # 默认开启中间文件保存
+ENABLE_MAXFLOW = True      # 默认不启用最大流分配=False, 开启=True
+
+
+eta_enrich.py:
+import pandas as pd
+from datetime import timedelta
+from pathlib import Path
+from utils.common import save_df
+
+MOT_2_WEEKS = {"air": 2, "sea": 6}
+
+def _calc_eta(etd, mot):
+    if pd.isna(etd):
+        return "TBC"
+    mot = str(mot).strip().lower()
+    weeks = MOT_2_WEEKS.get(mot)
+    if weeks is None:
+        return "TBC"
+    return (etd + timedelta(weeks=weeks)).date()
+
+def run_eta_enrich(bps_path: Path, openpo_path: Path, today_str: str) -> pd.DataFrame:
+    bps_df = pd.read_excel(bps_path, engine="openpyxl")
+    openpo = pd.read_excel(openpo_path, sheet_name="Combined", engine="openpyxl")
+
+    openpo["ALT Customer PN"] = openpo["ALT Customer PN"].astype(str).str.strip()
+    openpo["Confirm ETD"] = pd.to_datetime(openpo["Confirm ETD"], errors="coerce")
+    openpo["MOT"] = openpo["MOT"].astype(str).str.strip().str.lower()
+    openpo["ETA"] = openpo.apply(lambda r: _calc_eta(r["Confirm ETD"], r["MOT"]), axis=1)
+
+    desc_map = openpo.dropna(subset=["Description"]).drop_duplicates(subset=["ALT Customer PN"]).set_index("ALT Customer PN")["Description"]
+    model_map = openpo.dropna(subset=["Model"]).groupby("ALT Customer PN")["Model"].apply(lambda x: ", ".join(sorted(set(x))))
+
+    pn_cols = [c for c in bps_df.columns if c.startswith(("CHILD", "substitute_"))]
+    bps_df["Description"] = None
+    bps_df["Model"] = ""
+
+    for idx, row in bps_df.iterrows():
+        pns = {str(row[c]).strip() for c in pn_cols if pd.notna(row[c])}
+        desc = next((desc_map[pn] for pn in pns if pn in desc_map), None)
+        models = sorted({model_map[pn] for pn in pns if pn in model_map})
+        bps_df.at[idx, "Description"] = desc
+        bps_df.at[idx, "Model"] = ", ".join(models)
+
+    eta_pivot = openpo.groupby(["ALT Customer PN", "ETA"])["Total"].sum().unstack(fill_value=0)
+
+    # 修正逻辑：防止重复分配 ETA 数量
+    used_qty = {pn: {eta: 0 for eta in eta_pivot.columns} for pn in eta_pivot.index}
+
+    for eta_key in eta_pivot.columns:
+        col_name = str(eta_key)
+        def sum_eta(row):
+            total = 0
+            pns = [str(row[c]).strip() for c in pn_cols if pd.notna(row[c])]
+            for pn in pns:
+                if pn in eta_pivot.index:
+                    available = eta_pivot.at[pn, eta_key] - used_qty[pn][eta_key]
+                    if available > 0:
+                        total += available
+                        used_qty[pn][eta_key] += available
+            return total
+        bps_df[col_name] = bps_df[pn_cols].apply(sum_eta, axis=1)
+
+    original_columns = set(["Description", "Model"] + pn_cols)
+    eta_cols = [col for col in bps_df.columns if col not in original_columns]
+    eta_sums = bps_df[eta_cols].sum()
+    drop_cols = eta_sums[eta_sums == 0].index.tolist()   #删除0加总列, 后面by week看是否要回复
+    bps_df.drop(columns=drop_cols, inplace=True)
+
+    out_name = f"Net_BPSONS_ETA_{today_str}.xlsx"
+
+    #增加的需求步骤2025/09/01
+    # ---------- 1）找出 ETA < 今日的日期栏位 ----------
+    today = pd.to_datetime(today_str).date()
+    past_eta_cols = [c for c in bps_df.columns
+                     if str(c).replace('-', '').isdigit() and pd.to_datetime(c).date() < today]
+
+    # ---------- 2）在 Dixon_Open_PO_Qty 中扣除这些列的和 ----------
+    if past_eta_cols and "Dixon_Open_PO_Qty" in bps_df.columns:
+        bps_df["Dixon_Open_PO_Qty"] = bps_df["Dixon_Open_PO_Qty"] - bps_df[past_eta_cols].sum(axis=1)
+
+    # ---------- 3）重新计算 net_dmd_result ----------
+    if {"BPS", "Dixon_Open_PO_Qty"}.issubset(bps_df.columns):
+        bps_df["net_dmd_result"] = (
+            bps_df["BPS"]
+            - pd.to_numeric(bps_df["Dixon_Open_PO_Qty"], errors="coerce").fillna(0)
+        )
+
+    # ---------- 3.5 保留 Dixon_inv_Qty 列 ----------
+    if "Dixon_inv_Qty" in bps_df.columns:
+        bps_df.rename(columns={"Dixon_inv_Qty": "__Dixon_inv_Qty__"}, inplace=True)
+
+    # ---------- 4）删除这些过期日期栏位 ----------
+    bps_df.drop(columns=past_eta_cols, inplace=True, errors="ignore")
+
+    # ---------- 4.5 恢复 Dixon_inv_Qty 名称 ----------
+    if "__Dixon_inv_Qty__" in bps_df.columns:
+        bps_df.rename(columns={"__Dixon_inv_Qty__": "Dixon_inv_Qty"}, inplace=True)
+
+    # ---------- 5）把 MENGE_times_MFG_PO_Qty 挪到 Dixon_inv_Qty ----------
+    if {"MENGE_times_MFG_PO_Qty", "Dixon_inv_Qty"}.issubset(bps_df.columns):
+        cols = bps_df.columns.tolist()
+        idx = cols.index("Dixon_inv_Qty")
+        cols.remove("MENGE_times_MFG_PO_Qty")
+        cols.insert(idx, "MENGE_times_MFG_PO_Qty")
+        bps_df = bps_df[cols]
+
+    save_df(bps_df, out_name)
+    print(f"[STEP 5.3] ETA 到料处理完成 -> output/{out_name}")
+    return bps_df
+
+bom/expand.py:
+import pandas as pd
+from utils.common import find_col, norm
+
+def expand_bom_tree(df):
+    # 与原文件完全一致，仅 import 调整
+    df = df.copy()
+    try:
+        wcol = find_col(df, ["WERKS"])
+        df = df[df[wcol] == "DIXON"]
+    except KeyError:
+        pass
+
+    name_col = find_col(df, ["NAME"])
+    id_col = find_col(df, ["IDNRK"])
+    menge_col = None
+    try:
+        menge_col = find_col(df, ["MENGE"])
+    except KeyError:
+        menge_col = None
+
+    parent_to_children = {}
+    for _, row in df.iterrows():
+        parent = row[name_col]
+        child = row[id_col]
+        if pd.notna(parent) and pd.notna(child):
+            parent_to_children.setdefault(str(parent), []).append(row)
+
+    def expand_tree(root, level, visited, top_sbb, parent_name, menge_path, path_list):
+        root = str(root)
+        if root in visited:
+            return []
+        visited.add(root)
+        result = []
+        children = parent_to_children.get(root, [])
+        for child_row in children:
+            child_name = str(child_row[id_col])
+            child_data = child_row.to_dict()
+            child_data['bomroot'] = top_sbb
+            child_data['level'] = level
+            child_data[name_col] = parent_name
+            qty = child_row[menge_col] if menge_col and pd.notna(child_row[menge_col]) else 1
+            child_data['MENGE_PATH'] = menge_path * qty
+            child_data['path'] = " → ".join(path_list + [str(parent_name), child_name])
+            result.append(child_data)
+            result.extend(
+                expand_tree(
+                    child_name,
+                    level + 1,
+                    visited.copy(),
+                    top_sbb,
+                    child_data[id_col],
+                    child_data['MENGE_PATH'],
+                    path_list + [str(parent_name)]
+                )
+            )
+        return result
+
+    roots = df[name_col].dropna().astype(str).unique()
+    sbb_roots = [r for r in roots if str(r).startswith('SBB')]
+    expanded_rows = []
+    for root in sbb_roots:
+        expanded_rows.extend(expand_tree(root, 1, set(), root, root, 1, []))
+
+    expanded_df = pd.DataFrame(expanded_rows)
+    if expanded_df.empty:
+        return expanded_df
+    cols_front = ['bomroot', 'level']
+    rest = [c for c in expanded_df.columns if c not in cols_front]
+    return expanded_df[cols_front + rest]
+
+bom/leaf.py:
+import pandas as pd
+import re
+from utils.common import find_col, norm
+
+def generate_leaf_bom(expanded_df):
+    if expanded_df.empty:
+        return expanded_df
+    name_col = find_col(expanded_df, ["NAME"])
+    id_col = find_col(expanded_df, ["IDNRK"])
+    alp_col = None
+    for c in expanded_df.columns:
+        if norm(c) == "alpgr":
+            alp_col = c
+            break
+    all_names = set(expanded_df[name_col].astype(str))
+    idvals = expanded_df[id_col].astype(str)
+    leaf_df = expanded_df[~idvals.isin(all_names)].copy()
+    if 'MENGE_PATH' in leaf_df.columns:
+        leaf_df['MENGE'] = leaf_df['MENGE_PATH']
+    elif 'MENGE' not in leaf_df.columns:
+        leaf_df['MENGE'] = 1
+
+    if alp_col is None:
+        out = leaf_df.rename(columns={id_col: 'CHILD'})
+        out['path'] = out['path'].astype(str)
+        return out[['bomroot', 'level', name_col, 'CHILD', 'MENGE', 'path']].rename(columns={name_col: 'NAME'})
+
+    leaf_df[alp_col] = leaf_df[alp_col].fillna('')
+    no_alt_mask = leaf_df[alp_col] == ''
+    no_alt_df = leaf_df[no_alt_mask].copy()
+    no_alt_df = no_alt_df.rename(columns={id_col: 'CHILD'})
+    no_alt_df['path'] = no_alt_df['path'].astype(str)
+    no_alt_df = no_alt_df[['bomroot', 'level', name_col, 'CHILD', 'MENGE', 'path']].rename(columns={name_col: 'NAME'})
+
+    alt_df = leaf_df[~no_alt_mask].copy()
+    alt_df['grp_key'] = alt_df['bomroot'].astype(str) + '_' + alt_df[name_col].astype(str) + '_' + alt_df[alp_col].astype(str)
+    max_alt = alt_df.groupby('grp_key')[id_col].count().max() if len(alt_df) > 0 else 0
+    if pd.isna(max_alt):
+        max_alt = 0
+
+    def flatten_substitutes(group):
+        items = group[id_col].astype(str).tolist()
+        rec = {
+            'bomroot': group['bomroot'].iloc[0],
+            'level': group['level'].iloc[0],
+            'NAME': group[name_col].iloc[0],
+            'MENGE': group['MENGE'].iloc[0],
+            'path': group['path'].iloc[0]
+        }
+        for i in range(int(max_alt)):
+            col = 'CHILD' if i == 0 else f'substitute_{i}'
+            rec[col] = ''
+        for idx, val in enumerate(items):
+            col = 'CHILD' if idx == 0 else f'substitute_{idx}'
+            rec[col] = val
+        return rec
+
+    alt_result = pd.DataFrame()
+    if max_alt and len(alt_df):
+        alt_result = alt_df.groupby('grp_key', as_index=False).apply(lambda g: pd.Series(flatten_substitutes(g)))
+
+    final = pd.concat([no_alt_df, alt_result], ignore_index=True, sort=False)
+    cols_order = ['bomroot', 'level', 'NAME', 'CHILD']
+    max_sub = final.filter(regex=r'^substitute_\d+$').shape[1]
+    cols_order += [f'substitute_{i}' for i in range(1, max_sub + 1)]
+    cols_order += ['MENGE', 'path']
+    final = final[[c for c in cols_order if c in final.columns]]
+    return final
+mapping/mfg_po_bom.py:
+import pandas as pd
+from utils.common import find_col
+
+def build_mfg_po_bom_mapping(bom_leaf_df, sbb_order_update_df):
+    bom = bom_leaf_df.copy()
+    order = sbb_order_update_df.copy()
+    col_sbb = find_col(order, ["SBB"])
+    col_need = find_col(order, ["订单用量", "订单 用量", "订单数量"])
+    order_agg = order.groupby(col_sbb, as_index=False)[col_need].sum()
+    sbb_qty_map = dict(zip(order_agg[col_sbb].astype(str), order_agg[col_need].astype(float)))
+    bom["MFG_PO_Qty"] = bom["bomroot"].astype(str).map(sbb_qty_map).fillna(0)
+    bom["MENGE"] = pd.to_numeric(bom["MENGE"], errors="coerce").fillna(0)
+    bom["MENGE_times_MFG_PO_Qty"] = bom["MENGE"] * bom["MFG_PO_Qty"]
+    return bom
+
+mapping/mtm_sbb.py
+import openpyxl
+import pandas as pd
+import re
+from utils.common import norm
+
+def parse_mtm_sbb_mapping_from_workbook(xlsx_path):
+    wb = openpyxl.load_workbook(xlsx_path, data_only=True)
+    target_columns = ['SBB', 'Qty', 'SBB Name', 'Basic Name']
+    all_rows = []
+    for sheet_name in wb.sheetnames:
+        sh = wb[sheet_name]
+        try:
+            mtm_value = sh['C6'].value
+        except Exception:
+            mtm_value = None
+        try:
+            header_row = sh[7]
+        except Exception:
+            continue
+        header = [(cell.value.strip() if isinstance(cell.value, str) else cell.value) for cell in header_row]
+        idx_map = {}
+        for idx, name in enumerate(header):
+            if name is None:
+                continue
+            name_norm = norm(name)
+            for tgt in target_columns:
+                if norm(tgt) == name_norm:
+                    idx_map[tgt] = idx
+        if len(idx_map) < len(target_columns):
+            continue
+        for row in sh.iter_rows(min_row=8, values_only=True):
+            rec = {'MTM': (mtm_value if mtm_value is not None else None)}
+            for col in target_columns:
+                idx = idx_map.get(col)
+                rec[col] = (row[idx] if (idx is not None and idx < len(row)) else None)
+            all_rows.append(rec)
+    df = pd.DataFrame(all_rows)
+    if df.empty:
+        raise ValueError("从 Multi Product Raw BOM 工作簿未解析到 MTM->SBB 数据，请检查表头（应在第7行）和 C6 是否存在 MTM")
+    df_clean = df.dropna(subset=target_columns, how='all').copy()
+    df_clean['MTM'] = df_clean['MTM'].astype(str).str.strip().str.upper()
+    return df_clean
+
+mapping/sbb_order.py:
+import pandas as pd
+from utils.common import find_col
+
+def compute_sbb_order_qty(dixon_po_df, mtm_map_df):
+    ddf = dixon_po_df.copy()
+    col_mtm = find_col(ddf, ["MTM"])
+    col_qty = find_col(ddf, ["Qty", "QTY", "Quantity"])
+    pivot = ddf.groupby(col_mtm, as_index=False)[col_qty].sum().rename(columns={col_qty: "MTM Qty"})
+    pivot[col_mtm] = pivot[col_mtm].astype(str).str.strip().str.upper()
+    mtm_map_df['MTM'] = mtm_map_df['MTM'].astype(str).str.strip().str.upper()
+    merged = pd.merge(mtm_map_df, pivot, on="MTM", how="left")
+    map_qty_col = find_col(merged, ["Qty", "QTY", "Qty "])
+    merged["MTM Qty"] = merged["MTM Qty"].fillna(0)
+    merged["订单用量"] = pd.to_numeric(merged[map_qty_col], errors='coerce').fillna(0) * pd.to_numeric(merged["MTM Qty"], errors='coerce').fillna(0)
+    final = merged.rename(columns={map_qty_col: "Qty"})
+    cols = [c for c in ["MTM", "SBB", "Qty", "SBB Name", "Basic Name", "MTM Qty", "订单用量"] if c in final.columns]
+    return final[cols]
+
+inventory/sfg_deduct.py:
+import re
+import pandas as pd
+from utils.common import find_col, norm
+
+ACTIVE_LOCATIONS = {
+    "LNV-FA STORE", "LNV-FA-PROD-LINE", "LNV-FG STORE",
+    "LNV-PACKING KIT", "LNV-PAKG STORE", "LNV-PKGING LINE",
+    "LNV-SMT KIT", "LNV-SMT STORE", "LNV-SMT-PROD"
+}
+
+def sfg_deduct(sbb_order_df, odm_inv_df, sfg_map_df=None):
+    out = sbb_order_df.copy()
+
+    # 1. 只保留白名单内的 SFG 库存
+    inv = odm_inv_df.copy()
+    inv.columns = [re.sub(r"\s+", " ", str(c)).strip() for c in inv.columns]
+
+    col_mat_type = find_col(inv, ["Material Type", "Material_Type", "MaterialType"])
+    col_odm_pn   = find_col(inv, ["ODM PN", "ODM_PN", "PN", "Part Number"])
+    col_odm_qty  = find_col(inv, ["ODM QTY", "ODM_QTY", "ODMQTY", "ODM QTY", "QTY", "Quantity"])
+    col_loc_desc = find_col(inv, ["Location Desc", "Location", "Loc Desc"])
+
+    sfg_inv = inv[
+        (inv[col_mat_type].astype(str).str.upper() == "SFG") &
+        (inv[col_loc_desc].astype(str).str.strip().isin(ACTIVE_LOCATIONS))
+    ].copy()
+
+    sfg_inv[col_odm_pn]  = sfg_inv[col_odm_pn].astype(str).str.strip()
+    sfg_inv[col_odm_qty] = pd.to_numeric(sfg_inv[col_odm_qty], errors="coerce").fillna(0)
+
+    # 2. 建立 SBB → 可扣减总量字典
+    sbb_odm_qty = {}
+    if sfg_map_df is not None:
+        mp = sfg_map_df.copy()
+        mp.columns = [re.sub(r"\s+", " ", str(c)).strip() for c in mp.columns]
+        try:
+            col_key = find_col(mp, ["SMT Planner", "ODM PN", "PN", "Part Number"])
+            col_val = find_col(mp, ["SBB"])
+            sfg_inv = sfg_inv.merge(mp[[col_key, col_val]], left_on=col_odm_pn, right_on=col_key, how="left")
+            sfg_inv = sfg_inv.dropna(subset=[col_val])
+            sbb_odm_qty = sfg_inv.groupby(col_val)[col_odm_qty].sum().to_dict()
+        except KeyError:
+            pass  # 无映射时走兜底
+
+    # 兜底：直接按 SBB 字段汇总
+    if not sbb_odm_qty:
+        for colname in sfg_inv.columns:
+            if norm(colname) == 'sbb':
+                sbb_col = colname
+                sbb_odm_qty = sfg_inv.groupby(sbb_col)[col_odm_qty].sum().to_dict()
+                break
+
+    if not sbb_odm_qty:
+        return out  # 无 SFG 可扣减
+
+    # 3. 扣减逻辑（与原一致）
+    try:
+        col_sbb  = find_col(out, ["SBB"])
+        col_need = find_col(out, ["订单用量", "订单 用量", "订单数量", "order_qty", "order qty"])
+    except KeyError:
+        col_sbb  = out.columns[0] if "SBB" not in out.columns else "SBB"
+        col_need = out.columns[-1]
+
+    for sbb, total_odm_qty in sbb_odm_qty.items():
+        mask = out[col_sbb].astype(str) == str(sbb)
+        indices = out[mask].index
+        rem = float(total_odm_qty)
+        for idx in indices:
+            cur = float(out.at[idx, col_need]) if pd.notna(out.at[idx, col_need]) else 0.0
+            if rem <= 0:
+                break
+            if rem >= cur:
+                out.at[idx, col_need] = 0.0
+                rem -= cur
+            else:
+                out.at[idx, col_need] = cur - rem
+                rem = 0.0
+                break
+    return out
+inventory/mrp5.py:
+# inventory/mrp5.py 新逻辑去重: “combo_key 顺序遍历 + 外部剩余库存字典, 跨行去重, used_odm_pns 
+# 顺序扣减库存，真打孔 —— 库存数字被一行行扣光
+from __future__ import annotations
+import re
+import pandas as pd
+from utils.common import find_col, norm
+from config import ENABLE_MAXFLOW
+
+ACTIVE_LOCATIONS = {
+    "LNV-FA STORE", "LNV-FA-PROD-LINE", "LNV-FG STORE", "LNV-PACKING KIT",
+    "LNV-PAKG STORE", "LNV-PKGING LINE", "LNV-SMT KIT", "LNV-SMT STORE", "LNV-SMT-PROD"
+}
+
+def normalize_odm_pn(pn):
+    pn = str(pn).strip()
+    return pn.lstrip("0") if pn.isdigit() else pn
+
+def _strip_cols(df):
+    cols = ["CHILD"] + [c for c in df.columns if str(c).startswith("substitute")]
+    for col in cols:
+        if col in df.columns:
+            df[col] = df[col].astype(str).apply(normalize_odm_pn)
+
+def mrp5_1_compute(mfg_po_bom_mapping_df, odm_inv_df, enable_maxflow=False):
+    bom = mfg_po_bom_mapping_df.copy()
+    inv = odm_inv_df.copy()
+
+    inv.columns = [str(c).strip() for c in inv.columns]
+    col_odm_pn = find_col(inv, ["ODM PN", "PN", "Part Number"])
+    col_odm_qty = find_col(inv, ["ODM QTY", "QTY", "Quantity"])
+    col_loc_desc = find_col(inv, ["Location Desc", "Location", "Loc Desc"])
+
+    inv_filt = inv[inv[col_loc_desc].astype(str).str.strip().isin(ACTIVE_LOCATIONS)].copy()
+    inv_filt[col_odm_pn] = inv_filt[col_odm_pn].astype(str).apply(normalize_odm_pn)
+    inv_filt[col_odm_qty] = pd.to_numeric(inv_filt[col_odm_qty], errors="coerce").fillna(0)
+    inv_agg = inv_filt.groupby(col_odm_pn, as_index=False)[col_odm_qty].sum()
+    # 建一个可变的“剩余库存”字典，用于跨行去重
+    remaining_inv = dict(zip(inv_agg[col_odm_pn], inv_agg[col_odm_qty]))
+
+    _strip_cols(bom)
+    sub_cols = [c for c in bom.columns if str(c).startswith("substitute")]
+    all_match_cols = ["CHILD"] + sub_cols
+
+    def create_sorted_key(row):
+        parts = [normalize_odm_pn(str(row[c])) for c in all_match_cols if c in row and pd.notna(row[c])]
+        return ",".join(sorted(set(parts)))
+
+    bom["combo_key"] = bom.apply(create_sorted_key, axis=1)
+    bom["MENGE_times_MFG_PO_Qty"] = pd.to_numeric(
+        bom["MENGE_times_MFG_PO_Qty"], errors="coerce"
+    ).fillna(0)
+
+    agg = bom.groupby("combo_key", as_index=False).agg({"MENGE_times_MFG_PO_Qty": "sum"})
+    first_rows = bom.drop_duplicates("combo_key").set_index("combo_key")
+    for col in all_match_cols:
+        if col in first_rows.columns:
+            agg[col] = agg["combo_key"].map(first_rows[col])
+
+    # ---- 跨行去重核心：按 combo_key 顺序扣减库存 ----
+    def compute_dixon_qty(row):
+        candidates = [
+            normalize_odm_pn(str(row[c]))
+            for c in all_match_cols
+            if c in row and pd.notna(row[c])
+        ]
+        total = 0.0
+        for pn in candidates:
+            if pn in remaining_inv and remaining_inv[pn] > 0:
+                qty = remaining_inv[pn]
+                total += qty
+                remaining_inv[pn] = 0  # 一次性全部扣减
+        return total
+
+    agg["Dixon_inv_Qty"] = agg.apply(compute_dixon_qty, axis=1)
+
+    return agg
+
+def mrp5_2_compute(final_bom_agg_df, open_po_df):
+    df = final_bom_agg_df.copy()
+    opo = open_po_df.copy()
+
+    opo.columns = [str(c).strip() for c in opo.columns]
+    col_alt = find_col(opo, ["ALT Customer PN", "Alt Customer PN", "ALT_PN", "ALT PN"])
+    col_total = find_col(opo, ["Total", "Qty", "Quantity"])
+
+    opo[col_alt] = opo[col_alt].astype(str).str.strip().apply(normalize_odm_pn)
+    po_lookup = opo.groupby(col_alt)[col_total].sum().to_dict()
+
+    _strip_cols(df)
+    sub_cols = [c for c in df.columns if str(c).startswith("substitute")]
+    all_match_cols = ["CHILD"] + sub_cols
+
+    used_pns = set()
+    def _sum_total(row):
+        total = 0.0
+        for col in all_match_cols:
+            if col in row and pd.notna(row[col]):
+                pn = normalize_odm_pn(str(row[col]))
+                if pn not in used_pns:
+                    total += po_lookup.get(pn, 0.0)
+                    used_pns.add(pn)
+        return total
+
+    df["Dixon_Open_PO_Qty"] = df.apply(_sum_total, axis=1)
+    df["BPS"] = pd.to_numeric(df["MENGE_times_MFG_PO_Qty"], errors="coerce").fillna(0) - \
+                pd.to_numeric(df["Dixon_inv_Qty"], errors="coerce").fillna(0)
+    df["net_dmd_result"] = df["BPS"] - pd.to_numeric(df["Dixon_Open_PO_Qty"], errors="coerce").fillna(0)
+
+    return df

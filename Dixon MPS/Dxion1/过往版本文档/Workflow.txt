@@ -1,0 +1,83 @@
+1. bom_tool.py - passed
+input: DIXON+BOM+all (需要手工导入文件)
+output:  DIXON+BOM+all_expanded_bom_tree_sbb_roots 和 DIXON+BOM+all_bom_leaf
+
+2. MTM_SBB_mapping.py - passed
+input: Multi Product Raw Bill of Materials Export(需要手工导入文件)
+output: MTM_SBB_mapping
+
+3. SBB_MFG_PO_Qty_Mapping.py - passed
+input: Dixon MFG PO(需要手工导入文件)/MTM_SBB_mapping
+output: SBB_订单用量汇总
+
+3.1 补: SBB mapping Inv 文件中的SFG 扣除用来更新SBB订单用量, 然后再往下第4步
+先手工扣减SBB_订单用量汇总对应的SBB qty
+
+4. MFG_PO_BOM_mapping.py - passed
+input ：DIXON+BOM+all_bom_leaf和  SBB_订单用量汇总
+output：MFG_PO_BOM_mapping
+
+5. MRP的净需求和BPS计算 - MRP5.1 暂时pass/MRP5.2 checking
+
+MRP5.1.py 
+input: MFG_PO_BOM_mapping/ODM_INVERTORY(手工导入文件)
+output： Final_BOM_ODM_Mapping
+MRP5.2.py
+input：Final_BOM_ODM_Mapping/LNV Dixon Open PO(手工导入文件)
+output：  Net_dmd_BPS_result  
+
+
+
+
+
+第一次需求: 
+因为存在替代料字段substitute_1 到 substitute_n, 匹配料号需要遍历该行上对应的CHILD 到 substitute_n 的所有单元格, 
+该行从CHILD到substitute_n的全部单元格中都没有匹配到的ODM_INVERTORY和Open PO数量写为0, 匹配到的写入匹配值
+
+在文档 MFG_PO_BOM_mapping , MENGE_times_MFG_PO_Qty 字段后增一列字段, 字段名Dixon_inv_Qty, 用MFG_PO_BOM_mapping的Child字段 匹配 ODM_INVERTORY 的ODM PN， 填入ODM QTY的值, 需要注意的是： 因为存在替代料字段substitute_1 到 substitute_n, 匹配料号需要遍历该行上对应的CHILD 到 substitute_n 的所有单元格, 
+该行从CHILD到substitute_n的全部单元格中都没有匹配到的ODM_INVERTORY 文件中的ODM PN字段对应的ODM QTY数量写为0, 匹配到的写入匹配值到Dixon_inv_Qty
+
+
+增强需求1: 
+测试数据发现, MFG_PO_BOM_mapping的CHILD字段有多行的情况, ODM_INVERTORY文件中ODM PN字段也有这种情况, 所以我们在做最终mapping前, 需要汇总计算CHILD对应的MENGE_times_MFG_PO_Qty和 ODM PN对应的ODM QTY
+
+具体步骤: 
+substitute 字段排序与标准化：对每行的 CHILD到 substitute_n 做了排序，重新命名为 CHILD 到substitute_1 到 substitute_n，避免因顺序不同导致重复行。
+CHILD 汇总：对 CHILD 汇总了 MENGE_times_MFG_PO_Qty，并保留对应的 substitute 字段。
+ODM PN 汇总：对 ODM PN 汇总了 ODM QTY，确保库存数据唯一。
+遍历匹配：每行从 CHILD 到 substitute_n 遍历匹配 ODM PN，若匹配成功则填入对应 ODM QTY，否则填入 0 到 Dixon_inv_Qty 字段。
+
+增强需求2: 
+对每行的 CHILD 到 substitute_n 字段进行 排序并去重，生成标准化组合键（如 DAA0010T0A1,DAA0010T0A2,DAA0010T0A6）。
+按这个组合键进行 MENGE_times_MFG_PO_Qty 汇总，确保顺序不同但组合相同的行能正确合并。
+然后对组合中所有匹配到的唯一料号进行 库存加总，写入 Dixon_inv_Qty。
+若组合中无任何匹配，则 Dixon_inv_Qty = 0。
+增强要求3 ; 匹配成功后的库存值只需要填入一次, 避免重复
+增强4: 组合是AB/BC/CD的情况
+
+
+第二步， 匹配在途和计算净需求以及BPS
+
+具体操作如下：
+
+字段调整：
+
+将 MENGE_times_MFG_PO_Qty 移至 Dixon_inv_Qty 前一列。
+在 Dixon_inv_Qty 后新增列 Dixon_Open_PO_Qty。
+读取并处理 LNV Dixon Open PO：
+
+清理 ALT Customer PN 字段前的空格。
+汇总每个 ALT Customer PN 的 Total 数量。
+遍历匹配：
+
+对每行从 CHILD 到 substitute_n 所有字段进行匹配。
+若匹配成功，则填入对应的 Total 值；否则填入 0 到 Dixon_Open_PO_Qty。
+
+新增计算字段：
+
+BPS = MENGE_times_MFG_PO_Qty - Dixon_inv_Qty
+net_dmd_result = MENGE_times_MFG_PO_Qty - Dixon_inv_Qty - Dixon_Open_PO_Qty
+
+
+
+

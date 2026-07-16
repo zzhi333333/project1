@@ -1,0 +1,30 @@
+def run_mrp(bom_df, demand_df, stock_df, po_df=None, lead_time_days=0):
+    """
+    bom_df: DataFrame, 来自 process_bom_file() 的结果
+    demand_df: DataFrame, 成品需求量 + 交期
+    stock_df: DataFrame, 现有库存
+    po_df: DataFrame, 在途采购订单（可选）
+    lead_time_days: int, 提前期
+    return: DataFrame, 各物料的净需求计划
+    """
+    pass
+
+
+bom_network.py 只负责 BOM 展开和替代料处理，process_bom_file() 返回的 DataFrame 直接用。
+
+mrp_engine.py 负责 MRP 三步计算：
+
+BOM 展开得到物料用量（TotalQty）
+
+合并需求、库存、在途数据
+
+计算净需求 NetReq
+
+数据文件格式示例：
+
+demand.xlsx → Material, Demand
+
+stock.xlsx → Material, Stock
+
+po.xlsx → Material, POQty
+

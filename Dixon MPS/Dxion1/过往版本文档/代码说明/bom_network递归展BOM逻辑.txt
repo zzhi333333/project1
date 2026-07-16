@@ -1,0 +1,107 @@
+
+递归展开 BOM 结构。
+判断是否为叶子节点（没有子项）。
+检查是否存在替代件（同一组中有多个 IDNRK）。
+返回所有展开结果
+
+总结逻辑流程图
+parent
+ ├─ child1 (leaf?) ──> 记录 + 替代件检查
+ ├─ child2 (非叶子) ──> 递归展开
+ └─ ...
+
+
+
+
+def explode_bom(df_bom: pd.DataFrame, parent, qty_multiplier=1, visited=None, bomroot=None):
+参数说明：
+df_bom: BOM 数据表，包含物料之间的父子关系。
+parent: 当前展开的父项物料编号。
+qty_multiplier: 数量乘数，用于计算子件的总需求量。
+visited: 用于记录已访问的子件，避免重复展开。
+bomroot: 顶层物料编号，用于标识展开路径的起点。
+
+1. 初始化 visited 集合
+if visited is None:
+    visited = set()
+用于避免重复展开同一个子件，防止死循环。
+
+2. 找出当前父项的所有子项
+children = df_bom[df_bom['NAME'] == parent]
+results = []
+NAME 是父项物料编号，筛选出所有以 parent 为父项的记录。
+
+3. 遍历每个子项
+for _, row in children.iterrows():
+对每个子项进行如下处理：
+a. 提取子项信息
+child = row['IDNRK']
+qty = row['MENGE'] * qty_multiplier
+alpgr = row['ALPGR']
+current_bomroot = row.get('BOMROOT', bomroot) if 'BOMROOT' in df_bom.columns else bomroot
+
+IDNRK: 子项编号。
+MENGE: 子项数量。
+qty_multiplier: 用于计算总需求量。
+ALPGR: 替代组编号。
+BOMROOT: 顶层物料编号。
+
+b. 判断是否为叶子节点
+is_leaf = child not in set(df_bom['NAME'])
+
+如果子项没有作为其他项的父项出现，则为叶子节点。
+
+c. 如果是叶子节点，处理替代关系
+if is_leaf:
+    group_items = df_bom[(df_bom['NAME'] == parent) & (df_bom['ALPGR'] == alpgr)]
+    idnrk_counts = group_items['IDNRK'].value_counts()
+    is_substitute = (idnrk_counts > 1).any()
+找出同一替代组的所有子项。
+如果某个 IDNRK 出现多次，则认为存在替代关系。
+
+添加主子项记录
+results.append({
+    'BOMROOT': current_bomroot,
+    'Parent': parent,
+    'Child': child,
+    'TotalQty': qty,
+    'AltGroup': alpgr,
+    'IsSubstitute': is_substitute
+})
+如果存在替代件，添加替代项记录：
+if is_substitute:
+    duplicate_idnrks = idnrk_counts[idnrk_counts > 1].index.tolist()
+    for alt in duplicate_idnrks:
+        if alt != child:
+            results.append({
+                'BOMROOT': current_bomroot,
+                'Parent': parent,
+                'Child': alt,
+                'TotalQty': qty,
+                'AltGroup': alpgr,
+                'IsSubstitute': True
+            })
+d. 如果不是叶子节点，递归展开
+else:
+    results.extend(explode_bom(df_bom, child, qty, visited, current_bomroot))
+对子项继续展开，乘上当前的数量。
+
+e. 标记已访问的子项
+
+if child not in visited:
+    visited.add(child)
+避免重复展开。
+
+4. 返回结果列表
+
+return results
+
+
+
+另外发现了一个逻辑错误, 
+
+替代组理解有错误, 替代组NAME和ALPGR相同, 对应的INDRK 字段相同的值才是是替代组关系, 这个地方的判断逻辑代码需要修正一下，待确认正确的逻辑判断
+
+
+
+

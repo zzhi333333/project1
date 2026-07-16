@@ -1,0 +1,3 @@
+把以上文件按目录放好。
+安装依赖（与原来一致）：pip install pandas openpyxl networkx（networkx 可选）。
+运行 python Main.py，后续交互、输出路径与原单文件版完全一致

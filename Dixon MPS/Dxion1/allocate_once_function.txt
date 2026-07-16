@@ -1,0 +1,30 @@
+def allocate_once(df: pd.DataFrame, quantity_map: Dict[str, float], match_cols: List[str]) -> pd.Series:
+    """
+    Ensures each PN is only allocated once across rows.
+
+    Parameters:
+    - df: DataFrame containing PN columns
+    - quantity_map: dict mapping PN to available quantity
+    - match_cols: list of column names to match PNs
+
+    Returns:
+    - pd.Series of allocated quantities per row
+    """
+    used_pns = set()
+
+    def compute_qty(row):
+        total = 0.0
+        for col in match_cols:
+            if col in row and pd.notna(row[col]):
+                pn = str(row[col]).strip()
+                if pn in quantity_map and pn not in used_pns:
+                    total += quantity_map[pn]
+                    used_pns.add(pn)
+        return total
+
+    return df.apply(compute_qty, axis=1)
+
+
+
+调用示例
+    df["Dixon_inv_Qty"] = allocate_once(df, inv_lookup, all_match_cols)
