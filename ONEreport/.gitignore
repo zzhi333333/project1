@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+
+# Local editor and tooling state
+.vscode/
+.wdm/
+
+# Browser profiles and login/session state
+chrome_profile/
+chrome_profile_headless/
+onereport_cookies.pkl
+*.pkl
+
+# Generated outputs and logs
+downloads/
+logs/
+*.log
+*.tmp
+*.crdownload
+
+# Local credential helper / scratch script
+Env.py
+
+# Copilot/Claude local customization cache
+.claude/
