@@ -99,7 +99,9 @@ window.AI = (function () {
     var temp = parseFloat(cfg.temperature);
     if (isNaN(temp)) temp = 0.5;
     var body = {
-      baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model,
+      /* 走代理时需给完整 chat/completions 端点（代理按原样转发到该 URL） */
+      baseUrl: cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions",
+      apiKey: cfg.apiKey, model: cfg.model,
       temperature: temp, stream: true, messages: messages
     };
     var acc = "";                       /* 累计全文，随 Promise 返回 */
