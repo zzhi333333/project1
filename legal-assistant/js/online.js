@@ -94,7 +94,7 @@ window.ONLINE = (function () {
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  var STATUS_MAP = { "1": "现行有效", "2": "失效", "3": "尚未生效", "4": "已被修改", "5": "已废止", "9": "部分有效" };
+  var STATUS_MAP = { "1": "已废止", "2": "已被修改", "3": "有效", "4": "尚未生效" };
 
   function renderFlkResults(list, total) {
     var box = document.getElementById("flk-results");
@@ -114,8 +114,8 @@ window.ONLINE = (function () {
             '<span class="prop ' + (it.status === "1" ? "ok" : "warn") + '">' + (STATUS_MAP[it.status] || esc(it.status || "")) + '</span>' +
           '</div>' +
           '<div class="flk-actions">' +
-            '<button class="mini-btn primary" data-act="detail">查看法条正文</button>' +
-            '<a class="mini-btn" target="_blank" rel="noopener" href="https://flk.npc.gov.cn/detail2.html?' + encodeURIComponent(it.id) + '">数据库原文页</a>' +
+            '<button class="mini-btn primary" data-act="detail">查看官方元数据与文本</button>' +
+            '<a class="mini-btn" target="_blank" rel="noopener" href="https://flk.npc.gov.cn/detail?id=' + encodeURIComponent(it.id) + '">数据库原文页</a>' +
           '</div>' +
           '<div class="flk-body"></div>' +
         '</div>';
@@ -126,17 +126,28 @@ window.ONLINE = (function () {
       item.querySelector('[data-act="detail"]').addEventListener("click", function () {
         var bodyEl = item.querySelector(".flk-body");
         if (bodyEl.dataset.loaded) { bodyEl.classList.toggle("hidden"); return; }
-        bodyEl.innerHTML = '<div class="loading">正在从国家法律法规数据库获取正文…</div>';
+        bodyEl.innerHTML = '<div class="loading">正在从国家法律法规数据库获取…</div>';
         flkDetail(item.getAttribute("data-id")).then(function (r) {
           if (!r.ok) { bodyEl.innerHTML = '<div class="tool-warn">' + esc(r.msg || "获取失败，请稍后重试") + '</div>'; return; }
           var links = r.links || {};
+          var m = r.meta || {};
+          var chip = function (t) { return '<span class="prop">' + esc(t) + '</span>'; };
+          var okCls = m.status === "3" ? "ok" : "warn";
           bodyEl.innerHTML =
-            '<div class="flk-doc">' + esc(r.text || "（未能解析正文，请打开原文页或附件）") + '</div>' +
-            '<div class="flk-files">' +
-              (links.word ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.word) + '">下载 Word 版</a>' : "") +
-              (links.pdf ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.pdf) + '">下载 PDF 版</a>' : "") +
-              (links.html ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.html) + '">网页版正文</a>' : "") +
-            '</div>';
+            '<div class="flk-props">' +
+              (m.flxz ? chip("性质：" + m.flxz) : "") +
+              (m.office ? chip("制定机关：" + m.office) : "") +
+              (m.publish ? chip("公布：" + m.publish) : "") +
+              (m.expiry ? chip("施行：" + m.expiry) : "") +
+              (m.status ? '<span class="prop ' + okCls + '">' + (STATUS_MAP[m.status] || esc(m.status)) + '</span>' : "") +
+            '</div>' +
+            '<div class="flk-actions">' +
+              (links.preview ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(links.preview) + '">📖 官方在线预览</a>' : "") +
+              (links.word ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.word) + '">下载 Word 正式文本</a>' : "") +
+              (links.pdf ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.pdf) + '">下载 PDF 正式文本</a>' : "") +
+              (links.relatedCount ? '<span class="prop">相关资料 ' + esc(links.relatedCount) + ' 件</span>' : "") +
+            '</div>' +
+            '<div class="dim" style="margin-top:8px;font-size:12.5px">正文由数据库以 Word/PDF 正式文本提供（官方签名直链，约1小时内有效）；「在线预览」为官方阅读器页面。</div>';
           bodyEl.dataset.loaded = "1";
         }).catch(function () {
           bodyEl.innerHTML = '<div class="tool-warn">网络请求失败，请确认本地服务与外网连接正常。</div>';
@@ -214,7 +225,7 @@ window.ONLINE = (function () {
         if (!q) return;
         if (!ensureOnline(document.getElementById("flk-results"))) return;
         document.getElementById("flk-results").innerHTML = '<div class="loading">正在检索国家法律法规数据库…</div>';
-        flkSearch(q).then(renderFlkResults).catch(function () {
+        flkSearch(q).then(function (resp) { renderFlkResults(resp.results, resp.total); }).catch(function () {
           document.getElementById("flk-results").innerHTML = '<div class="tool-warn">检索请求失败：请确认本地服务已启动、外网可访问 flk.npc.gov.cn。</div>';
         });
       }

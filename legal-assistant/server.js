@@ -66,40 +66,47 @@ function getJSON(urlStr, headers, cb) {
   });
 }
 
-/* ---------------- 国家法律法规数据库 flk.npc.gov.cn ---------------- */
+/* ---------------- 国家法律法规数据库 flk.npc.gov.cn（2026 新版 SPA 接口） ---------------- */
+var FLK_HOST = "flk.npc.gov.cn";
+var FLK_HEADERS = function (extra) {
+  return Object.assign({
+    "User-Agent": UA, "Referer": "https://flk.npc.gov.cn/",
+    "Origin": "https://flk.npc.gov.cn", "X-Requested-With": "XMLHttpRequest"
+  }, extra || {});
+};
+
 function flkSearch(q, page, cb) {
+  /* POST /law-search/search/list —— 2026 新版接口（旧 POST /api/ 已下线） */
   var payload = JSON.stringify({
-    type: "flfg", searchType: "title;vague", sortTr: "f_bbrq_s;desc",
-    gbrqStart: "", gbrqEnd: "", sxrqStart: "", sxrqEnd: "",
-    sort: true, page: page || 1, size: 10, _: Date.now(), q: [q]
+    searchContent: q, searchRange: 1, searchType: 2,
+    sxx: [], gbrq: [], sxrq: [],
+    pageNum: page || 1, pageSize: 10
   });
-  var u = new URL("https://flk.npc.gov.cn/api/");
   request({
-    protocol: "https:", hostname: u.hostname, path: u.pathname, method: "POST",
-    headers: {
+    protocol: "https:", hostname: FLK_HOST, path: "/law-search/search/list", method: "POST",
+    headers: FLK_HEADERS({
       "Content-Type": "application/json;charset=UTF-8",
-      "User-Agent": UA, "Referer": "https://flk.npc.gov.cn/", "Origin": "https://flk.npc.gov.cn",
       "Content-Length": Buffer.byteLength(payload)
-    }
+    })
   }, payload, function (err, buf, res) {
     if (err) return cb(err);
     var json;
     try { json = JSON.parse(buf.toString("utf8")); }
     catch (e) { return cb(new Error("flk 返回异常(" + res.statusCode + ")，可能被临时限流，请稍后重试")); }
-    var data = (json.result && json.result.data) || [];
-    var list = data.map(function (it) {
-      /* 详情 id 兼容多种返回形态：url("../detail2.html?xxx") 或直接给 id */
-      var id = it.id || "";
-      if (!id && it.url) {
-        var m = String(it.url).match(/\?([^./][^#]*)$/);
-        if (m) id = m[1];
-      }
+    if (json.code !== 200) return cb(new Error("flk 检索失败：" + json.msg));
+    var rows = json.rows || [];
+    var list = rows.map(function (it) {
       return {
-        title: it.title, office: it.office, publish: it.publish || it.bbrq || "",
-        expiry: it.expiry, type: it.type || it.level, status: it.status, id: decodeURIComponent(id)
+        id: it.bbbs,
+        title: String(it.title || "").replace(/<[^>]+>/g, ""),   /* 去掉高亮 <em> 标记 */
+        office: it.zdjgName,
+        publish: it.gbrq || "",
+        expiry: it.sxrq || "",
+        type: it.flxz,
+        status: String(it.sxx)   /* 1=已废止 2=已被修改 3=有效 4=尚未生效 */
       };
     });
-    cb(null, { total: (json.result && json.result.totalSizes) || list.length, list: list });
+    cb(null, { total: json.total || list.length, list: list });
   });
 }
 
@@ -117,47 +124,67 @@ function htmlToText(html) {
 }
 
 function flkDetail(id, cb) {
-  var form = "id=" + encodeURIComponent(id);
-  var u = new URL("https://flk.npc.gov.cn/api/detail");
+  /* GET /law-search/search/flfgDetails?bbbs=... → 元数据 + 官方文件（正文以 Word/PDF 文件提供） */
+  var detailPath = "/law-search/search/flfgDetails?bbbs=" + encodeURIComponent(id);
   request({
-    protocol: "https:", hostname: u.hostname, path: u.pathname, method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      "User-Agent": UA, "Referer": "https://flk.npc.gov.cn/detail2.html?" + encodeURIComponent(id),
-      "Content-Length": Buffer.byteLength(form)
-    }
-  }, form, function (err, buf) {
+    protocol: "https:", hostname: FLK_HOST, path: detailPath, method: "GET",
+    headers: FLK_HEADERS({})
+  }, null, function (err, buf, res) {
     if (err) return cb(err);
     var json;
     try { json = JSON.parse(buf.toString("utf8")); }
-    catch (e) { return cb(new Error("flk 详情返回异常，请稍后重试")); }
-    var r = json.result || {};
-    var links = {};
-    var text = "";
-    (r.body || []).forEach(function (b) {
-      var p = b.url ? (String(b.url).indexOf("http") === 0 ? b.url : "https://wb.flk.npc.gov.cn" + b.url) : null;
-      if (!p) return;
-      if (/html?$/i.test(p)) { links.html = p; }
-      else if (/\.docx?$/i.test(p)) { links.word = p; }
-      else if (/\.pdf$/i.test(p)) { links.pdf = p; }
-      else if (/\.ofd$/i.test(p)) { links.ofd = p; }
-    });
-    /* 优先抓网页版正文；没有则用接口内的 qwContent 兜底 */
-    if (links.html) {
-      var hu = new URL(links.html);
-      request({ protocol: "https:", hostname: hu.hostname, path: hu.pathname + hu.search, method: "GET", headers: { "User-Agent": UA, "Referer": "https://flk.npc.gov.cn/" } }, null, function (e2, b2) {
-        if (!e2 && b2) {
-          var t = htmlToText(b2.toString("utf8"));
-          if (t.length > 100) text = t;
-        }
-        cb(null, { title: r.title, status: r.status, publish: r.publish, links: links, text: text });
+    catch (e) { return cb(new Error("flk 详情返回异常(" + res.statusCode + ")")); }
+    if (json.code !== 200 || !json.data) return cb(new Error("flk 详情获取失败：" + json.msg));
+    var d = json.data;
+
+    /* xgzl = 相关资料列表（修订说明等）；主文本下载无需 fileId */
+    var xgzl = d.xgzl || [];
+
+    /* 主文本下载：download/pc 无需 fileId，凭 bbbs+format 即可取签名直链 */
+    function signedDownload(format, done) {
+      var p = "/law-search/download/pc?format=" + format + "&bbbs=" + encodeURIComponent(id);
+      request({ protocol: "https:", hostname: FLK_HOST, path: p, method: "GET", headers: FLK_HEADERS({}) }, null, function (e2, b2) {
+        if (e2) return done(null);
+        try {
+          var j = JSON.parse(b2.toString("utf8"));
+          done(j.code === 200 && j.data && j.data.url ? j.data.url : null);
+        } catch (e3) { done(null); }
       });
-    } else {
-      (r.body || []).forEach(function (b) {
-        if (b.qwContent && !text) text = htmlToText(b.qwContent);
-      });
-      cb(null, { title: r.title, status: r.status, publish: r.publish, links: links, text: text });
     }
+    function signedPreview(done) {
+      if (!d.ossFile || !d.ossFile.ossWordPath) return done(null);
+      var p = "/law-search/amazonFile/previewLink?filePath=" + encodeURIComponent(d.ossFile.ossWordPath);
+      request({ protocol: "https:", hostname: FLK_HOST, path: p, method: "GET", headers: FLK_HEADERS({}) }, null, function (e2, b2) {
+        if (e2) return done(null);
+        try {
+          var j = JSON.parse(b2.toString("utf8"));
+          done(j.code === 200 && j.data && j.data.url ? j.data.url : null);
+        } catch (e3) { done(null); }
+      });
+    }
+
+    var links = { relatedCount: xgzl.length };
+    var pending = 0, finished = false;
+    function tryFinish() {
+      if (!finished && pending === 0) {
+        finished = true;
+        cb(null, {
+          title: d.title, text: "",
+          meta: {
+            flxz: d.flxz, office: d.zdjgName, publish: d.gbrq,
+            expiry: d.sxrq, status: String(d.sxx)
+          },
+          links: links
+        });
+      }
+    }
+    pending++;
+    signedPreview(function (u) { links.preview = u; pending--; tryFinish(); });
+    pending++;
+    signedDownload("docx", function (u) { links.word = u; pending--; tryFinish(); });
+    pending++;
+    signedDownload("pdf", function (u) { links.pdf = u; pending--; tryFinish(); });
+    tryFinish();
   });
 }
 
@@ -315,7 +342,7 @@ var server = http.createServer(function (req, res) {
     if (!id) return sendJSON(res, 200, { ok: false, msg: "缺少参数 id" });
     return cached("flkd:" + id, function (done) { flkDetail(id, done); }, function (err, v) {
       if (err) return sendJSON(res, 200, { ok: false, msg: err.message });
-      sendJSON(res, 200, { ok: true, title: v.title, text: v.text, links: v.links });
+      sendJSON(res, 200, { ok: true, title: v.title, text: v.text, links: v.links, meta: v.meta });
     });
   }
 

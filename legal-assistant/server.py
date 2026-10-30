@@ -70,76 +70,85 @@ def html_to_text(html):
     return re.sub(r"\n\s*\n\s*\n+", "\n\n", html).strip()
 
 
-# ---------------- flk.npc.gov.cn ----------------
-def flk_search(q, page=1):
-    payload = json.dumps({
-        "type": "flfg", "searchType": "title;vague", "sortTr": "f_bbrq_s;desc",
-        "gbrqStart": "", "gbrqEnd": "", "sxrqStart": "", "sxrqEnd": "",
-        "sort": True, "page": page, "size": 10, "_": int(time.time() * 1000),
-        "q": [q],
-    }).encode("utf-8")
-    status, body = http_request(
-        "https://flk.npc.gov.cn/api/", method="POST", data=payload,
-        headers={"Content-Type": "application/json;charset=UTF-8",
-                 "Referer": "https://flk.npc.gov.cn/",
-                 "Origin": "https://flk.npc.gov.cn"})
+# ---------------- flk.npc.gov.cn（2026 新版 SPA 接口） ----------------
+def _flk_headers(extra=None):
+    h = {"Referer": "https://flk.npc.gov.cn/", "Origin": "https://flk.npc.gov.cn",
+         "X-Requested-With": "XMLHttpRequest"}
+    if extra:
+        h.update(extra)
+    return h
+
+
+def _flk_get(path):
+    status, body = http_request("https://flk.npc.gov.cn" + path,
+                                headers=_flk_headers())
     if status != 200:
         raise RuntimeError("flk 返回状态 %s，可能被限流，请稍后重试" % status)
-    data = json.loads(body.decode("utf-8")).get("result") or {}
-    items = data.get("data") or []
+    return json.loads(body.decode("utf-8"))
+
+
+def flk_search(q, page=1):
+    """POST /law-search/search/list —— 2026 新版接口（旧 POST /api/ 已下线）"""
+    payload = json.dumps({
+        "searchContent": q, "searchRange": 1, "searchType": 2,
+        "sxx": [], "gbrq": [], "sxrq": [],
+        "pageNum": page, "pageSize": 10,
+    }).encode("utf-8")
+    status, body = http_request(
+        "https://flk.npc.gov.cn/law-search/search/list", method="POST", data=payload,
+        headers=_flk_headers({"Content-Type": "application/json;charset=UTF-8"}))
+    if status != 200:
+        raise RuntimeError("flk 返回状态 %s，可能被限流，请稍后重试" % status)
+    data = json.loads(body.decode("utf-8"))
+    if data.get("code") != 200:
+        raise RuntimeError("flk 检索失败：" + str(data.get("msg")))
+    rows = data.get("rows") or []
     out = []
-    for it in items:
-        lid = it.get("id") or ""
-        if not lid and it.get("url"):
-            m = re.search(r"\?([^./][^#]*)$", str(it["url"]))
-            if m:
-                lid = m.group(1)
+    for it in rows:
         out.append({
-            "title": it.get("title"), "office": it.get("office"),
-            "publish": it.get("publish") or it.get("bbrq") or "",
-            "type": it.get("type") or it.get("level"),
-            "status": it.get("status"),
-            "id": urllib.parse.unquote(lid),
+            "id": it.get("bbbs"),
+            "title": re.sub(r"<[^>]+>", "", str(it.get("title") or "")),  # 去掉高亮标记
+            "office": it.get("zdjgName"),
+            "publish": it.get("gbrq") or "",
+            "expiry": it.get("sxrq") or "",
+            "type": it.get("flxz"),
+            "status": str(it.get("sxx")),  # 1=已废止 2=已被修改 3=有效 4=尚未生效
         })
-    return {"total": data.get("totalSizes") or len(out), "list": out}
+    return {"total": data.get("total") or len(out), "list": out}
 
 
 def flk_detail(lid):
-    form = urllib.parse.urlencode({"id": lid}).encode("utf-8")
-    status, body = http_request(
-        "https://flk.npc.gov.cn/api/detail", method="POST", data=form,
-        headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                 "Referer": "https://flk.npc.gov.cn/detail2.html?" + urllib.parse.quote(lid)})
-    if status != 200:
-        raise RuntimeError("flk 详情返回状态 %s" % status)
-    r = json.loads(body.decode("utf-8")).get("result") or {}
-    links, text = {}, ""
-    for b in r.get("body") or []:
-        p = b.get("url") or ""
-        if not p:
-            continue
-        if not p.startswith("http"):
-            p = "https://wb.flk.npc.gov.cn" + p
-        if re.search(r"\.html?$", p, re.I):
-            links["html"] = p
-        elif re.search(r"\.docx?$", p, re.I):
-            links["word"] = p
-        elif re.search(r"\.pdf$", p, re.I):
-            links["pdf"] = p
-        elif re.search(r"\.ofd$", p, re.I):
-            links["ofd"] = p
-    if links.get("html"):
-        s2, b2 = http_request(links["html"], headers={"Referer": "https://flk.npc.gov.cn/"})
-        if s2 == 200 and b2:
-            t = html_to_text(b2.decode("utf-8", "ignore"))
-            if len(t) > 100:
-                text = t
-    if not text:
-        for b in r.get("body") or []:
-            if b.get("qwContent"):
-                text = html_to_text(b["qwContent"])
-                break
-    return {"title": r.get("title"), "links": links, "text": text}
+    """GET /law-search/search/flfgDetails → 元数据 + 官方文件签名直链"""
+    data = _flk_get("/law-search/search/flfgDetails?bbbs=" + urllib.parse.quote(lid))
+    if data.get("code") != 200 or not data.get("data"):
+        raise RuntimeError("flk 详情获取失败：" + str(data.get("msg")))
+    d = data["data"]
+    xgzl = d.get("xgzl") or []
+
+    def signed_download(fmt):
+        try:
+            j = _flk_get("/law-search/download/pc?format=%s&bbbs=%s"
+                         % (fmt, urllib.parse.quote(lid)))
+            if j.get("code") == 200 and j.get("data") and j["data"].get("url"):
+                return j["data"]["url"]
+        except Exception:
+            pass
+        return None
+
+    links = {"relatedCount": len(xgzl)}
+    if d.get("ossFile") and d["ossFile"].get("ossWordPath"):
+        try:
+            j = _flk_get("/law-search/amazonFile/previewLink?filePath="
+                         + urllib.parse.quote(d["ossFile"]["ossWordPath"]))
+            if j.get("code") == 200 and j.get("data") and j["data"].get("url"):
+                links["preview"] = j["data"]["url"]
+        except Exception:
+            pass
+    links["word"] = signed_download("docx")
+    links["pdf"] = signed_download("pdf")    return {"title": d.get("title"), "links": links, "text": "",
+            "meta": {"flxz": d.get("flxz"), "office": d.get("zdjgName"),
+                     "publish": d.get("gbrq"), "expiry": d.get("sxrq"),
+                     "status": str(d.get("sxx"))}}
 
 
 # ---------------- 案例：经必应 site: 定位 ----------------
@@ -294,7 +303,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "msg": "缺少参数 id"})
             try:
                 v = cached("flkd:%s" % lid, lambda: flk_detail(lid))
-                return self._json({"ok": True, "title": v["title"], "text": v["text"], "links": v["links"]})
+                return self._json({"ok": True, "title": v["title"], "text": v["text"],
+                                   "links": v["links"], "meta": v.get("meta")})
             except Exception as e:
                 return self._json({"ok": False, "msg": str(e)})
 
