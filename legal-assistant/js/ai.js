@@ -1,6 +1,6 @@
 /* =========================================================
  * AI 模型接入 ai.js
- * —— 用户可选服务商（智谱/DeepSeek/Kimi/通义/OpenAI/Ollama/自定义），
+ * —— 用户可选服务商（智谱/DeepSeek/Kimi/通义/百度千帆/OpenAI/Ollama/自定义），
  *    OpenAI 兼容协议；密钥仅存本机 localStorage；
  *    优先经本地代理 /api/ai/chat 转发（解决跨域），不可用时尝试直连。
  * —— 三个集成点：
@@ -16,6 +16,7 @@ window.AI = (function () {
     deepseek: { name: "DeepSeek 深度求索", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
     kimi:     { name: "月之暗面 Kimi", baseUrl: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
     qwen:     { name: "阿里通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
+    qianfan:  { name: "百度千帆（OpenAI 兼容 v2）", baseUrl: "https://qianfan.baidubce.com/v2", model: "ernie-4.5-turbo-128k" },
     openai:   { name: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
     ollama:   { name: "本地 Ollama（无需密钥）", baseUrl: "http://127.0.0.1:11434/v1", model: "qwen2.5:7b" },
     custom:   { name: "自定义（OpenAI 兼容接口）", baseUrl: "", model: "" }

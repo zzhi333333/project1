@@ -256,6 +256,7 @@
           <option value="deepseek">DeepSeek 深度求索</option>
           <option value="kimi">月之暗面 Kimi</option>
           <option value="qwen">阿里通义千问</option>
+          <option value="qianfan">百度千帆（OpenAI 兼容 v2）</option>
           <option value="openai">OpenAI</option>
           <option value="ollama">本地 Ollama（无需密钥）</option>
           <option value="custom">自定义（OpenAI 兼容接口）</option>
@@ -267,7 +268,7 @@
       <label>回答随机性 temperature（<span id="ai-temp-val">0.5</span>）
         <input id="ai-temp" type="range" min="0" max="1" step="0.1" value="0.5">
       </label>
-      <div class="modal-note">🔒 API Key 仅保存在本机浏览器（localStorage），请求经<b>本地代理服务</b>转发，不会经过任何第三方服务器。推荐智谱 <b>glm-4-flash</b>（官方免费）；已装 Ollama 的可选本地模型，无需联网与密钥。跨域受限时请运行 <code>node server.js</code> 或 <code>python server.py</code>。</div>
+      <div class="modal-note">🔒 API Key 仅保存在本机浏览器（localStorage），请求经<b>本地代理服务</b>转发，不会经过任何第三方服务器。推荐智谱 <b>glm-4-flash</b>（官方免费）；百度千帆的 API Key 在千帆控制台「API Key」页创建（<code>bce-v3/ALTAK-...</code> 开头，v2 接口直接用作 Bearer Token）；已装 Ollama 的可选本地模型，无需联网与密钥。跨域受限时请运行 <code>node server.js</code> 或 <code>python server.py</code>。</div>
       <div id="ai-status" class="ai-status"></div>
     </div>
     <div class="modal-foot">
