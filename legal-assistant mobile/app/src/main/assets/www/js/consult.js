@@ -5,17 +5,13 @@
 (function () {
   var state = { scenario: null, answers: {}, qIndex: 0, active: false };
 
-  /* ---------- 领域分类：关键词加权投票 ---------- */
-  var DOMAIN_KEYWORDS = {
-    labor: ["工资","加班","辞退","解雇","开除","裁员","试用期","劳动合同","社保","五险","工伤","年假","年休假","补偿金","赔偿金","竞业限制","离职","入职","调岗","降薪","拖欠","克扣","工时","辞职","单位","员工","老板","上司","入职","转正","医疗期","哺乳期","孕期","劳动仲裁","停工留薪","工龄","最低工资","五险一金","公积金","夜班","值班","考勤","打卡","员工手册","工牌","劳务"],
-    company: ["公司","股东","股权","注册资本","认缴","实缴","减资","增资","章程","股东会","董事会","监事","法定代表人","清算","注销","吊销","分红","查账","知情权","决议","转让股权","一人公司","人格否认","连带责任","抽逃出资","出资","董事","高管","董监高","合并","分立","收购","尽调","目标公司","代持","显名","股东代表诉讼","营业期限","营业执照","工商登记","企业信用"],
-    patent: ["专利","发明","实用新型","外观设计","权利要求","专利申请","侵权","无效宣告","职务发明","优先权","PCT","知识产权局","专利权","专利号","现有技术","新颖性","创造性","许可费","警告函","FTO","年费","专利代理","技术方案","专利诉讼","国知局","专利检索","署名","专利评价报告","临时保护"]
-  };
-
+  /* ---------- 领域分类：关键词加权投票（关键词来自领域注册表） ---------- */
   function classifyDomain(text) {
-    var scores = { labor: 0, company: 0, patent: 0 };
-    Object.keys(DOMAIN_KEYWORDS).forEach(function (d) {
-      DOMAIN_KEYWORDS[d].forEach(function (kw) {
+    var KW = window.DomainRegistry.allKeywords();
+    var scores = {};
+    Object.keys(KW).forEach(function (d) { scores[d] = 0; });
+    Object.keys(KW).forEach(function (d) {
+      KW[d].forEach(function (kw) {
         if (text.indexOf(kw) > -1) scores[d] += kw.length >= 3 ? 2 : 1;
       });
     });
@@ -38,7 +34,7 @@
       return { s: s, score: score };
     });
     list.sort(function (a, b) { return b.score - a.score; });
-    return list.filter(function (x) { return x.score > 1.5; }).map(function (x) { return x.s; });
+    return list.filter(function (x) { return x.score >= 1.5; }).map(function (x) { return x.s; });
   }
 
   /* ---------- 对外接口 ---------- */
@@ -101,7 +97,7 @@
       UI.appendBot("抱歉，分析过程出现了一点问题，请换个说法重新描述。", null);
       return;
     }
-    UI.appendResult(state.scenario, r);
+    UI.appendResult(state.scenario, r, state.answers);
   }
 
   /* 快捷入口（点击场景卡片直接开始） */

@@ -15,11 +15,13 @@ window.BRIDGE = (function () {
 
   var seq = 0;
   var pending = {};
+  var activeStreamId = null;   /* 当前进行中的流式请求（配合 AI「⏹ 停止」） */
 
   window.__brResolve = function (cbId, ok, payload) {
     var p = pending[cbId];
     if (!p) return;
     delete pending[cbId];
+    if (cbId === activeStreamId) activeStreamId = null;
     payload = payload || {};
     if (ok) p.resolve(payload);
     else p.reject(new Error(payload.msg || ("请求失败（status=" + payload.status + "）")));
@@ -44,6 +46,7 @@ window.BRIDGE = (function () {
       setTimeout(function () {
         if (pending[id]) {
           delete pending[id];
+          if (id === activeStreamId) activeStreamId = null;
           reject(new Error("原生网络请求超时（无响应）"));
         }
       }, 200000);
@@ -58,7 +61,24 @@ window.BRIDGE = (function () {
     },
     /* stream("POST", url, headers, body, onChunk) → Promise<{status, text}>，onChunk 收到原始文本块 */
     stream: function (method, url, headers, body, onChunk) {
-      return call("stream", [method, url, JSON.stringify(headers || {}), body || ""], onChunk);
+      var pr = call("stream", [method, url, JSON.stringify(headers || {}), body || ""], onChunk);
+      /* 记录活动流 id：stream 的 args 末位即 cbId，由 call 内部分配 —— 这里通过 pending 的最后键获取 */
+      var ids = Object.keys(pending);
+      activeStreamId = ids[ids.length - 1];
+      return pr;
+    },
+    /* AI「⏹ 停止」：断开当前流式连接；错误信息含 abort，ai.js 会显示「（已停止生成）」 */
+    cancelActive: function () {
+      var id = activeStreamId;
+      if (!id) return;
+      activeStreamId = null;
+      var p = pending[id];
+      if (p) { delete pending[id]; p.reject(new Error("Request aborted (abort)")); }
+      try { native.cancel(id); } catch (e) {}
+    },
+    /* 数据备份导出：原生「另存为」选择器 → Promise<void>，用户取消时 reject({cancelled:true}) */
+    exportFile: function (filename, content) {
+      return call("exportFile", [filename, content]);
     },
     openUrl: function (url) { try { native.openUrl(url); } catch (e) {} },
     toast: function (msg) { try { native.toast(msg); } catch (e) {} },

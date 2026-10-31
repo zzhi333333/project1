@@ -93,12 +93,15 @@ window.AI = (function () {
 
   /* ---------------- 对话主入口 ----------------
      opts 可覆盖当前设置（测试连接时使用，避免污染已保存配置） */
+  var activeCtrl = null;
   function aiChat(messages, onDelta, opts) {
     var cfg = Object.assign({}, S, opts || {});
     if (!cfg.baseUrl) return Promise.reject(new Error("未配置接口地址（Base URL），请点击右上角「AI 模型」设置。"));
     if (!cfg.apiKey && cfg.provider !== "ollama") return Promise.reject(new Error("未配置 API Key，请点击右上角「AI 模型」设置。"));
     var temp = parseFloat(cfg.temperature);
     if (isNaN(temp)) temp = 0.5;
+    var ctrl = new AbortController();
+    activeCtrl = ctrl;
     var body = {
       /* 走代理时需给完整 chat/completions 端点（代理按原样转发到该 URL） */
       baseUrl: cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions",
@@ -132,6 +135,12 @@ window.AI = (function () {
           } catch (e) { /* 忽略无法解析的行 */ }
         }
       };
+      /* 「⏹ 停止」→ AbortController 触发 → 通知原生断开当前连接 */
+      if (ctrl && ctrl.signal) {
+        ctrl.signal.addEventListener("abort", function () {
+          window.BRIDGE.cancelActive();
+        });
+      }
       return window.BRIDGE.stream("POST",
         cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions",
         { "Content-Type": "application/json", "Authorization": "Bearer " + (cfg.apiKey || "") },
@@ -148,7 +157,6 @@ window.AI = (function () {
         throw new Error(String(e && e.message || e));
       });
     }
-
     return detectProxy().then(function (pb) {
       var viaProxy = pb !== false;
       var p;
@@ -170,7 +178,7 @@ window.AI = (function () {
     function post(url, b) {
       return fetch(url, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(b)
+        body: JSON.stringify(b), signal: ctrl.signal
       }).then(function (r) {
         if (!r.ok) return r.text().then(function (t) {
           throw new Error("上游返回 " + r.status + "：" + t.slice(0, 300));
@@ -182,7 +190,8 @@ window.AI = (function () {
       return fetch(cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.apiKey },
-        body: JSON.stringify({ model: cfg.model, messages: b.messages, temperature: b.temperature, stream: true })
+        body: JSON.stringify({ model: cfg.model, messages: b.messages, temperature: b.temperature, stream: true }),
+        signal: ctrl.signal
       }).then(function (r) {
         if (!r.ok) return r.text().then(function (t) {
           throw new Error("直连返回 " + r.status + "：" + t.slice(0, 300));
@@ -227,6 +236,11 @@ window.AI = (function () {
     var div = document.createElement("div");
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar">🤖</div><div class="bubble ai-stream"><span class="ai-text"></span><span class="ai-cursor">▍</span></div>';
+    var stop = document.createElement("button");
+    stop.className = "ai-stop";
+    stop.textContent = "⏹ 停止";
+    stop.addEventListener("click", function () { window.AI.stopCurrent(); });
+    div.appendChild(stop);
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
     return div;
@@ -239,6 +253,7 @@ window.AI = (function () {
   function finishBubble(div, text) {
     var cursor = div.querySelector(".ai-cursor");
     if (cursor) cursor.remove();
+    div.querySelectorAll(".ai-stop").forEach(function (x) { x.remove(); });
     setText(div, text);
   }
 
@@ -262,7 +277,15 @@ window.AI = (function () {
       aiHistory.push({ role: "user", content: text }, { role: "assistant", content: full });
       if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
     }).catch(function (e) {
-      finishBubble(div, "⚠️ " + (e && e.message || e));
+      var msg = (e && e.message || String(e));
+      if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
+      finishBubble(div, "⚠️ " + msg);
+      var rbtn = document.createElement("button");
+      rbtn.className = "mini-btn";
+      rbtn.style.marginTop = "8px";
+      rbtn.textContent = "🔄 重试";
+      rbtn.addEventListener("click", function () { div.remove(); aiConsult(text); });
+      div.querySelector(".bubble").appendChild(rbtn);
     });
   }
 
@@ -383,6 +406,17 @@ window.AI = (function () {
       if (btn) aiDeepResult(btn.getAttribute("data-rid"));
     });
 
+    /* 数据备份：导出 / 导入 */
+    var expBtn = document.getElementById("data-export");
+    if (expBtn) expBtn.addEventListener("click", exportData);
+    var impBtn = document.getElementById("data-import");
+    if (impBtn) impBtn.addEventListener("click", function () { document.getElementById("data-import-file").click(); });
+    var impFile = document.getElementById("data-import-file");
+    if (impFile) impFile.addEventListener("change", function (e) {
+      if (e.target.files[0]) importData(e.target.files[0]);
+      e.target.value = "";
+    });
+
     syncToggleLabel();
   }
 
@@ -396,10 +430,59 @@ window.AI = (function () {
   }
 
   function resetHistory() { aiHistory = []; }
+  function stopCurrent() { if (activeCtrl) activeCtrl.abort(); }
+
+  /* ---------------- 数据备份：导出 / 导入 ---------------- */
+  function exportData() {
+    var payload = {
+      app: "legal-assistant", version: 1, exportedAt: new Date().toISOString(),
+      chatSessions: JSON.parse(localStorage.getItem("legal-chat-sessions") || "[]"),
+      chatCurrent: localStorage.getItem("legal-chat-current"),
+      aiSettings: S
+    };
+    /* App 内：调用原生「另存为」选择器写文件（WebView 的 blob 下载不可靠） */
+    if (window.BRIDGE && window.BRIDGE.available) {
+      setStatus("⏳ 请选择保存位置…");
+      window.BRIDGE.exportFile("legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json",
+        JSON.stringify(payload, null, 2))
+        .then(function () { setStatus("✅ 备份已导出", "ok"); })
+        .catch(function (e) {
+          var m = e && e.message || String(e);
+          setStatus(/cancel/i.test(m) ? "已取消导出" : "❌ 导出失败：" + m);
+        });
+      return;
+    }
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus("✅ 备份已导出到下载目录", "ok");
+  }
+  function importData(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var d = JSON.parse(reader.result);
+        if (!d || d.app !== "legal-assistant") throw new Error("不是本工具的备份文件");
+        if (!confirm("导入将覆盖当前的对话历史与 AI 设置，是否继续？")) return;
+        if (d.chatSessions) localStorage.setItem("legal-chat-sessions", JSON.stringify(d.chatSessions));
+        if (d.chatCurrent) localStorage.setItem("legal-chat-current", d.chatCurrent);
+        if (d.aiSettings) { S = Object.assign({}, DEFAULTS, d.aiSettings); save(); }
+        setStatus("✅ 导入成功，页面即将刷新", "ok");
+        setTimeout(function () { location.reload(); }, 800);
+      } catch (e) {
+        setStatus("❌ 导入失败：" + (e && e.message || e));
+      }
+    };
+    reader.readAsText(file);
+  }
 
   return {
     init: init, aiChat: aiChat, openModal: openModal,
-    resetHistory: resetHistory,
+    resetHistory: resetHistory, stopCurrent: stopCurrent,
+    exportData: exportData, importData: importData,
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

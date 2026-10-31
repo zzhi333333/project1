@@ -92,12 +92,12 @@
     });
   }
 
-  function appendResult(scenario, r) {
+  function appendResult(scenario, r, answers) {
     var d = window.DOMAINS[scenario.domain];
-    /* 注册结果供 AI 深度解读使用 */
+    /* 注册结果供 AI 深度解读 / 文书生成使用 */
     window.AI_RESULTS = window.AI_RESULTS || [];
     var rid = window.AI_RESULTS.length;
-    window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r });
+    window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id });
     var html =
       '<div class="result-card">' +
         '<div class="result-flag" style="border-color:' + d.color + '">' + scenario.icon + ' ' + d.name + ' · 初步分析意见</div>' +
@@ -108,17 +108,59 @@
         '<div class="result-section"><span class="sec-label">📚 依据法条</span><div class="chips">' + lawChips(r.laws) + '</div></div>' +
         '<div class="result-section"><span class="sec-label">✅ 行动建议</span>' +
           '<ul>' + r.advice.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
+        relatedLinks(scenario) +
         '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
-        '<div class="result-ai-row"><button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button><span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span></div>' +
+        '<div class="result-ai-row">' +
+          '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button>' +
+          '<button class="mini-btn doc-btn" data-rid="' + rid + '">📄 生成文书</button>' +
+          '<span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span>' +
+        '</div>' +
       '</div>';
     var div = document.createElement("div");
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
-    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r } });
+    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id } });
 
     div.querySelectorAll(".law-chip").forEach(bindLawChip);
+    bindRelLinks(div);
     scrollDown();
+  }
+
+  /* 相关阅读：同领域 FAQ 两条 + 指导性案例一条 */
+  function relatedLinks(scenario) {
+    var faqs = window.FAQ.filter(function (f) { return f.domain === scenario.domain; }).slice(0, 2);
+    var guides = window.GUIDING.filter(function (g) { return g.domain === scenario.domain; }).slice(0, 1);
+    var links = faqs.map(function (f) {
+      return '<button class="rel-link" data-rel="faq" data-q="' + esc(f.q) + '">📖 ' + esc(f.q) + '</button>';
+    });
+    guides.forEach(function (g) {
+      links.push('<button class="rel-link" data-rel="case">⭐ ' + esc(g.no.replace("指导案例", "指导性案例") + "精读") + '</button>');
+    });
+    if (!links.length) return "";
+    return '<div class="result-section"><span class="sec-label">🔗 相关阅读</span><div class="chips">' + links.join("") + '</div></div>';
+  }
+
+  function bindRelLinks(div) {
+    div.querySelectorAll(".rel-link").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (b.getAttribute("data-rel") === "faq") {
+          switchView("faq");
+          var q = b.getAttribute("data-q");
+          setTimeout(function () {
+            document.querySelectorAll("#faq-list .faq-item").forEach(function (item) {
+              if (item.querySelector(".faq-q").textContent.indexOf(q) > -1) {
+                if (!item.classList.contains("open")) item.querySelector(".faq-q").click();
+                item.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+            });
+          }, 100);
+        } else {
+          switchView("cases");
+          document.getElementById("case-tab-guiding").click();
+        }
+      });
+    });
   }
 
   window.UI = { appendUser: appendUser, appendBot: appendBot, appendQuestion: appendQuestion, appendResult: appendResult };
@@ -151,6 +193,20 @@
     });
     var filterBox = document.getElementById("scenario-filter");
     if (filterBox) {
+      /* 筛选标签由领域注册表动态生成（新领域自动出现） */
+      filterBox.innerHTML = "";
+      var allChip = document.createElement("button");
+      allChip.className = "filter-chip active";
+      allChip.setAttribute("data-domain", "");
+      allChip.textContent = "全部";
+      filterBox.appendChild(allChip);
+      window.DomainRegistry.metas().forEach(function (d) {
+        var c = document.createElement("button");
+        c.className = "filter-chip";
+        c.setAttribute("data-domain", d.id);
+        c.textContent = d.name.replace("法", "");
+        filterBox.appendChild(c);
+      });
       filterBox.addEventListener("click", function (e) {
         var chip = e.target.closest ? e.target.closest(".filter-chip") : null;
         if (!chip) return;
@@ -383,12 +439,14 @@
   /* ---------- 知识讲堂 FAQ ---------- */
   var faqBox = document.getElementById("faq-list");
   if (faqBox) {
-    ["labor", "company", "patent"].forEach(function (dom) {
+    window.DomainRegistry.ids().forEach(function (dom) {
+      var faqs = window.FAQ.filter(function (f) { return f.domain === dom; });
+      if (!faqs.length) return;
       var d = window.DOMAINS[dom];
       var group = document.createElement("div");
       group.className = "faq-group";
       group.innerHTML = '<div class="faq-group-title" style="color:' + d.color + '">' + d.icon + ' ' + d.name + '</div>';
-      window.FAQ.filter(function (f) { return f.domain === dom; }).forEach(function (f) {
+      faqs.forEach(function (f) {
         var item = document.createElement("div");
         item.className = "faq-item";
         item.innerHTML = '<div class="faq-q">' + esc(f.q) + '<span class="faq-toggle">展开</span></div><div class="faq-a">' + f.a + '</div>';
@@ -412,10 +470,57 @@
   }
   window.renderSessionList();
 
+  /* ---------- 文书生成弹窗 ---------- */
+  box.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".doc-btn") : null;
+    if (!btn) return;
+    var entry = (window.AI_RESULTS || [])[parseInt(btn.getAttribute("data-rid"), 10)];
+    if (!entry || !window.DOCTPL) return;
+    var docs = window.DOCTPL.forScenario(entry.scenarioId);
+    var listEl = document.getElementById("doc-list");
+    listEl.innerHTML = "";
+    docs.forEach(function (t, i) {
+      var b = document.createElement("button");
+      b.className = "mini-btn" + (i === 0 ? " primary" : "");
+      b.textContent = t.name;
+      b.addEventListener("click", function () {
+        var text = t.gen({ answers: entry.answers, result: entry.r, scenario: { id: entry.scenarioId, name: entry.name } });
+        document.getElementById("doc-text").value = text;
+        listEl.querySelectorAll("button").forEach(function (x) { x.classList.toggle("primary", x === b); });
+      });
+      listEl.appendChild(b);
+    });
+    if (docs.length) listEl.querySelector("button").click();
+    document.getElementById("doc-modal").classList.remove("hidden");
+  });
+  var docClose = document.getElementById("doc-close");
+  if (docClose) docClose.addEventListener("click", function () { document.getElementById("doc-modal").classList.add("hidden"); });
+  var docCopy = document.getElementById("doc-copy");
+  if (docCopy) docCopy.addEventListener("click", function () {
+    var ta = document.getElementById("doc-text");
+    ta.select();
+    if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
+    else document.execCommand("copy");
+    var b = this;
+    b.textContent = "✅ 已复制";
+    setTimeout(function () { b.textContent = "📋 复制全文"; }, 1500);
+  });
+
+  /* ---------- 首次使用引导 ---------- */
+  if (!localStorage.getItem("legal-first-run")) {
+    document.getElementById("guide-modal").classList.remove("hidden");
+  }
+  var guideClose = document.getElementById("guide-close");
+  if (guideClose) guideClose.addEventListener("click", function () {
+    localStorage.setItem("legal-first-run", "1");
+    document.getElementById("guide-modal").classList.add("hidden");
+  });
+
   /* ---------- 模块装配 ---------- */
   window.LAWSEARCH.init();
   window.TOOLS.init();
   window.ONLINE.init();
   window.AI.init();
   window.AGENT.init();
+  window.GSEARCH.init();
 })();

@@ -2,14 +2,30 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `1.0`（versionCode 1）
+- 包名：`com.zz333.legalassistant`，版本 `1.1`（versionCode 2）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v1.0.apk`（约 130KB）
+- 产物：`dist/legal-assistant-mobile-v1.1.apk`（约 155KB）
+
+## 🆕 v1.1 更新（跟随网页版大更新）
+
+| 功能 | 移动端适配说明 |
+|---|---|
+| 领域注册表 | js/registry.js 兼容层随桌面版同步，以后扩域零改动 |
+| 数据导出/导入 | App 内导出走**原生「另存为」选择器**（CREATE_DOCUMENT），导入走原生文件选择器 + confirm 弹窗 |
+| 文书模板生成 | 结果卡「📄 生成文书」底部弹层，一键复制 |
+| 时效倒计时 | 工具页第 5 个计算器，30 天内标红 |
+| AI 停止/重试 | 「⏹ 停止」经原生桥断开 HTTP 连接（新增 cancel 通道）；失败显示「🔄 重试」 |
+| 法条库 81 条 | laws-extra.js 随包内置 |
+| 结果卡关联推荐 | FAQ 直达 + 指导性案例精读 |
+| 全局搜索 + 首次引导 | 顶栏 🔍 底部弹层；首次打开三步引导（文案已适配手机布局） |
+| 图标重绘 | Material You 风格（圆头笔画天平 + 渐变底），支持 Android 13+ 主题图标（monochrome） |
+
+历史版本：`v1.0`（versionCode 1）见 git 记录。
 
 ## 📲 安装到手机
 
-1. 把 `dist/legal-assistant-mobile-v1.0.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
-2. 在手机上点开 APK，系统会提示「未知来源应用」——允许本来源安装即可
+1. 把 `dist/legal-assistant-mobile-v1.1.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
+2. 在手机上点开 APK，系统会提示「未知来源应用」——允许本来源安装即可；**已装 v1.0 可直接覆盖升级**（同一签名）
 3. 打开「法律咨询助手」App，右上角 🤖 配置 AI 模型（推荐智谱 glm-4-flash，官方免费）
 
 > 签名密钥固定在 `tools/debug.keystore`（密码 `legal123`）。**该密钥已加入 .gitignore、不会提交到仓库**——请在本地妥善备份（U盘/私有云各存一份），丢失后将无法覆盖安装升级（只能卸载重装）。**以后升级请保留该文件**。
