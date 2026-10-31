@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<title>法律咨询助手 · 劳动法 / 公司法 / 专利法</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ================= 顶栏 ================= -->
+  <header class="topbar">
+    <button id="drawer-toggle" class="icon-btn" aria-label="打开菜单">☰</button>
+    <div class="brand">
+      <span class="brand-icon">⚖️</span>
+      <div class="brand-text">
+        <div class="brand-title">法律咨询助手</div>
+        <div class="brand-sub">劳动法 · 公司法 · 专利法</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div id="net-badge" class="net-badge off">○ 检测中</div>
+      <button id="ai-gear" class="icon-btn" aria-label="AI 模型设置">🤖</button>
+    </div>
+  </header>
+
+  <!-- ================= 视图区 ================= -->
+  <main id="views">
+
+    <!-- 智能咨询 -->
+    <section id="view-consult" class="view active">
+      <div class="consult-main">
+        <div id="chat-box" class="chat-box"></div>
+        <div id="suggestions" class="suggestions"></div>
+        <div class="input-row">
+          <label class="ai-toggle" title="开启后，输入的问题由 AI 结合法条与案例回答">
+            <input id="ai-mode" type="checkbox"><span>🤖 AI</span>
+          </label>
+          <input id="consult-input" type="text" placeholder="描述您的问题，如：公司口头把我辞退了…">
+          <button id="consult-send" class="send-btn">发送</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 深度分析 -->
+    <section id="view-agent" class="view">
+      <div class="view-pad">
+        <div class="view-head">
+          <h2>深度分析</h2>
+          <p>输入完整案情：规则引擎即刻出结构化报告（离线可用）；AI 模式逐条核验引用与数字，杜绝杜撰</p>
+        </div>
+
+        <div class="mode-switch two">
+          <button id="agent-mode-report" class="mode-btn active">📋 规则报告</button>
+          <button id="agent-mode-ai" class="mode-btn">🤖 AI 可核验分析</button>
+        </div>
+
+        <div class="analysis-editor">
+          <textarea id="agent-input" rows="7" placeholder="请尽量完整描述案情：时间线、当事人与关系、发生了什么、涉及金额、您的诉求。"></textarea>
+          <div class="analysis-actions">
+            <button id="agent-run" class="primary-btn">🚀 开始分析</button>
+            <label class="ai-toggle block" id="agent-online-label"><input id="agent-online" type="checkbox" checked> 🌐 联网核验（flk官方全文）</label>
+          </div>
+          <div id="agent-examples" class="suggestions"></div>
+        </div>
+
+        <div id="agent-steps" class="agent-steps hidden">
+          <div class="agent-step" data-i="0"><span class="st-name">① 资料检索</span><span class="st-note"></span></div>
+          <div class="agent-step" data-i="1"><span class="st-name">② 生成分析</span><span class="st-note"></span></div>
+          <div class="agent-step" data-i="2"><span class="st-name">③ 引用核验</span><span class="st-note"></span></div>
+        </div>
+
+        <div id="agent-answer"></div>
+        <div id="agent-panel"></div>
+      </div>
+    </section>
+
+    <!-- 法条检索 -->
+    <section id="view-laws" class="view">
+      <div class="view-pad">
+        <div class="view-head">
+          <h2>法条检索</h2>
+          <p>本地知识库（离线）＋ 国家法律法规数据库（联网）双模式</p>
+        </div>
+
+        <div class="mode-switch two">
+          <button id="law-mode-offline" class="mode-btn active">📔 本地知识库</button>
+          <button id="law-mode-online" class="mode-btn">🌐 官方数据库</button>
+        </div>
+
+        <div id="law-offline-block">
+          <div class="search-row">
+            <input id="law-search-input" type="text" placeholder="关键词 / 法名 / 条文号，如：经济补偿">
+            <button id="law-search-btn">检索</button>
+          </div>
+          <div id="law-domain-chips" class="chips filter-chips">
+            <button class="filter-chip active" data-domain="">全部领域</button>
+            <button class="filter-chip" data-domain="labor">🧑‍🏭 劳动法</button>
+            <button class="filter-chip" data-domain="company">🏢 公司法</button>
+            <button class="filter-chip" data-domain="patent">💡 专利法</button>
+          </div>
+          <div id="law-count" class="flk-meta"></div>
+          <div id="law-results" class="law-results"></div>
+        </div>
+
+        <div id="law-online-block" class="hidden">
+          <div class="search-row">
+            <input id="flk-input" type="text" placeholder="法律名称，如：中华人民共和国劳动合同法">
+            <button id="flk-btn">联网检索</button>
+          </div>
+          <div id="flk-results" class="law-results"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 实用工具 -->
+    <section id="view-tools" class="view">
+      <div class="view-pad">
+        <div class="view-head">
+          <h2>实用工具</h2>
+          <p>四个高频计算器，数据现场计算、不经过任何服务器</p>
+        </div>
+        <div class="tools-grid">
+
+          <div class="tool-card">
+            <div class="tool-title">💰 经济补偿金（N / N+1 / 2N）</div>
+            <div class="tool-form">
+              <label>入职日期 <input id="sv-from" type="date"></label>
+              <label>离职日期 <input id="sv-to" type="date"></label>
+              <label>离职前12个月平均月工资（元）<input id="sv-salary" type="number" min="0" inputmode="decimal" placeholder="如 10000"></label>
+              <label>当地上年度职工月平均工资（选填，3倍封顶用）<input id="sv-avg" type="number" min="0" inputmode="decimal" placeholder="如 8000"></label>
+              <label>补偿类型
+                <select id="sv-type">
+                  <option value="N">N —— 合法解除经济补偿</option>
+                  <option value="N+1">N+1 —— 未提前30日通知解除</option>
+                  <option value="2N">2N —— 违法解除赔偿金</option>
+                </select>
+              </label>
+              <button id="sv-calc" class="calc-btn">计算</button>
+            </div>
+            <div id="sv-result" class="tool-result"></div>
+          </div>
+
+          <div class="tool-card">
+            <div class="tool-title">⏰ 加班费计算器</div>
+            <div class="tool-form">
+              <label>月工资（元）<input id="ot-salary" type="number" min="0" inputmode="decimal" placeholder="如 8700"></label>
+              <label>工作日延时加班（小时）<input id="ot-weekday" type="number" min="0" inputmode="decimal" placeholder="×150%"></label>
+              <label>休息日加班（小时）<input id="ot-weekend" type="number" min="0" inputmode="decimal" placeholder="×200%"></label>
+              <label class="check-line"><input id="ot-weekend-comp" type="checkbox"> 休息日加班已安排补休（补休后不计200%）</label>
+              <label>法定节假日加班（小时）<input id="ot-holiday" type="number" min="0" inputmode="decimal" placeholder="×300%"></label>
+              <button id="ot-calc" class="calc-btn">计算</button>
+            </div>
+            <div id="ot-result" class="tool-result"></div>
+          </div>
+
+          <div class="tool-card">
+            <div class="tool-title">🌴 年休假折算器</div>
+            <div class="tool-form">
+              <label>累计工作年限（年，所有单位加总）<input id="al-years" type="number" min="0" inputmode="decimal" placeholder="如 12"></label>
+              <label>入职本单位日期（选填，当年折算用）<input id="al-join" type="date"></label>
+              <button id="al-calc" class="calc-btn">计算</button>
+            </div>
+            <div id="al-result" class="tool-result"></div>
+          </div>
+
+          <div class="tool-card">
+            <div class="tool-title">💡 专利关键期限计算器</div>
+            <div class="tool-form">
+              <label>专利类型
+                <select id="pt-type">
+                  <option value="invention">发明专利（20年）</option>
+                  <option value="utility">实用新型（10年）</option>
+                  <option value="design">外观设计（15年）</option>
+                </select>
+              </label>
+              <label>申请日 <input id="pt-date" type="date"></label>
+              <button id="pt-calc" class="calc-btn">计算</button>
+            </div>
+            <div id="pt-result" class="tool-result"></div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- 案例检索 -->
+    <section id="view-cases" class="view">
+      <div class="view-pad">
+        <div class="view-head">
+          <h2>案例检索</h2>
+          <p>在线定位裁判文书网 / 最高法官网公开案例；内置指导性案例精读与典型情景案例</p>
+        </div>
+
+        <div class="mode-switch three">
+          <button id="case-tab-online" class="mode-btn active">🔎 在线</button>
+          <button id="case-tab-guiding" class="mode-btn">⭐ 指导案例</button>
+          <button id="case-tab-builtin" class="mode-btn">📘 典型案例</button>
+        </div>
+
+        <div id="case-block-online">
+          <div class="search-row">
+            <input id="case-input" type="text" placeholder="案情关键词，如：违法解除 试用期">
+            <button id="case-btn">检索</button>
+          </div>
+          <div id="case-site-chips" class="chips filter-chips">
+            <button class="filter-chip active" data-site="wenshu">裁判文书网</button>
+            <button class="filter-chip" data-site="court">最高法官网</button>
+          </div>
+          <div id="case-results" class="case-results"><div class="empty dim">输入关键词后检索公开案例（需联网）。</div></div>
+        </div>
+
+        <div id="case-block-guiding" class="hidden">
+          <div id="guiding-list" class="case-results"></div>
+        </div>
+
+        <div id="case-block-builtin" class="hidden">
+          <div id="case-list" class="case-results"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 知识讲堂 -->
+    <section id="view-faq" class="view">
+      <div class="view-pad">
+        <div class="view-head">
+          <h2>知识讲堂</h2>
+          <p>三大领域高频问题一页读懂，点击展开</p>
+        </div>
+        <div id="faq-list" class="faq-list"></div>
+        <div class="m-disclaimer">
+          <b>⚠️ 免责声明</b>
+          <p>本工具输出内容（含离线知识库、计算结果与联网检索内容）仅为基于公开法律信息的规则化参考，不构成法律意见或代理服务。法条以国家法律法规数据库公布的现行有效文本为准；具体案件请咨询执业律师。</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= 底部导航 ================= -->
+  <nav class="tabbar">
+    <button class="nav-tab active" data-view="consult"><span class="tab-ico">💬</span><span class="tab-label">咨询</span></button>
+    <button class="nav-tab" data-view="agent"><span class="tab-ico">🧭</span><span class="tab-label">分析</span></button>
+    <button class="nav-tab" data-view="laws"><span class="tab-ico">📚</span><span class="tab-label">法条</span></button>
+    <button class="nav-tab" data-view="tools"><span class="tab-ico">🧮</span><span class="tab-label">工具</span></button>
+    <button class="nav-tab" data-view="cases"><span class="tab-ico">🗂️</span><span class="tab-label">案例</span></button>
+    <button class="nav-tab" data-view="faq"><span class="tab-ico">📖</span><span class="tab-label">讲堂</span></button>
+  </nav>
+</div>
+
+<!-- ================= 侧滑抽屉（对话记录 + 快捷咨询） ================= -->
+<div id="drawer-mask" class="drawer-mask hidden"></div>
+<aside id="drawer" class="drawer">
+  <div class="drawer-head">
+    <div class="aside-title">对话记录</div>
+    <button id="new-chat" class="new-chat-btn">＋ 新对话</button>
+    <div class="session-tabs">
+      <button id="session-tab-main" class="filter-chip active">历史</button>
+      <button id="session-tab-archived" class="filter-chip">归档</button>
+    </div>
+  </div>
+  <div class="drawer-scroll">
+    <div id="session-list" class="session-list"></div>
+    <div class="drawer-section">
+      <div class="aside-title">快捷咨询</div>
+      <div id="scenario-filter" class="chips filter-chips">
+        <button class="filter-chip active" data-domain="">全部</button>
+        <button class="filter-chip" data-domain="labor">劳动</button>
+        <button class="filter-chip" data-domain="company">公司</button>
+        <button class="filter-chip" data-domain="patent">专利</button>
+      </div>
+      <div id="quick-scenarios" class="quick-list"></div>
+    </div>
+  </div>
+  <div class="drawer-foot dim">数据与配置仅存于本机 · 仅供参考，不构成法律意见</div>
+</aside>
+
+<!-- AI 模型设置弹窗（底部弹层） -->
+<div id="ai-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card">
+    <div class="modal-grab"></div>
+    <div class="modal-title">⚙️ AI 模型设置</div>
+    <div class="modal-body">
+      <label>模型服务商
+        <select id="ai-provider">
+          <option value="glm">智谱 GLM（含免费模型）</option>
+          <option value="deepseek">DeepSeek 深度求索</option>
+          <option value="kimi">月之暗面 Kimi</option>
+          <option value="qwen">阿里通义千问</option>
+          <option value="qianfan">百度千帆（通用 OpenAI 兼容 v2）</option>
+          <option value="qianfanTP">百度千帆 Token 计划个人版</option>
+          <option value="openai">OpenAI</option>
+          <option value="ollama">本地 Ollama（无需密钥）</option>
+          <option value="custom">自定义（OpenAI 兼容接口）</option>
+        </select>
+      </label>
+      <label>接口地址 Base URL<input id="ai-baseurl" type="text" placeholder="https://.../v4"></label>
+      <label>模型名称<input id="ai-model" type="text" placeholder="如 glm-4-flash / deepseek-chat"></label>
+      <label>API Key<input id="ai-key" type="password" placeholder="sk-...（本地 Ollama 留空）"></label>
+      <label>回答随机性 temperature（<span id="ai-temp-val">0.5</span>）
+        <input id="ai-temp" type="range" min="0" max="1" step="0.1" value="0.5">
+      </label>
+      <div class="modal-note">🔒 API Key 仅保存在本机（App 私有存储），请求由 App 直连所选服务商，不经任何第三方转发。推荐智谱 <b>glm-4-flash</b>（官方免费）。</div>
+      <div id="ai-status" class="ai-status"></div>
+    </div>
+    <div class="modal-foot">
+      <button id="ai-save" class="primary">保存</button>
+      <button id="ai-test">测试连接</button>
+      <button id="ai-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/bridge.js"></script>
+<script src="js/data/laws.js"></script>
+<script src="js/data/scenarios.js"></script>
+<script src="js/data/faq.js"></script>
+<script src="js/data/guiding.js"></script>
+<script src="js/consult.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/search.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/online.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/agent.js"></script>
+<script src="js/history.js"></script>
+<script src="js/main.js"></script>
+<script src="js/mobile.js"></script>
+</body>
+</html>

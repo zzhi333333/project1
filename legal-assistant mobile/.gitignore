@@ -1,0 +1,10 @@
+# 构建中间产物
+build/
+tools/*.class
+tools/StaticServer.class
+
+# 签名密钥不入库（本地妥善备份！丢失将无法覆盖安装升级）
+tools/debug.keystore
+
+# apksigner v4 签名证明文件（每次签名自动重新生成）
+dist/*.idsig
