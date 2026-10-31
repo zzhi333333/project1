@@ -220,6 +220,7 @@ window.AI = (function () {
       if (!full) full = "（模型未返回内容，请检查模型名称与服务商设置。）";
       finishBubble(div, full);
       if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
+      if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       aiHistory.push({ role: "user", content: text }, { role: "assistant", content: full });
       if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
     }).catch(function (e) {
@@ -250,7 +251,8 @@ window.AI = (function () {
     aiChat(messages, function (delta) { full += delta; setText(div, full); })
       .then(function () {
         finishBubble(div, full || "（模型未返回内容。）");
-        if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
+        if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, content);
+        if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       })
       .catch(function (e) { finishBubble(div, "⚠️ " + (e && e.message || e)); });
   }
@@ -325,7 +327,7 @@ window.AI = (function () {
         });
     });
 
-    /* 咨询页：AI 对话开关 */
+    /* 咨询页：AI 对话开关（「新对话」按钮已由 main.js/history.js 接管） */
     var modeCb = document.getElementById("ai-mode");
     if (modeCb) {
       modeCb.addEventListener("change", syncToggleLabel);
@@ -334,16 +336,6 @@ window.AI = (function () {
         if (modeCb.checked && (text || "").trim()) { aiConsult(text); return; }
         origStart(text);
       };
-      /* 清空对话 */
-      var clearBtn = document.getElementById("chat-clear");
-      if (clearBtn) clearBtn.addEventListener("click", function () {
-        var box = document.getElementById("chat-box");
-        box.innerHTML = "";
-        aiHistory = [];
-        window.UI.appendBot(
-          "对话已清空。我是<b>法律咨询助手</b>（🧑‍🏭 劳动法 · 🏢 公司法 · 💡 专利法），请描述您的问题，或点击左侧「快捷咨询」开始。",
-          null);
-      });
     }
 
     /* 结果卡：AI 深度解读按钮（事件委托） */
@@ -365,8 +357,11 @@ window.AI = (function () {
       : "AI 未配置：点击右上角「AI 模型」设置后使用";
   }
 
+  function resetHistory() { aiHistory = []; }
+
   return {
     init: init, aiChat: aiChat, openModal: openModal,
+    resetHistory: resetHistory,
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

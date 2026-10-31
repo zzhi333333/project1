@@ -1,5 +1,5 @@
 /* =========================================================
- * 主逻辑 main.js —— 路由、聊天渲染、案例/FAQ渲染、模块装配
+ * 主逻辑 main.js —— 路由、聊天渲染、对话历史、案例/FAQ渲染、模块装配
  * ========================================================= */
 (function () {
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -26,11 +26,16 @@
 
   function scrollDown() { box.scrollTop = box.scrollHeight; }
 
+  function recordMsg(entry) {
+    if (window.CHATHISTORY) window.CHATHISTORY.record(entry);
+  }
+
   function appendUser(text) {
     var div = document.createElement("div");
     div.className = "msg user";
     div.innerHTML = '<div class="bubble">' + esc(text) + '</div>';
     box.appendChild(div);
+    recordMsg({ who: "user", html: esc(text), text: text });
     scrollDown();
   }
 
@@ -39,19 +44,21 @@
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
+    recordMsg({ who: "bot", html: html });
     scrollDown();
   }
 
   function appendQuestion(text, options, onPick) {
     var div = document.createElement("div");
     div.className = "msg bot";
-    var inner = '<div class="avatar">⚖️</div><div class="bubble"><div class="q-text">' + esc(text) + '</div><div class="q-options">';
+    var inner = '<div class="q-text">' + esc(text) + '</div><div class="q-options">';
     options.forEach(function (op) {
       inner += '<button class="q-btn" data-value="' + esc(op.value) + '">' + esc(op.label) + '</button>';
     });
-    inner += '</div></div>';
-    div.innerHTML = inner;
+    inner += '</div>';
+    div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + inner + '</div>';
     box.appendChild(div);
+    recordMsg({ who: "bot", kind: "question", html: inner });
     div.querySelectorAll(".q-btn").forEach(function (b) {
       b.addEventListener("click", function () {
         /* 选中后禁用整组，防止重复作答 */
@@ -72,6 +79,17 @@
       if (!l) return "";
       return '<button class="law-chip" data-law="' + id + '">' + esc(l.lawShort + " " + l.article) + '</button>';
     }).join("");
+  }
+
+  function bindLawChip(c) {
+    c.addEventListener("click", function () {
+      var l = window.lawById(c.getAttribute("data-law"));
+      if (!l) return;
+      switchView("laws");
+      var input = document.getElementById("law-search-input");
+      input.value = l.title;
+      document.getElementById("law-search-btn").click();
+    });
   }
 
   function appendResult(scenario, r) {
@@ -97,18 +115,9 @@
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
+    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r } });
 
-    /* 法条引用 → 跳转检索页定位 */
-    div.querySelectorAll(".law-chip").forEach(function (c) {
-      c.addEventListener("click", function () {
-        var l = window.lawById(c.getAttribute("data-law"));
-        if (!l) return;
-        switchView("laws");
-        var input = document.getElementById("law-search-input");
-        input.value = l.title;
-        document.getElementById("law-search-btn").click();
-      });
-    });
+    div.querySelectorAll(".law-chip").forEach(bindLawChip);
     scrollDown();
   }
 
@@ -140,7 +149,6 @@
       quickBox.appendChild(card);
       cards[s.id] = card;
     });
-    /* 领域筛选 */
     var filterBox = document.getElementById("scenario-filter");
     if (filterBox) {
       filterBox.addEventListener("click", function (e) {
@@ -153,7 +161,6 @@
         });
       });
     }
-    /* 跨领域示例（4 个，与场景卡互补） */
     var sugBox = document.getElementById("suggestions");
     [
       "被公司辞退了该怎么维权？",
@@ -166,6 +173,132 @@
       b.textContent = t;
       b.addEventListener("click", function () { window.CONSULT.start(t); });
       sugBox.appendChild(b);
+    });
+  }
+
+  /* ---------- 对话历史：渲染与会话列表 ---------- */
+  function welcomeHtml() {
+    return "您好！我是<b>法律咨询助手</b>，专注<b>劳动法 · 公司法 · 专利法</b>。<br>" +
+      "请描述您的问题，我会澄清关键事实后给出<b>分析 + 法条 + 行动建议</b>；也可从左侧场景直接开始。";
+  }
+
+  /* 历史消息还原渲染（结果卡的 AI 解读按钮 / 法条跳转重新绑定） */
+  function renderMessage(m) {
+    var div = document.createElement("div");
+    if (m.who === "user") {
+      div.className = "msg user";
+      div.innerHTML = '<div class="bubble">' + m.html + '</div>';
+    } else {
+      var avatar = m.who === "ai" ? "🤖" : "⚖️";
+      div.className = "msg bot";
+      div.innerHTML = '<div class="avatar">' + avatar + '</div><div class="bubble">' + m.html + '</div>';
+    }
+    box.appendChild(div);
+    if (m.kind === "result" && m.data) {
+      window.AI_RESULTS = window.AI_RESULTS || [];
+      var rid = window.AI_RESULTS.length;
+      window.AI_RESULTS.push({ name: m.data.name, domain: m.data.domain, r: m.data.r });
+      var btn = div.querySelector(".result-ai-btn");
+      if (btn) btn.setAttribute("data-rid", rid);
+      div.querySelectorAll(".law-chip").forEach(bindLawChip);
+    }
+  }
+
+  function loadCurrentIntoBox() {
+    box.innerHTML = "";
+    var cur = window.CHATHISTORY.current();
+    if (cur && cur.messages.length) {
+      cur.messages.forEach(renderMessage);
+    } else {
+      if (!cur) window.CHATHISTORY.newSession(false);
+      appendBot(welcomeHtml());
+    }
+  }
+
+  function fmtTime(ts) {
+    var d = new Date(ts), now = new Date();
+    var hm = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+    if (d.toDateString() === now.toDateString()) return hm;
+    if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + "-" + d.getDate() + " " + hm;
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+
+  window.renderSessionList = function () {
+    var listEl = document.getElementById("session-list");
+    if (!listEl) return;
+    var items = window.CHATHISTORY.list();
+    var cur = window.CHATHISTORY.current();
+    listEl.innerHTML = "";
+    items.forEach(function (s) {
+      var div = document.createElement("div");
+      div.className = "session-item" + (cur && s.id === cur.id ? " active" : "");
+      div.innerHTML =
+        '<div class="session-title">' + esc(s.title) + '</div>' +
+        '<div class="session-time">' + fmtTime(s.updatedAt) + ' · ' + s.messages.length + ' 条</div>' +
+        '<button class="session-del" title="删除对话">×</button>';
+      div.addEventListener("click", function (e) {
+        if (e.target.classList && e.target.classList.contains("session-del")) { delSession(e.target, s.id); return; }
+        if (cur && s.id === cur.id) return;
+        window.CHATHISTORY.switchTo(s.id);
+        loadCurrentIntoBox();
+        window.AI.resetHistory && window.AI.resetHistory();
+        window.renderSessionList();
+      });
+      listEl.appendChild(div);
+    });
+  };
+
+  function delSession(btn, id) {
+    /* 两段式删除：第一次点变「确认」，3 秒内再点才真删 */
+    if (btn.dataset.armed) {
+      window.CHATHISTORY.remove(id);
+      var cur = window.CHATHISTORY.current();
+      box.innerHTML = "";
+      if (cur && cur.messages.length) cur.messages.forEach(renderMessage);
+      else {
+        if (!cur) window.CHATHISTORY.newSession(false);
+        appendBot(welcomeHtml());
+      }
+      window.AI.resetHistory && window.AI.resetHistory();
+      window.renderSessionList();
+    } else {
+      btn.dataset.armed = "1";
+      btn.textContent = "确认";
+      btn.classList.add("armed");
+      setTimeout(function () {
+        btn.dataset.armed = "";
+        btn.textContent = "×";
+        btn.classList.remove("armed");
+      }, 2500);
+    }
+  }
+
+  var newChatBtn = document.getElementById("new-chat");
+  if (newChatBtn) {
+    newChatBtn.addEventListener("click", function () {
+      window.CHATHISTORY.newSession();
+      box.innerHTML = "";
+      window.AI.resetHistory && window.AI.resetHistory();
+      appendBot(welcomeHtml());
+      window.renderSessionList();
+      scrollDown();
+    });
+  }
+
+  /* ---------- 典型情景案例（内置） ---------- */
+  var caseBox = document.getElementById("case-list");
+  if (caseBox) {
+    window.CASES.forEach(function (c) {
+      var d = window.DOMAINS[c.domain];
+      var el = document.createElement("div");
+      el.className = "case-card";
+      el.innerHTML =
+        '<div class="case-domain" style="background:' + d.color + '1a;color:' + d.color + '">' + d.name + '案例</div>' +
+        '<div class="case-title">' + esc(c.title) + '</div>' +
+        '<div class="case-sec"><b>案情</b>' + esc(c.facts) + '</div>' +
+        '<div class="case-sec"><b>结果</b>' + esc(c.ruling) + '</div>' +
+        '<div class="case-lesson">💡 <b>要点</b>' + esc(c.lesson) + '</div>';
+      caseBox.appendChild(el);
     });
   }
 
@@ -185,23 +318,6 @@
       });
     });
   });
-
-  /* ---------- 典型情景案例（内置） ---------- */
-  var caseBox = document.getElementById("case-list");
-  if (caseBox) {
-    window.CASES.forEach(function (c) {
-      var d = window.DOMAINS[c.domain];
-      var el = document.createElement("div");
-      el.className = "case-card";
-      el.innerHTML =
-        '<div class="case-domain" style="background:' + d.color + '1a;color:' + d.color + '">' + d.name + '案例</div>' +
-        '<div class="case-title">' + esc(c.title) + '</div>' +
-        '<div class="case-sec"><b>案情</b>' + esc(c.facts) + '</div>' +
-        '<div class="case-sec"><b>结果</b>' + esc(c.ruling) + '</div>' +
-        '<div class="case-lesson">💡 <b>要点</b>' + esc(c.lesson) + '</div>';
-      caseBox.appendChild(el);
-    });
-  }
 
   /* ---------- 知识讲堂 FAQ ---------- */
   var faqBox = document.getElementById("faq-list");
@@ -225,11 +341,15 @@
     });
   }
 
-  /* ---------- 欢迎语（精简） ---------- */
-  appendBot(
-    "您好！我是<b>法律咨询助手</b>，专注<b>劳动法 · 公司法 · 专利法</b>。<br>" +
-    "请描述您的问题，我会澄清关键事实后给出<b>分析 + 法条 + 行动建议</b>；也可从左侧场景直接开始。"
-  );
+  /* ---------- 启动：恢复当前会话或开新会话 ---------- */
+  var cur = window.CHATHISTORY.current();
+  if (cur && cur.messages.length) {
+    cur.messages.forEach(renderMessage);
+  } else {
+    if (!cur) window.CHATHISTORY.newSession(false);
+    appendBot(welcomeHtml());
+  }
+  window.renderSessionList();
 
   /* ---------- 模块装配 ---------- */
   window.LAWSEARCH.init();
