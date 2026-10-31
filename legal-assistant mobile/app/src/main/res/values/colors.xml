@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 assets/www/css/style.css 的设计令牌保持一致（Slate + Indigo） -->
+    <color name="bg">#F6F7F9</color>
+    <color name="primary">#4F46E5</color>
+    <color name="primary_dark">#4338CA</color>
+    <color name="status_bar">#1E1B4B</color>
+    <color name="icon_bg">#4F46E5</color>
+</resources>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 天平图标：白色结构 + 琥珀色秤盘，居中于 108dp 安全区 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 顶环 + 立柱 + 横梁 + 底座（白） -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24.5 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52.8,30.5 h2.4 v38 h-2.4 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,38.7 h42 v2.7 h-42 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46.5,68.5 h15 v2.7 h-15 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,73.2 h24 v3.2 h-24 z" />
+
+    <!-- 吊线（白描边） -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M34.5,41.4 L28.2,50.2" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M73.5,41.4 L79.8,50.2" />
+
+    <!-- 秤盘（琥珀） -->
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M21.5,51.8 L34.7,51.8 L28.1,60.8 Z" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M73.3,51.8 L86.5,51.8 L79.9,60.8 Z" />
+</vector>

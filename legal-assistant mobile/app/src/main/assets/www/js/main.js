@@ -1,0 +1,421 @@
+/* =========================================================
+ * 主逻辑 main.js —— 路由、聊天渲染、对话历史、案例/FAQ渲染、模块装配
+ * ========================================================= */
+(function () {
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  /* ---------- 视图切换 ---------- */
+  var views = ["consult", "agent", "laws", "tools", "cases", "faq"];
+  function switchView(name) {
+    views.forEach(function (v) {
+      var el = document.getElementById("view-" + v);
+      if (el) el.classList.toggle("active", v === name);
+    });
+    document.querySelectorAll(".nav-tab").forEach(function (t) {
+      t.classList.toggle("active", t.getAttribute("data-view") === name);
+    });
+    window.scrollTo(0, 0);
+  }
+  window.APP = { switchView: switchView };
+  document.querySelectorAll(".nav-tab").forEach(function (t) {
+    t.addEventListener("click", function () { switchView(t.getAttribute("data-view")); });
+  });
+
+  /* ---------- 聊天 UI（供 consult.js / ai.js 调用） ---------- */
+  var box = document.getElementById("chat-box");
+
+  function scrollDown() { box.scrollTop = box.scrollHeight; }
+
+  function recordMsg(entry) {
+    if (window.CHATHISTORY) window.CHATHISTORY.record(entry);
+  }
+
+  function appendUser(text) {
+    var div = document.createElement("div");
+    div.className = "msg user";
+    div.innerHTML = '<div class="bubble">' + esc(text) + '</div>';
+    box.appendChild(div);
+    recordMsg({ who: "user", html: esc(text), text: text });
+    scrollDown();
+  }
+
+  function appendBot(html) {
+    var div = document.createElement("div");
+    div.className = "msg bot";
+    div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
+    box.appendChild(div);
+    recordMsg({ who: "bot", html: html });
+    scrollDown();
+  }
+
+  function appendQuestion(text, options, onPick) {
+    var div = document.createElement("div");
+    div.className = "msg bot";
+    var inner = '<div class="q-text">' + esc(text) + '</div><div class="q-options">';
+    options.forEach(function (op) {
+      inner += '<button class="q-btn" data-value="' + esc(op.value) + '">' + esc(op.label) + '</button>';
+    });
+    inner += '</div>';
+    div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + inner + '</div>';
+    box.appendChild(div);
+    recordMsg({ who: "bot", kind: "question", html: inner });
+    div.querySelectorAll(".q-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        /* 选中后禁用整组，防止重复作答 */
+        div.querySelectorAll(".q-btn").forEach(function (x) {
+          x.disabled = true;
+          if (x !== b) x.classList.add("dim");
+          else x.classList.add("picked");
+        });
+        onPick(b.getAttribute("data-value"), b.textContent);
+      });
+    });
+    scrollDown();
+  }
+
+  function lawChips(lawIds) {
+    return (lawIds || []).map(function (id) {
+      var l = window.lawById(id);
+      if (!l) return "";
+      return '<button class="law-chip" data-law="' + id + '">' + esc(l.lawShort + " " + l.article) + '</button>';
+    }).join("");
+  }
+
+  function bindLawChip(c) {
+    c.addEventListener("click", function () {
+      var l = window.lawById(c.getAttribute("data-law"));
+      if (!l) return;
+      switchView("laws");
+      var input = document.getElementById("law-search-input");
+      input.value = l.title;
+      document.getElementById("law-search-btn").click();
+    });
+  }
+
+  function appendResult(scenario, r) {
+    var d = window.DOMAINS[scenario.domain];
+    /* 注册结果供 AI 深度解读使用 */
+    window.AI_RESULTS = window.AI_RESULTS || [];
+    var rid = window.AI_RESULTS.length;
+    window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r });
+    var html =
+      '<div class="result-card">' +
+        '<div class="result-flag" style="border-color:' + d.color + '">' + scenario.icon + ' ' + d.name + ' · 初步分析意见</div>' +
+        '<div class="result-title">' + esc(r.headline) + '</div>' +
+        '<div class="result-section"><span class="sec-label">📌 结论概要</span>' + esc(r.summary) + '</div>' +
+        '<div class="result-section"><span class="sec-label">🔍 具体分析</span>' +
+          '<ul>' + r.analysis.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
+        '<div class="result-section"><span class="sec-label">📚 依据法条</span><div class="chips">' + lawChips(r.laws) + '</div></div>' +
+        '<div class="result-section"><span class="sec-label">✅ 行动建议</span>' +
+          '<ul>' + r.advice.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
+        '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
+        '<div class="result-ai-row"><button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button><span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span></div>' +
+      '</div>';
+    var div = document.createElement("div");
+    div.className = "msg bot";
+    div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
+    box.appendChild(div);
+    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r } });
+
+    div.querySelectorAll(".law-chip").forEach(bindLawChip);
+    scrollDown();
+  }
+
+  window.UI = { appendUser: appendUser, appendBot: appendBot, appendQuestion: appendQuestion, appendResult: appendResult };
+
+  /* ---------- 咨询输入框 ---------- */
+  var input = document.getElementById("consult-input");
+  document.getElementById("consult-send").addEventListener("click", function () {
+    window.CONSULT.start(input.value);
+    input.value = "";
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      window.CONSULT.start(input.value);
+      input.value = "";
+    }
+  });
+
+  /* ---------- 快捷场景卡片（带领域筛选） ---------- */
+  var quickBox = document.getElementById("quick-scenarios");
+  if (quickBox) {
+    var cards = {};
+    window.SCENARIOS.forEach(function (s) {
+      var card = document.createElement("button");
+      card.className = "quick-card";
+      card.setAttribute("data-domain", s.domain);
+      card.innerHTML = '<span class="qc-icon">' + s.icon + '</span><span class="qc-name">' + esc(s.name) + '</span><span class="qc-desc">' + esc(s.desc) + '</span>';
+      card.addEventListener("click", function () { window.CONSULT.quickStart(s.id); });
+      quickBox.appendChild(card);
+      cards[s.id] = card;
+    });
+    var filterBox = document.getElementById("scenario-filter");
+    if (filterBox) {
+      filterBox.addEventListener("click", function (e) {
+        var chip = e.target.closest ? e.target.closest(".filter-chip") : null;
+        if (!chip) return;
+        filterBox.querySelectorAll(".filter-chip").forEach(function (x) { x.classList.toggle("active", x === chip); });
+        var dom = chip.getAttribute("data-domain") || "";
+        Object.keys(cards).forEach(function (id) {
+          cards[id].style.display = (!dom || cards[id].getAttribute("data-domain") === dom) ? "" : "none";
+        });
+      });
+    }
+    var sugBox = document.getElementById("suggestions");
+    [
+      "被公司辞退了该怎么维权？",
+      "公司注册资本认缴2000万一直没实缴",
+      "我的实用新型专利被别人抄了",
+      "收到专利侵权警告函怎么应对"
+    ].forEach(function (t) {
+      var b = document.createElement("button");
+      b.className = "sug-btn";
+      b.textContent = t;
+      b.addEventListener("click", function () { window.CONSULT.start(t); });
+      sugBox.appendChild(b);
+    });
+  }
+
+  /* ---------- 对话历史：渲染与会话列表 ---------- */
+  function welcomeHtml() {
+    return "您好！我是<b>法律咨询助手</b>，专注<b>劳动法 · 公司法 · 专利法</b>。<br>" +
+      "请描述您的问题，我会澄清关键事实后给出<b>分析 + 法条 + 行动建议</b>；也可点左上角 ☰ 从「快捷咨询」直接开始。";
+  }
+
+  /* 历史消息还原渲染（结果卡的 AI 解读按钮 / 法条跳转重新绑定） */
+  function renderMessage(m) {
+    var div = document.createElement("div");
+    if (m.who === "user") {
+      div.className = "msg user";
+      div.innerHTML = '<div class="bubble">' + m.html + '</div>';
+    } else {
+      var avatar = m.who === "ai" ? "🤖" : "⚖️";
+      div.className = "msg bot";
+      div.innerHTML = '<div class="avatar">' + avatar + '</div><div class="bubble">' + m.html + '</div>';
+    }
+    box.appendChild(div);
+    if (m.kind === "result" && m.data) {
+      window.AI_RESULTS = window.AI_RESULTS || [];
+      var rid = window.AI_RESULTS.length;
+      window.AI_RESULTS.push({ name: m.data.name, domain: m.data.domain, r: m.data.r });
+      var btn = div.querySelector(".result-ai-btn");
+      if (btn) btn.setAttribute("data-rid", rid);
+      div.querySelectorAll(".law-chip").forEach(bindLawChip);
+    }
+  }
+
+  function loadCurrentIntoBox() {
+    box.innerHTML = "";
+    var cur = window.CHATHISTORY.current();
+    if (cur && cur.messages.length) {
+      cur.messages.forEach(renderMessage);
+    } else {
+      if (!cur) window.CHATHISTORY.newSession(false);
+      appendBot(welcomeHtml());
+    }
+  }
+
+  var sessionView = "main";   /* "main" = 历史 | "archived" = 归档 */
+
+  function closeSessionMenus() {
+    document.querySelectorAll(".session-menu").forEach(function (m) { m.remove(); });
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest(".session-more")) return;
+    closeSessionMenus();
+  });
+
+  function refreshChatFromCurrent() {
+    box.innerHTML = "";
+    var cur = window.CHATHISTORY.current();
+    if (cur && cur.messages.length) cur.messages.forEach(renderMessage);
+    else {
+      if (!cur) window.CHATHISTORY.newSession(false);
+      appendBot(welcomeHtml());
+    }
+    window.AI.resetHistory && window.AI.resetHistory();
+  }
+
+  function fmtTime(ts) {
+    var d = new Date(ts), now = new Date();
+    var hm = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+    if (d.toDateString() === now.toDateString()) return hm;
+    if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + "-" + d.getDate() + " " + hm;
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+
+  function openSessionMenu(moreBtn, s) {
+    closeSessionMenus();
+    var menu = document.createElement("div");
+    menu.className = "session-menu";
+    var actions = [];
+    if (s.archived) {
+      actions.push({ label: "📤 取消归档", act: function () { window.CHATHISTORY.archive(s.id, false); } });
+    } else {
+      actions.push({ label: "📥 归档", act: function () { window.CHATHISTORY.archive(s.id, true); } });
+    }
+    actions.push({ label: "🗑️ 删除", danger: true, act: null });   /* 删除走两段确认 */
+    actions.forEach(function (a) {
+      var b = document.createElement("button");
+      b.textContent = a.label;
+      if (a.danger) b.classList.add("danger");
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        if (!a.danger) {
+          a.act();
+          closeSessionMenus();
+          refreshChatFromCurrent();
+          window.renderSessionList();
+          return;
+        }
+        /* 删除：两段确认 */
+        if (b.dataset.armed) {
+          window.CHATHISTORY.remove(s.id);
+          closeSessionMenus();
+          refreshChatFromCurrent();
+          window.renderSessionList();
+        } else {
+          b.dataset.armed = "1";
+          b.textContent = "确认删除？";
+          b.classList.add("armed");
+          setTimeout(function () { closeSessionMenus(); }, 3000);
+        }
+      });
+      menu.appendChild(b);
+    });
+    moreBtn.parentElement.appendChild(menu);
+  }
+
+  window.renderSessionList = function () {
+    var listEl = document.getElementById("session-list");
+    if (!listEl) return;
+    var cur = window.CHATHISTORY.current();
+    var items = window.CHATHISTORY.list(sessionView === "archived");
+    listEl.innerHTML = "";
+    if (!items.length) {
+      listEl.innerHTML = '<div class="session-empty">' + (sessionView === "archived" ? "暂无归档对话" : "暂无历史对话") + '</div>';
+      return;
+    }
+    items.forEach(function (s) {
+      var div = document.createElement("div");
+      div.className = "session-item" + (cur && s.id === cur.id ? " active" : "");
+      div.innerHTML =
+        '<div class="session-title">' + esc(s.title) + '</div>' +
+        '<div class="session-time">' + fmtTime(s.updatedAt) + ' · ' + s.messages.length + ' 条</div>' +
+        '<button class="session-more" title="更多操作">⋯</button>';
+      div.addEventListener("click", function (e) {
+        if (e.target.closest && e.target.closest(".session-more")) return;
+        if (e.target.closest && e.target.closest(".session-menu")) return;
+        window.CHATHISTORY.switchTo(s.id);
+        loadCurrentIntoBox();
+        window.AI.resetHistory && window.AI.resetHistory();
+        window.renderSessionList();
+      });
+      var more = div.querySelector(".session-more");
+      more.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (more.parentElement.querySelector(".session-menu")) { closeSessionMenus(); return; }
+        openSessionMenu(more, s);
+      });
+      listEl.appendChild(div);
+    });
+  };
+
+  /* 历史 / 归档 视图切换 */
+  var tabMain = document.getElementById("session-tab-main");
+  var tabArc = document.getElementById("session-tab-archived");
+  function setSessionView(v) {
+    sessionView = v;
+    if (tabMain) tabMain.classList.toggle("active", v === "main");
+    if (tabArc) tabArc.classList.toggle("active", v === "archived");
+    closeSessionMenus();
+    window.renderSessionList();
+  }
+  if (tabMain) tabMain.addEventListener("click", function () { setSessionView("main"); });
+  if (tabArc) tabArc.addEventListener("click", function () { setSessionView("archived"); });
+
+  var newChatBtn = document.getElementById("new-chat");
+  if (newChatBtn) {
+    newChatBtn.addEventListener("click", function () {
+      window.CHATHISTORY.newSession();
+      box.innerHTML = "";
+      window.AI.resetHistory && window.AI.resetHistory();
+      appendBot(welcomeHtml());
+      window.renderSessionList();
+      scrollDown();
+    });
+  }
+
+  /* ---------- 典型情景案例（内置） ---------- */
+  var caseBox = document.getElementById("case-list");
+  if (caseBox) {
+    window.CASES.forEach(function (c) {
+      var d = window.DOMAINS[c.domain];
+      var el = document.createElement("div");
+      el.className = "case-card";
+      el.innerHTML =
+        '<div class="case-domain" style="background:' + d.color + '1a;color:' + d.color + '">' + d.name + '案例</div>' +
+        '<div class="case-title">' + esc(c.title) + '</div>' +
+        '<div class="case-sec"><b>案情</b>' + esc(c.facts) + '</div>' +
+        '<div class="case-sec"><b>结果</b>' + esc(c.ruling) + '</div>' +
+        '<div class="case-lesson">💡 <b>要点</b>' + esc(c.lesson) + '</div>';
+      caseBox.appendChild(el);
+    });
+  }
+
+  /* ---------- 案例页：页内标签 ---------- */
+  var caseTabs = [
+    { btn: "case-tab-online", block: "case-block-online" },
+    { btn: "case-tab-guiding", block: "case-block-guiding" },
+    { btn: "case-tab-builtin", block: "case-block-builtin" }
+  ];
+  caseTabs.forEach(function (t) {
+    var btn = document.getElementById(t.btn);
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      caseTabs.forEach(function (x) {
+        document.getElementById(x.btn).classList.toggle("active", x.btn === t.btn);
+        document.getElementById(x.block).classList.toggle("hidden", x.block !== t.block);
+      });
+    });
+  });
+
+  /* ---------- 知识讲堂 FAQ ---------- */
+  var faqBox = document.getElementById("faq-list");
+  if (faqBox) {
+    ["labor", "company", "patent"].forEach(function (dom) {
+      var d = window.DOMAINS[dom];
+      var group = document.createElement("div");
+      group.className = "faq-group";
+      group.innerHTML = '<div class="faq-group-title" style="color:' + d.color + '">' + d.icon + ' ' + d.name + '</div>';
+      window.FAQ.filter(function (f) { return f.domain === dom; }).forEach(function (f) {
+        var item = document.createElement("div");
+        item.className = "faq-item";
+        item.innerHTML = '<div class="faq-q">' + esc(f.q) + '<span class="faq-toggle">展开</span></div><div class="faq-a">' + f.a + '</div>';
+        item.querySelector(".faq-q").addEventListener("click", function () {
+          var open = item.classList.toggle("open");
+          item.querySelector(".faq-toggle").textContent = open ? "收起" : "展开";
+        });
+        group.appendChild(item);
+      });
+      faqBox.appendChild(group);
+    });
+  }
+
+  /* ---------- 启动：恢复当前会话或开新会话 ---------- */
+  var cur = window.CHATHISTORY.current();
+  if (cur && cur.messages.length) {
+    cur.messages.forEach(renderMessage);
+  } else {
+    if (!cur) window.CHATHISTORY.newSession(false);
+    appendBot(welcomeHtml());
+  }
+  window.renderSessionList();
+
+  /* ---------- 模块装配 ---------- */
+  window.LAWSEARCH.init();
+  window.TOOLS.init();
+  window.ONLINE.init();
+  window.AI.init();
+  window.AGENT.init();
+})();

@@ -26,3 +26,6 @@ desktop.ini
 *.csv
 *.log
 *.tmp
+
+# 法律咨询助手移动版：预构建 APK 需要入库（豁免上面的 dist/ 规则）
+!legal-assistant mobile/dist/
