@@ -547,3 +547,60 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
   .brand-sub { display: none; }
   .msg .bubble { max-width: 88%; }
 }
+
+/* =========================================================
+ * v1.1 新增功能样式（AI停止/文书/全局搜索/备份/引导/相关阅读）
+ * ========================================================= */
+
+/* AI 流式气泡内的「⏹ 停止」 */
+.ai-stop {
+  display: inline-block; margin: 8px 0 0 2px;
+  border: 1px solid var(--line-2); background: #fff; color: var(--ink-2);
+  border-radius: 999px; padding: 5px 14px; font-size: 12.5px;
+}
+.ai-stop:active { border-color: var(--danger); color: var(--danger); background: #fef2f2; }
+
+/* 弹窗分节标题 */
+.modal-section-title {
+  font-size: 13px; font-weight: 700; color: var(--ink);
+  margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+
+/* 数据备份按钮行 */
+.backup-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.backup-row .mini-btn { flex: 1 1 auto; text-align: center; }
+
+/* 文书生成 */
+.doc-textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+  font-family: Consolas, "Courier New", monospace; font-size: 12.5px; line-height: 1.7;
+  resize: vertical; outline: none; background: #fbfcfe; white-space: pre-wrap;
+}
+.doc-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+
+/* 全局搜索 */
+.gsearch-results {
+  max-height: 52vh; max-height: 52dvh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.gs-group {
+  font-size: 12px; font-weight: 700; color: var(--ink-2);
+  padding: 8px 4px 2px; border-bottom: 1px solid var(--line);
+}
+.gs-item { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 9px 12px; }
+.gs-item:active { border-color: var(--primary-border); background: var(--primary-soft); }
+.gs-label { font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.5; }
+.gs-sub { font-size: 12px; color: var(--ink-2); margin-top: 2px; line-height: 1.5; }
+
+/* 结果卡相关阅读 */
+.rel-link {
+  background: #fff; border: 1px solid var(--line); color: var(--ink-2);
+  border-radius: 999px; padding: 5px 12px; font-size: 12.5px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rel-link:active { border-color: var(--primary-border); color: var(--primary); background: var(--primary-soft); }
+
+/* 首次使用引导 */
+.guide-step { display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; line-height: 1.6; }
+.guide-step b { color: var(--ink); }
+.guide-step span { color: var(--ink-2); font-size: 12.5px; }

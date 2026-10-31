@@ -2,6 +2,7 @@ package com.zz333.legalassistant;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -11,6 +12,8 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
+import android.webkit.JsResult;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -27,8 +30,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Map;
 
 /**
  * 法律咨询助手（移动版）—— WebView 壳 + 原生网络桥
@@ -50,7 +55,14 @@ public class MainActivity extends Activity {
     private WebView web;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    private final Map<String, HttpURLConnection> active = new ConcurrentHashMap<>(); /* 进行中的请求，支持「⏹ 停止」 */
     private long lastBackAt = 0;
+
+    private static final int REQ_EXPORT = 1001;   /* 数据备份另存为 */
+    private static final int REQ_PICK_FILE = 1002; /* 数据备份导入选择 */
+    private String pendingExportCb = null;
+    private String pendingExportContent = null;
+    private ValueCallback<Uri[]> pendingFileChooser = null;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -95,6 +107,49 @@ public class MainActivity extends Activity {
             public boolean onConsoleMessage(android.webkit.ConsoleMessage msg) {
                 Log.d(TAG, "[js] " + msg.message() + " (" + msg.sourceId() + ":" + msg.lineNumber() + ")");
                 return true;
+            }
+
+            /* 数据备份导入：<input type="file"> */
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb, FileChooserParams params) {
+                if (pendingFileChooser != null) pendingFileChooser.onReceiveValue(null);
+                pendingFileChooser = cb;
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("*/*");
+                try {
+                    String[] types = params.getAcceptTypes();
+                    if (types != null && types.length > 0 && types[0] != null && !types[0].trim().isEmpty()) {
+                        i.setType(types[0].split(",")[0].trim());
+                    }
+                    startActivityForResult(Intent.createChooser(i, "选择备份文件"), REQ_PICK_FILE);
+                } catch (Exception e) {
+                    pendingFileChooser = null;
+                    return false;
+                }
+                return true;
+            }
+
+            /* window.alert / window.confirm（导入备份前的覆盖确认） */
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
+                showJsDialog(message, result, false);
+                return true;
+            }
+
+            @Override
+            public boolean onJsConfirm(WebView view, String url, String message, JsResult result) {
+                showJsDialog(message, result, true);
+                return true;
+            }
+
+            private void showJsDialog(String message, final JsResult result, boolean confirm) {
+                AlertDialog.Builder b = new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setPositiveButton(confirm ? "确定" : "知道了", (d, w) -> result.confirm())
+                        .setOnCancelListener(d -> result.cancel());
+                if (confirm) b.setNegativeButton("取消", (d, w) -> result.cancel());
+                b.show();
             }
         });
 
@@ -149,13 +204,13 @@ public class MainActivity extends Activity {
         /** 一次性 HTTP 请求（GET/POST，返回完整文本） */
         @JavascriptInterface
         public void http(String method, String url, String headersJson, String body, String cbId) {
-            pool.execute(() -> emit(cbId, doRequest(method, url, headersJson, body, null, 30000)));
+            pool.execute(() -> emit(cbId, doRequest(cbId, method, url, headersJson, body, null, 30000)));
         }
 
         /** 流式 HTTP 请求（SSE）：每个文本块回调 __brChunk，结束时 __brResolve */
         @JavascriptInterface
         public void stream(String method, String url, String headersJson, String body, String cbId) {
-            pool.execute(() -> emit(cbId, doRequest(method, url, headersJson, body, chunk -> {
+            pool.execute(() -> emit(cbId, doRequest(cbId, method, url, headersJson, body, chunk -> {
                 ui.post(() -> {
                     if (web == null) return;
                     web.evaluateJavascript(
@@ -163,6 +218,33 @@ public class MainActivity extends Activity {
                                     JSONObject.quote(chunk) + ");", null);
                 });
             }, 180000)));
+        }
+
+        /** 「⏹ 停止」：断开指定请求的连接 */
+        @JavascriptInterface
+        public void cancel(String cbId) {
+            HttpURLConnection conn = active.remove(cbId);
+            if (conn != null) conn.disconnect();
+        }
+
+        /** 数据备份导出：系统「另存为」选择器（ACTION_CREATE_DOCUMENT），写入后回调 */
+        @JavascriptInterface
+        public void exportFile(String filename, String content, String cbId) {
+            ui.post(() -> {
+                pendingExportCb = cbId;
+                pendingExportContent = content;
+                try {
+                    Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    i.setType("application/json");
+                    i.putExtra(Intent.EXTRA_TITLE, filename == null ? "legal-assistant-backup.json" : filename);
+                    startActivityForResult(i, REQ_EXPORT);
+                } catch (Exception e) {
+                    Result r = new Result();
+                    r.error = "无法打开保存选择器：" + e.getMessage();
+                    emit(cbId, r);
+                }
+            });
         }
 
         /** 用系统浏览器/下载器打开外链（官方原文页、Word/PDF 下载等） */
@@ -201,12 +283,13 @@ public class MainActivity extends Activity {
         String error;
     }
 
-    private Result doRequest(String method, String url, String headersJson, String body, ChunkSink sink, int readTimeout) {
+    private Result doRequest(String cbId, String method, String url, String headersJson, String body, ChunkSink sink, int readTimeout) {
         Result r = new Result();
         HttpURLConnection conn = null;
         try {
             URL u = new URL(url);
             conn = (HttpURLConnection) u.openConnection();
+            if (cbId != null) active.put(cbId, conn);
             conn.setConnectTimeout(12000);
             conn.setReadTimeout(readTimeout);
             conn.setRequestMethod(method == null || method.isEmpty() ? "GET" : method.toUpperCase());
@@ -253,9 +336,51 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             r.error = (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         } finally {
+            if (conn != null && cbId != null) active.remove(cbId);
             if (conn != null) conn.disconnect();
         }
         return r;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_EXPORT) {
+            String cbId = pendingExportCb;
+            String content = pendingExportContent;
+            pendingExportCb = null;
+            pendingExportContent = null;
+            if (cbId == null) return;
+            if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+                Result r = new Result();
+                r.error = "cancelled: 用户取消保存";
+                emit(cbId, r);
+                return;
+            }
+            final Uri uri = data.getData();
+            final String body = content == null ? "" : content;
+            pool.execute(() -> {
+                Result r = new Result();
+                try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                    os.write(body.getBytes(StandardCharsets.UTF_8));
+                    os.flush();
+                } catch (Exception e) {
+                    r.error = "写入文件失败：" + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                }
+                emit(cbId, r);
+            });
+            return;
+        }
+        if (requestCode == REQ_PICK_FILE) {
+            ValueCallback<Uri[]> cb = pendingFileChooser;
+            pendingFileChooser = null;
+            if (cb == null) return;
+            Uri[] out = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                out = new Uri[]{ data.getData() };
+            }
+            cb.onReceiveValue(out);
+        }
     }
 
     @Override

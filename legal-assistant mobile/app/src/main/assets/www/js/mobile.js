@@ -62,7 +62,19 @@
     });
   }
 
-  /* ---------- ⑤ 通知：App 环境提示（一次性） ---------- */
+  /* ---------- ⑤ 历史消息里的死按钮 ----------
+     场景问答的状态只存在内存中，刷新后恢复的历史问题按钮没有事件
+     处理器，保持可点会误导用户——统一禁用（新出现的问题不受影响） */
+  (function disableRestoredQuestionButtons() {
+    var box = document.getElementById("chat-box");
+    if (!box) return;
+    box.querySelectorAll(".q-btn").forEach(function (b) {
+      b.disabled = true;
+      b.classList.add("dim");
+    });
+  })();
+
+  /* ---------- ⑥ 通知：App 环境提示（一次性） ---------- */
   window.addEventListener("load", function () {
     if (window.BRIDGE && window.BRIDGE.available) {
       console.log("[mobile] 原生桥已连接，App 版本 " + window.BRIDGE.version());

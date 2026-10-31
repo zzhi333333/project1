@@ -153,12 +153,43 @@
     out.innerHTML = html;
   }
 
+  /* ---------- 5. 时效倒计时 ---------- */
+  function calcDeadline() {
+    var date = $("dl-date").value;
+    var type = $("dl-type").value;
+    var days = type === "custom" ? parseFloat($("dl-days").value) : parseFloat(type);
+    var out = $("dl-result");
+    if (!date || !days || days <= 0) {
+      out.innerHTML = '<div class="tool-warn">请填写事件日期并选择时效类型（自定义需填写天数）。</div>';
+      return;
+    }
+    var start = new Date(date + "T00:00:00");
+    if (isNaN(start)) { out.innerHTML = '<div class="tool-warn">日期格式有误。</div>'; return; }
+    var deadline = new Date(start.getTime() + days * 86400000);
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var left = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
+    var status, cls;
+    if (left < 0) { status = "已过期 " + (-left) + " 天"; cls = "tool-warn"; }
+    else if (left <= 30) { status = "⚠️ 紧急：仅剩 " + left + " 天"; cls = "tool-warn"; }
+    else { status = "剩余 " + left + " 天"; cls = "calc-head"; }
+    function fmt(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+    out.innerHTML = '<div class="' + cls + '" style="border-radius:8px;padding:10px 13px;font-size:14.5px">⏳ ' + status + '</div>' +
+      '<div class="calc-detail">起算日：' + fmt(start) + '　→　时效届满：' + fmt(deadline) + '（' + days + ' 天）<br>' +
+      '临近届满（30 天内）务必启动相应程序，或留存时效中断证据（书面催告、对方付款或承认等）。</div>' +
+      '<div class="calc-note">说明：时效可因主张权利、对方同意履行、起诉等而中断重新起算；部分情形有特殊规则（如劳动报酬在职期间不受 1 年限制）。本工具按通用规则估算，仅供参考。</div>';
+  }
+
   window.TOOLS = {
     init: function () {
       $("sv-calc").addEventListener("click", calcSeverance);
       $("ot-calc").addEventListener("click", calcOvertime);
       $("al-calc").addEventListener("click", calcLeave);
       $("pt-calc").addEventListener("click", calcPatent);
+      $("dl-calc").addEventListener("click", calcDeadline);
+      var sel = $("dl-type");
+      if (sel) sel.addEventListener("change", function () {
+        $("dl-custom-wrap").classList.toggle("hidden", sel.value !== "custom");
+      });
     }
   };
 })();
