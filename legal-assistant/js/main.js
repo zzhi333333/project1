@@ -215,6 +215,27 @@
     }
   }
 
+  var sessionView = "main";   /* "main" = 历史 | "archived" = 归档 */
+
+  function closeSessionMenus() {
+    document.querySelectorAll(".session-menu").forEach(function (m) { m.remove(); });
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest(".session-more")) return;
+    closeSessionMenus();
+  });
+
+  function refreshChatFromCurrent() {
+    box.innerHTML = "";
+    var cur = window.CHATHISTORY.current();
+    if (cur && cur.messages.length) cur.messages.forEach(renderMessage);
+    else {
+      if (!cur) window.CHATHISTORY.newSession(false);
+      appendBot(welcomeHtml());
+    }
+    window.AI.resetHistory && window.AI.resetHistory();
+  }
+
   function fmtTime(ts) {
     var d = new Date(ts), now = new Date();
     var hm = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
@@ -223,55 +244,95 @@
     return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
   }
 
+  function openSessionMenu(moreBtn, s) {
+    closeSessionMenus();
+    var menu = document.createElement("div");
+    menu.className = "session-menu";
+    var actions = [];
+    if (s.archived) {
+      actions.push({ label: "📤 取消归档", act: function () { window.CHATHISTORY.archive(s.id, false); } });
+    } else {
+      actions.push({ label: "📥 归档", act: function () { window.CHATHISTORY.archive(s.id, true); } });
+    }
+    actions.push({ label: "🗑️ 删除", danger: true, act: null });   /* 删除走两段确认 */
+    actions.forEach(function (a) {
+      var b = document.createElement("button");
+      b.textContent = a.label;
+      if (a.danger) b.classList.add("danger");
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        if (!a.danger) {
+          a.act();
+          closeSessionMenus();
+          refreshChatFromCurrent();
+          window.renderSessionList();
+          return;
+        }
+        /* 删除：两段确认 */
+        if (b.dataset.armed) {
+          window.CHATHISTORY.remove(s.id);
+          closeSessionMenus();
+          refreshChatFromCurrent();
+          window.renderSessionList();
+        } else {
+          b.dataset.armed = "1";
+          b.textContent = "确认删除？";
+          b.classList.add("armed");
+          setTimeout(function () { closeSessionMenus(); }, 3000);
+        }
+      });
+      menu.appendChild(b);
+    });
+    moreBtn.parentElement.appendChild(menu);
+  }
+
   window.renderSessionList = function () {
     var listEl = document.getElementById("session-list");
     if (!listEl) return;
-    var items = window.CHATHISTORY.list();
     var cur = window.CHATHISTORY.current();
+    var items = window.CHATHISTORY.list(sessionView === "archived");
     listEl.innerHTML = "";
+    if (!items.length) {
+      listEl.innerHTML = '<div class="session-empty">' + (sessionView === "archived" ? "暂无归档对话" : "暂无历史对话") + '</div>';
+      return;
+    }
     items.forEach(function (s) {
       var div = document.createElement("div");
       div.className = "session-item" + (cur && s.id === cur.id ? " active" : "");
       div.innerHTML =
         '<div class="session-title">' + esc(s.title) + '</div>' +
         '<div class="session-time">' + fmtTime(s.updatedAt) + ' · ' + s.messages.length + ' 条</div>' +
-        '<button class="session-del" title="删除对话">×</button>';
+        '<button class="session-more" title="更多操作">⋯</button>';
       div.addEventListener("click", function (e) {
-        if (e.target.classList && e.target.classList.contains("session-del")) { delSession(e.target, s.id); return; }
-        if (cur && s.id === cur.id) return;
+        if (e.target.closest && e.target.closest(".session-more")) return;
+        if (e.target.closest && e.target.closest(".session-menu")) return;
         window.CHATHISTORY.switchTo(s.id);
         loadCurrentIntoBox();
         window.AI.resetHistory && window.AI.resetHistory();
         window.renderSessionList();
       });
+      var more = div.querySelector(".session-more");
+      more.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (more.parentElement.querySelector(".session-menu")) { closeSessionMenus(); return; }
+        openSessionMenu(more, s);
+      });
       listEl.appendChild(div);
     });
   };
 
-  function delSession(btn, id) {
-    /* 两段式删除：第一次点变「确认」，3 秒内再点才真删 */
-    if (btn.dataset.armed) {
-      window.CHATHISTORY.remove(id);
-      var cur = window.CHATHISTORY.current();
-      box.innerHTML = "";
-      if (cur && cur.messages.length) cur.messages.forEach(renderMessage);
-      else {
-        if (!cur) window.CHATHISTORY.newSession(false);
-        appendBot(welcomeHtml());
-      }
-      window.AI.resetHistory && window.AI.resetHistory();
-      window.renderSessionList();
-    } else {
-      btn.dataset.armed = "1";
-      btn.textContent = "确认";
-      btn.classList.add("armed");
-      setTimeout(function () {
-        btn.dataset.armed = "";
-        btn.textContent = "×";
-        btn.classList.remove("armed");
-      }, 2500);
-    }
+  /* 历史 / 归档 视图切换 */
+  var tabMain = document.getElementById("session-tab-main");
+  var tabArc = document.getElementById("session-tab-archived");
+  function setSessionView(v) {
+    sessionView = v;
+    if (tabMain) tabMain.classList.toggle("active", v === "main");
+    if (tabArc) tabArc.classList.toggle("active", v === "archived");
+    closeSessionMenus();
+    window.renderSessionList();
   }
+  if (tabMain) tabMain.addEventListener("click", function () { setSessionView("main"); });
+  if (tabArc) tabArc.addEventListener("click", function () { setSessionView("archived"); });
 
   var newChatBtn = document.getElementById("new-chat");
   if (newChatBtn) {

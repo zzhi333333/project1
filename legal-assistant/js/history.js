@@ -16,6 +16,7 @@ window.CHATHISTORY = (function () {
     try { sessions = JSON.parse(localStorage.getItem(KEY) || "[]"); }
     catch (e) { sessions = []; }
     if (!Array.isArray(sessions)) sessions = [];
+    sessions.forEach(function (s) { if (typeof s.archived !== "boolean") s.archived = false; });
     try { currentId = localStorage.getItem(CUR) || null; } catch (e) { currentId = null; }
     if (currentId && !find(currentId)) currentId = null;
   }
@@ -55,6 +56,7 @@ window.CHATHISTORY = (function () {
     if (cur && cur.messages.length <= 1) {
       cur.messages = [];
       cur.title = "新对话";
+      cur.archived = false;
       cur.updatedAt = Date.now();
       currentId = cur.id;
       persist();
@@ -62,7 +64,8 @@ window.CHATHISTORY = (function () {
     }
     var s = {
       id: "s" + Date.now() + Math.random().toString(36).slice(2, 6),
-      title: "新对话", createdAt: Date.now(), updatedAt: Date.now(), messages: []
+      title: "新对话", createdAt: Date.now(), updatedAt: Date.now(),
+      messages: [], archived: false
     };
     sessions.unshift(s);
     trim();
@@ -77,6 +80,7 @@ window.CHATHISTORY = (function () {
     entry.time = Date.now();
     s.messages.push(entry);
     s.updatedAt = Date.now();
+    if (s.archived) s.archived = false;   /* 归档会话有新消息即自动移回历史 */
     if (entry.who === "user" && entry.text) {
       var text = String(entry.text).replace(/<[^>]+>/g, "");
       if (text && (s.title === "新对话" || !s.title)) s.title = text.slice(0, 18);
@@ -88,7 +92,22 @@ window.CHATHISTORY = (function () {
   function remove(id) {
     load();
     sessions = sessions.filter(function (s) { return s.id !== id; });
-    if (currentId === id) currentId = sessions.length ? sessions[0].id : null;
+    if (currentId === id) currentId = null;
+    persist();
+  }
+
+  /* 归档 / 取消归档；归档当前会话时自动把当前指针移到最近的未归档会话 */
+  function archive(id, flag) {
+    load();
+    var s = find(id);
+    if (!s) return;
+    s.archived = !!flag;
+    if (s.archived && currentId === id) {
+      currentId = null;
+      for (var i = 0; i < sessions.length; i++) {
+        if (!sessions[i].archived) { currentId = sessions[i].id; break; }
+      }
+    }
     persist();
   }
 
@@ -106,7 +125,11 @@ window.CHATHISTORY = (function () {
     return currentId ? find(currentId) : null;
   }
 
-  function list() { load(); return sessions; }
+  /* list(true) = 归档视图；list() = 历史视图（未归档） */
+  function list(archived) {
+    load();
+    return sessions.filter(function (s) { return !!s.archived === !!archived; });
+  }
 
   load();
 
@@ -115,6 +138,7 @@ window.CHATHISTORY = (function () {
     newSession: newSession,
     record: record,
     remove: remove,
+    archive: archive,
     switchTo: switchTo,
     current: current,
     list: list
