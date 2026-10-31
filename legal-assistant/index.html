@@ -24,12 +24,11 @@
   </div>
   <nav class="tabs">
     <button class="nav-tab active" data-view="consult">💬 智能咨询</button>
-    <button class="nav-tab" data-view="agent">🤖 法律 Agent</button>
-    <button class="nav-tab" data-view="analysis">📋 案情分析</button>
-    <button class="nav-tab" data-view="laws">📚 法条检索</button>
-    <button class="nav-tab" data-view="tools">🧮 实用工具</button>
-    <button class="nav-tab" data-view="cases">🗂️ 案例检索</button>
-    <button class="nav-tab" data-view="faq">📖 知识讲堂</button>
+    <button class="nav-tab" data-view="agent">🧭 深度分析</button>
+    <button class="nav-tab" data-view="laws">📚 法条</button>
+    <button class="nav-tab" data-view="tools">🧮 工具</button>
+    <button class="nav-tab" data-view="cases">🗂️ 案例</button>
+    <button class="nav-tab" data-view="faq">📖 讲堂</button>
   </nav>
 </header>
 
@@ -40,6 +39,12 @@
     <div class="consult-layout">
       <aside class="consult-aside">
         <div class="aside-title">快捷咨询</div>
+        <div id="scenario-filter" class="chips filter-chips" style="margin-bottom:8px">
+          <button class="filter-chip active" data-domain="">全部</button>
+          <button class="filter-chip" data-domain="labor">劳动</button>
+          <button class="filter-chip" data-domain="company">公司</button>
+          <button class="filter-chip" data-domain="patent">专利</button>
+        </div>
         <div id="quick-scenarios" class="quick-list"></div>
       </aside>
       <div class="consult-main">
@@ -55,50 +60,35 @@
     </div>
   </section>
 
-  <!-- ================= 法律 Agent ================= -->
+  <!-- ================= 深度分析（Agent + 规则报告） ================= -->
   <section id="view-agent" class="view">
     <div class="view-head">
-      <h2>法律咨询 Agent</h2>
-      <p>可核验的智能法律分析：<b>生成前</b>锁定资料区（本地法条库＋国家法律法规数据库全文），<b>生成后</b>逐条核验法条引用与数字断言，杜绝杜撰法条、程序与政策</p>
+      <h2>深度分析</h2>
+      <p>输入完整案情：规则引擎即刻出结构化报告（离线可用）；AI 模式逐条核验法条引用与数字断言，杜绝杜撰</p>
     </div>
+
+    <div class="mode-switch">
+      <button id="agent-mode-report" class="mode-btn active">📋 规则报告（离线可用）</button>
+      <button id="agent-mode-ai" class="mode-btn">🤖 AI 可核验分析</button>
+    </div>
+
     <div class="analysis-editor">
-      <textarea id="agent-input" rows="6" placeholder="输入案情或法律问题，Agent 将执行：领域识别 → 场景/法条检索 → 联网取官方全文 → 约束生成 → 引用核验。Ctrl+Enter 开始。"></textarea>
+      <textarea id="agent-input" rows="6" placeholder="请尽量完整描述案情：时间线、当事人与关系、发生了什么、涉及金额、您的诉求。Ctrl+Enter 开始分析。"></textarea>
       <div class="analysis-actions">
-        <button id="agent-run">🚀 开始 Agent 分析</button>
-        <label class="ai-toggle"><input id="agent-online" type="checkbox" checked> 🌐 联网核验（flk官方全文）</label>
+        <button id="agent-run">🚀 开始分析</button>
+        <label class="ai-toggle" id="agent-online-label"><input id="agent-online" type="checkbox" checked> 🌐 联网核验（flk官方全文）</label>
         <div id="agent-examples" class="suggestions"></div>
       </div>
     </div>
 
     <div id="agent-steps" class="agent-steps hidden">
-      <div class="agent-step" data-i="0"><span class="st-name">① 领域识别</span><span class="st-note"></span></div>
-      <div class="agent-step" data-i="1"><span class="st-name">② 场景匹配</span><span class="st-note"></span></div>
-      <div class="agent-step" data-i="2"><span class="st-name">③ 法条/案例检索</span><span class="st-note"></span></div>
-      <div class="agent-step" data-i="3"><span class="st-name">④ 联网取官方全文</span><span class="st-note"></span></div>
-      <div class="agent-step" data-i="4"><span class="st-name">⑤ 约束生成</span><span class="st-note"></span></div>
-      <div class="agent-step" data-i="5"><span class="st-name">⑥ 引用核验</span><span class="st-note"></span></div>
+      <div class="agent-step" data-i="0"><span class="st-name">① 资料检索</span><span class="st-note"></span></div>
+      <div class="agent-step" data-i="1"><span class="st-name">② 生成分析</span><span class="st-note"></span></div>
+      <div class="agent-step" data-i="2"><span class="st-name">③ 引用核验</span><span class="st-note"></span></div>
     </div>
 
     <div id="agent-answer"></div>
     <div id="agent-panel"></div>
-  </section>
-
-  <!-- ================= 案情深度分析 ================= -->
-  <section id="view-analysis" class="view">
-    <div class="view-head">
-      <h2>案情深度分析</h2>
-      <p>粘贴或输入完整案情，系统结合<b>法条知识库 + 公开案例（指导性案例/典型案例）</b>生成分析参考报告、请求事项参考与阶段化程序建议</p>
-    </div>
-    <div class="analysis-editor">
-      <textarea id="analysis-input" rows="7" placeholder="请尽量完整地描述案情，包括：时间线（入职/签约/申请日等）、当事人与岗位/关系、发生了什么（辞退/欠薪/出资/侵权…）、涉及金额、您的主张或诉求。&#10;Ctrl+Enter 快捷生成报告。"></textarea>
-      <div class="analysis-actions">
-        <button id="analysis-run">📋 生成分析报告</button>
-        <button id="analysis-ai-btn" class="ghost-btn">🤖 AI 深度分析</button>
-        <div id="analysis-examples" class="suggestions"></div>
-      </div>
-    </div>
-    <div id="analysis-report"></div>
-    <div id="analysis-ai-out" style="margin-top:16px"></div>
   </section>
 
   <!-- ================= 法条检索 ================= -->
@@ -211,26 +201,34 @@
   <section id="view-cases" class="view">
     <div class="view-head">
       <h2>案例检索</h2>
-      <p>在线定位中国裁判文书网 / 最高人民法院官网公开案例；内置最高人民法院指导性案例精读</p>
+      <p>在线定位裁判文书网 / 最高法官网公开案例；内置指导性案例精读与典型情景案例</p>
     </div>
 
-    <div class="search-row">
-      <input id="case-input" type="text" placeholder="输入案情关键词，如：违法解除 试用期 / 股东知情权 / 专利侵权 先用权">
-      <button id="case-btn">检索案例</button>
-    </div>
-    <div id="case-site-chips" class="chips filter-chips">
-      <button class="filter-chip active" data-site="wenshu">中国裁判文书网</button>
-      <button class="filter-chip" data-site="court">最高人民法院官网（指导性案例）</button>
+    <div class="mode-switch">
+      <button id="case-tab-online" class="mode-btn active">🔎 在线检索（联网）</button>
+      <button id="case-tab-guiding" class="mode-btn">⭐ 指导性案例精读</button>
+      <button id="case-tab-builtin" class="mode-btn">📘 典型情景案例</button>
     </div>
 
-    <h3 class="section-sub">🔎 在线检索结果</h3>
-    <div id="case-results" class="case-results"><div class="empty dim">输入关键词后检索公开案例（需联网模式）。</div></div>
+    <div id="case-block-online">
+      <div class="search-row">
+        <input id="case-input" type="text" placeholder="输入案情关键词，如：违法解除 试用期 / 股东知情权 / 专利侵权 先用权">
+        <button id="case-btn">检索案例</button>
+      </div>
+      <div id="case-site-chips" class="chips filter-chips">
+        <button class="filter-chip active" data-site="wenshu">中国裁判文书网</button>
+        <button class="filter-chip" data-site="court">最高人民法院官网（指导性案例）</button>
+      </div>
+      <div id="case-results" class="case-results"><div class="empty dim">输入关键词后检索公开案例（需联网模式）。</div></div>
+    </div>
 
-    <h3 class="section-sub">⭐ 公开指导性案例精选（内置精读解析）</h3>
-    <div id="guiding-list" class="case-results"></div>
+    <div id="case-block-guiding" class="hidden">
+      <div id="guiding-list" class="case-results"></div>
+    </div>
 
-    <h3 class="section-sub">📘 典型情景案例（内置）</h3>
-    <div id="case-list" class="case-results"></div>
+    <div id="case-block-builtin" class="hidden">
+      <div id="case-list" class="case-results"></div>
+    </div>
   </section>
 
   <!-- ================= 知识讲堂 ================= -->

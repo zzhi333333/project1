@@ -357,7 +357,7 @@ window.ANALYSIS = (function () {
     var html = '<div class="report">';
 
     /* 报告头 */
-    html += '<div class="report-head" style="background:linear-gradient(135deg,' + d.color + ',#00000022)">' +
+    html += '<div class="report-head" style="background:' + d.color + '">' +
       '<div class="report-head-title">📋 案件分析参考报告</div>' +
       '<div>识别领域：<b>' + d.name + '</b>' + (r.confidence ? '（置信度 ' + r.confidence + '%）' : '') +
       ' · 争议焦点：' + (r.focus.length ? r.focus.map(esc).join("、") : "综合咨询") + '</div></div>';
@@ -423,7 +423,7 @@ window.ANALYSIS = (function () {
     r.risks.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
     html += '</ul></div>';
 
-    html += '<div class="result-disclaimer" style="padding:0 2px 4px">本报告由规则引擎基于您输入的案情自动生成，仅供参考，不构成法律意见；法条请以官方数据库现行文本为准，重大事项请咨询执业律师。</div>';
+    html += '<div class="result-disclaimer" style="padding:0 2px 4px">规则引擎自动生成，仅供参考，不构成法律意见 · 完整声明见页脚</div>';
     html += '</div>';
     container.innerHTML = html;
 

@@ -234,7 +234,16 @@ window.AGENT = (function () {
 
   /* ============ Agent 视图工作流 ============ */
   var els = {};
+  var mode = "report";  /* "report" = 规则引擎报告（离线） | "ai" = AI 可核验分析 */
   var lastRun = null;   /* {q, ctxText, fullTexts, messages} 供严格模式重生成 */
+
+  function setMode(m) {
+    mode = m;
+    var btnR = document.getElementById("agent-mode-report");
+    var btnA = document.getElementById("agent-mode-ai");
+    if (btnR) btnR.classList.toggle("active", m === "report");
+    if (btnA) btnA.classList.toggle("active", m === "ai");
+  }
 
   function stepEl(i) { return document.querySelector('#agent-steps .agent-step[data-i="' + i + '"]'); }
   function stepState(i, state, note) {
@@ -248,86 +257,91 @@ window.AGENT = (function () {
   function runAgent() {
     var q = els.input.value.trim();
     if (q.length < 10) {
-      els.answer.innerHTML = '<div class="tool-warn">请输入完整的案情或问题（至少10个字），Agent 需要足够事实才能可靠分析。</div>';
+      els.answer.innerHTML = '<div class="tool-warn">请输入完整的案情或问题（至少10个字），需要足够事实才能可靠分析。</div>';
       return;
     }
     els.answer.innerHTML = "";
     els.panel.innerHTML = "";
     els.steps.classList.remove("hidden");
-    [0, 1, 2, 3, 4, 5].forEach(function (i) { stepState(i, "run", ""); });
+    [0, 1, 2].forEach(function (i) { stepState(i, "run", ""); });
+
+    /* ── 模式一：规则引擎报告（离线、确定性、天然可核验） ── */
+    if (mode === "report") {
+      var rep = window.ANALYSIS.run(q);
+      stepState(0, "done", rep.domainName + " · " + (rep.focus.length ? rep.focus.map(function (s) { return s.replace(/^\S+\s/, ""); }).join("、") : "综合咨询") + " · " + rep.laws.length + " 条法条 + " + rep.cases.length + " 个案例");
+      stepState(1, "done", "结构化报告已生成（要素提取/定性/法条/案例/程序建议/证据清单）");
+      stepState(2, "skip", "规则报告内容全部来自内置知识库，天然可核验");
+      els.answer.innerHTML = "";
+      window.ANALYSIS.render(rep, els.answer);
+      return;
+    }
+
+    /* ── 模式二：AI 可核验分析 ── */
+    if (!(window.AI && window.AI.isConfigured())) {
+      stepState(0, "warn", "AI 未配置（右上角「AI 模型」设置），自动转为规则报告");
+      setMode("report");
+      runAgent();
+      return;
+    }
     var useOnline = els.online.checked;
 
-    /* Step 0-2：规则引擎（同步、确定性） */
+    /* 步骤①：资料检索（领域/场景/法条/案例 + 联网官方全文） */
     var cls = window.CONSULT.classify(q);
     var c = window.ANALYSIS.matchContext(q);
-    stepState(0, "done", window.DOMAINS[c.domain].name + (cls.confidence ? "（置信度 " + Math.round(cls.confidence * 100) + "%）" : ""));
-    stepState(1, "done", c.scenarios.length ? c.scenarios.map(function (s) { return s.name; }).join("、") : "综合咨询");
-    stepState(2, "done", c.laws.length + " 条法条 + " + c.cases.length + " 个案例");
-
-    /* Step 3：联网取官方全文（增强资料区 + 供核验） */
     var fullTexts = {};
     var onlinePromise;
     if (useOnline && window.ONLINE && window.ONLINE.isAvailable()) {
       var lawsToFetch = [];
       c.laws.forEach(function (l) {
         var name = normLaw(l.law);
-        if (lawsToFetch.indexOf(name) === -1 && Object.keys(fullTexts).length + lawsToFetch.length < 2) lawsToFetch.push(name);
+        if (lawsToFetch.indexOf(name) === -1 && lawsToFetch.length < 2) lawsToFetch.push(name);
       });
       onlinePromise = Promise.all(lawsToFetch.map(function (name) {
         return fetchLawFullText(name).then(function (t) {
           if (t && t.text) fullTexts[name] = t;
         });
       })).then(function () {
-        stepState(3, "done", Object.keys(fullTexts).length + " 部法律全文已从国家法律法规数据库取回");
+        stepState(0, "done", window.DOMAINS[c.domain].name + " · " + c.laws.length + " 条法条 + " + c.cases.length + " 个案例 + " + Object.keys(fullTexts).length + " 部官方全文");
       });
     } else {
       onlinePromise = Promise.resolve().then(function () {
-        stepState(3, "skip", useOnline ? "本地代理未启动，跳过联网核验" : "已关闭联网核验");
+        stepState(0, "done", window.DOMAINS[c.domain].name + " · " + c.laws.length + " 条法条 + " + c.cases.length + " 个案例" + (useOnline ? "（代理未启动，未取官方全文）" : ""));
       });
     }
 
-    /* Step 4：生成 */
+    /* 步骤②：约束生成 */
     var ctxText = buildContextBlock(q, c);
     onlinePromise.then(function () {
-      var genPromise;
-      if (window.AI && window.AI.isConfigured()) {
-        els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div>';
-        var span = els.answer.querySelector(".ai-text");
-        var ctxForGen = ctxText;
-        Object.keys(fullTexts).forEach(function (k) {
-          ctxForGen += "\n【资料区·官方全文摘录：《" + fullTexts[k].title + "》（可引用其中条文）】\n" + String(fullTexts[k].text).slice(0, 6000);
-        });
-        var messages = [
-          { role: "system", content: AGENT_PROMPT },
-          { role: "user", content: "请依据资料区分析以下问题：\n" + ctxForGen }
-        ];
-        lastRun = { q: q, ctxText: ctxText + Object.keys(fullTexts).map(function (k) { return fullTexts[k].text; }).join(""), fullTexts: fullTexts, messages: messages };
-        var full = "";
-        stepState(4, "run", "AI 生成中（仅可依据资料区作答）…");
-        genPromise = window.AI.aiChat(messages, function (d) {
-          full += d;
-          span.textContent = full;
-          els.answer.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }).then(function () {
-          stepState(4, "done", "生成完毕");
-          return { text: full || "（模型未返回内容）" };
-        });
-      } else {
-        stepState(4, "skip", "未配置 AI，输出规则引擎报告（内容全部来自内置知识库，天然可核验）");
-        els.answer.innerHTML = "";
-        window.ANALYSIS.render(window.ANALYSIS.run(q), els.answer);
-        genPromise = Promise.resolve({ text: "", ruleOnly: true });
-      }
-      return genPromise;
+      els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div>';
+      var span = els.answer.querySelector(".ai-text");
+      var ctxForGen = ctxText;
+      Object.keys(fullTexts).forEach(function (k) {
+        ctxForGen += "\n【资料区·官方全文摘录：《" + fullTexts[k].title + "》（可引用其中条文）】\n" + String(fullTexts[k].text).slice(0, 6000);
+      });
+      var messages = [
+        { role: "system", content: AGENT_PROMPT },
+        { role: "user", content: "请依据资料区分析以下问题：\n" + ctxForGen }
+      ];
+      lastRun = { q: q, ctxText: ctxText + Object.keys(fullTexts).map(function (k) { return fullTexts[k].text; }).join(""), fullTexts: fullTexts, messages: messages };
+      var full = "";
+      stepState(1, "run", "AI 生成中（仅可依据资料区作答）…");
+      return window.AI.aiChat(messages, function (d) {
+        full += d;
+        span.textContent = full;
+        els.answer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }).then(function () {
+        stepState(1, "done", "生成完毕");
+        return { text: full || "（模型未返回内容）" };
+      });
     }).then(function (gen) {
-      /* Step 5：核验 */
-      if (gen.ruleOnly || !gen.text) {
-        stepState(5, "skip", "规则引擎报告无需核验（全部来自内置知识库）");
+      /* 步骤③：核验 */
+      if (!gen || !gen.text) {
+        stepState(2, "skip", "无内容可核验");
         return;
       }
-      stepState(5, "run", "正在逐条核验引用与数字断言…");
+      stepState(2, "run", "正在逐条核验引用与数字断言…");
       var v = verifyText(gen.text, lastRun.ctxText, lastRun.fullTexts);
-      stepState(5, v.allOk ? "done" : "warn",
+      stepState(2, v.allOk ? "done" : "warn",
         v.totalCitations + " 条引用核实 " + v.verifiedCount + " 条" + (v.flaggedNumbers ? "；" + v.flaggedNumbers + " 项数字待核实" : ""));
       /* 用标注版替换纯文本 */
       var html = annotate(gen.text, v);
@@ -380,14 +394,14 @@ window.AGENT = (function () {
     ]);
     els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div>';
     var span = els.answer.querySelector(".ai-text");
-    stepState(4, "run", "严格模式重新生成…");
-    stepState(5, "run", "");
+    stepState(1, "run", "严格模式重新生成…");
+    stepState(2, "run", "");
     var full = "";
     window.AI.aiChat(messages, function (d) { full += d; span.textContent = full; })
       .then(function () {
-        stepState(4, "done", "严格模式生成完毕");
+        stepState(1, "done", "严格模式生成完毕");
         var v2 = verifyText(full, lastRun.ctxText, lastRun.fullTexts);
-        stepState(5, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
+        stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
         renderPanel(v2, full);
       })
@@ -404,7 +418,7 @@ window.AGENT = (function () {
     var html = '<div class="verify-mini' + (v.allOk ? "" : " warn") + '">' +
       "🛡️ 核验：" + v.verifiedCount + "/" + v.totalCitations + " 条引用已核实" +
       (v.flaggedNumbers ? "；⚠️ " + v.flaggedNumbers + " 项数字待核实" : "") +
-      (v.allOk ? "" : "（未核实内容请谨慎采纳，可到「法律 Agent」页获得完整核验报告）") + "</div>";
+      (v.allOk ? "" : "（未核实内容请谨慎采纳，可到「深度分析」页获得完整核验报告）") + "</div>";
     var wrap = document.createElement("div");
     wrap.innerHTML = html;
     bubbleDiv.appendChild(wrap.firstChild);
@@ -425,11 +439,16 @@ window.AGENT = (function () {
     els.input.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runAgent();
     });
+    var btnR = document.getElementById("agent-mode-report");
+    var btnA = document.getElementById("agent-mode-ai");
+    if (btnR) btnR.addEventListener("click", function () { setMode("report"); });
+    if (btnA) btnA.addEventListener("click", function () { setMode("ai"); });
     var ex = document.getElementById("agent-examples");
     [
       "公司口头把我辞退了没有赔偿，我能主张2N吗？程序怎么走？",
       "作为小股东，公司连续五年盈利却从不分红，我有什么退出和救济途径？",
-      "我的实用新型专利被同行仿冒销售，该怎么取证、维权、算赔偿？"
+      "我的实用新型专利被同行仿冒销售，该怎么取证、维权、算赔偿？",
+      "一人公司股东用个人卡收公司货款，债权人该怎么追责？"
     ].forEach(function (t) {
       var b = document.createElement("button");
       b.className = "sug-btn";

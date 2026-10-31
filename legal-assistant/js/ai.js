@@ -254,36 +254,7 @@ window.AI = (function () {
       })
       .catch(function (e) { finishBubble(div, "⚠️ " + (e && e.message || e)); });
   }
-
-  /* ---------------- 集成③：案情分析 AI 深度分析 ---------------- */
-  function aiDeepAnalysis() {
-    var input = document.getElementById("analysis-input");
-    var out = document.getElementById("analysis-ai-out");
-    var text = (input.value || "").trim();
-    if (text.length < 10) { out.innerHTML = '<div class="tool-warn">请先在上方输入案情描述。</div>'; return; }
-    out.innerHTML = '<div class="report-sec"><div class="report-sec-title">🤖 AI 深度分析（流式生成中…）</div>' +
-      '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div></div>';
-    var span = out.querySelector(".ai-text");
-    var ctx = buildContext(text);
-    var messages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: "请结合以上匹配资料，对以下案情做深度分析，按五个部分输出：" +
-        "一、法律关系与整体定性；二、关键争议点逐项分析；三、对方可能提出的抗辩及应对；" +
-        "四、我的行动路线（程序步骤+证据+时效）；五、结果预估与替代方案（和解/调解等）。\n\n案情：" + text }
-    ];
-    var full = "";
-    aiChat(messages, function (delta) {
-      full += delta;
-      span.textContent = full;
-      out.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }).then(function () {
-      span.textContent = full || "（模型未返回内容。）";
-      out.querySelector(".ai-cursor") && out.querySelector(".ai-cursor").remove();
-      if (window.AGENT && full) window.AGENT.attachVerification(out.querySelector(".bubble"), full, ctx);
-    }).catch(function (e) {
-      out.innerHTML = '<div class="tool-warn">⚠️ ' + (e && e.message || e) + "</div>";
-    });
-  }
+  /* 集成③（案情分析 AI 深度分析）已并入「深度分析」页 AI 模式，见 agent.js */
 
   /* ---------------- 设置弹窗 ---------------- */
   function openModal() {
@@ -381,10 +352,6 @@ window.AI = (function () {
       var btn = e.target.closest ? e.target.closest(".result-ai-btn") : null;
       if (btn) aiDeepResult(btn.getAttribute("data-rid"));
     });
-
-    /* 分析页：AI 深度分析按钮 */
-    var deepBtn = document.getElementById("analysis-ai-btn");
-    if (deepBtn) deepBtn.addEventListener("click", aiDeepAnalysis);
 
     syncToggleLabel();
   }

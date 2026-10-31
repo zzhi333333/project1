@@ -5,7 +5,7 @@
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
   /* ---------- 视图切换 ---------- */
-  var views = ["consult", "agent", "analysis", "laws", "tools", "cases", "faq"];
+  var views = ["consult", "agent", "laws", "tools", "cases", "faq"];
   function switchView(name) {
     views.forEach(function (v) {
       var el = document.getElementById("view-" + v);
@@ -21,7 +21,7 @@
     t.addEventListener("click", function () { switchView(t.getAttribute("data-view")); });
   });
 
-  /* ---------- 聊天 UI（供 consult.js 调用） ---------- */
+  /* ---------- 聊天 UI（供 consult.js / ai.js 调用） ---------- */
   var box = document.getElementById("chat-box");
 
   function scrollDown() { box.scrollTop = box.scrollHeight; }
@@ -84,15 +84,14 @@
       '<div class="result-card">' +
         '<div class="result-flag" style="border-color:' + d.color + '">' + scenario.icon + ' ' + d.name + ' · 初步分析意见</div>' +
         '<div class="result-title">' + esc(r.headline) + '</div>' +
-        '<div class="result-section"><span class="sec-label" style="background:' + d.color + '1a;color:' + d.color + '">📌 结论概要</span>' + esc(r.summary) + '</div>' +
-        '<div class="result-section"><span class="sec-label" style="background:' + d.color + '1a;color:' + d.color + '">🔍 具体分析</span>' +
+        '<div class="result-section"><span class="sec-label">📌 结论概要</span>' + esc(r.summary) + '</div>' +
+        '<div class="result-section"><span class="sec-label">🔍 具体分析</span>' +
           '<ul>' + r.analysis.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
-        '<div class="result-section"><span class="sec-label" style="background:' + d.color + '1a;color:' + d.color + '">📚 依据法条</span><div class="chips">' + lawChips(r.laws) + '</div></div>' +
-        '<div class="result-section"><span class="sec-label" style="background:' + d.color + '1a;color:' + d.color + '">✅ 行动建议</span>' +
+        '<div class="result-section"><span class="sec-label">📚 依据法条</span><div class="chips">' + lawChips(r.laws) + '</div></div>' +
+        '<div class="result-section"><span class="sec-label">✅ 行动建议</span>' +
           '<ul>' + r.advice.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
         '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
-        '<div class="result-ai-row"><button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button><span class="dim">结合上述结论与法条个性化展开（在右上角「AI 模型」配置后可用）</span></div>' +
-        '<div class="result-disclaimer">以上内容基于您选择的事实做出的规则化分析，仅供参考，不构成正式法律意见；可到「法条检索」页联网核对官方原文，重大事项请咨询执业律师。</div>' +
+        '<div class="result-ai-row"><button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button><span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span></div>' +
       '</div>';
     var div = document.createElement("div");
     div.className = "msg bot";
@@ -128,26 +127,39 @@
     }
   });
 
-  /* ---------- 快捷场景卡片 ---------- */
+  /* ---------- 快捷场景卡片（带领域筛选） ---------- */
   var quickBox = document.getElementById("quick-scenarios");
   if (quickBox) {
+    var cards = {};
     window.SCENARIOS.forEach(function (s) {
       var card = document.createElement("button");
       card.className = "quick-card";
+      card.setAttribute("data-domain", s.domain);
       card.innerHTML = '<span class="qc-icon">' + s.icon + '</span><span class="qc-name">' + esc(s.name) + '</span><span class="qc-desc">' + esc(s.desc) + '</span>';
       card.addEventListener("click", function () { window.CONSULT.quickStart(s.id); });
       quickBox.appendChild(card);
+      cards[s.id] = card;
     });
+    /* 领域筛选 */
+    var filterBox = document.getElementById("scenario-filter");
+    if (filterBox) {
+      filterBox.addEventListener("click", function (e) {
+        var chip = e.target.closest ? e.target.closest(".filter-chip") : null;
+        if (!chip) return;
+        filterBox.querySelectorAll(".filter-chip").forEach(function (x) { x.classList.toggle("active", x === chip); });
+        var dom = chip.getAttribute("data-domain") || "";
+        Object.keys(cards).forEach(function (id) {
+          cards[id].style.display = (!dom || cards[id].getAttribute("data-domain") === dom) ? "" : "none";
+        });
+      });
+    }
+    /* 跨领域示例（4 个，与场景卡互补） */
     var sugBox = document.getElementById("suggestions");
     [
       "被公司辞退了该怎么维权？",
-      "公司拖欠了三个月工资怎么办？",
-      "入职两个月一直没签劳动合同",
       "公司注册资本认缴2000万一直没实缴",
-      "小股东常年不分红怎么退出",
       "我的实用新型专利被别人抄了",
-      "收到专利侵权警告函怎么应对",
-      "想申请专利但不知道选什么类型"
+      "收到专利侵权警告函怎么应对"
     ].forEach(function (t) {
       var b = document.createElement("button");
       b.className = "sug-btn";
@@ -157,7 +169,24 @@
     });
   }
 
-  /* ---------- 案例页：典型情景案例（内置） ---------- */
+  /* ---------- 案例页：页内标签 ---------- */
+  var caseTabs = [
+    { btn: "case-tab-online", block: "case-block-online" },
+    { btn: "case-tab-guiding", block: "case-block-guiding" },
+    { btn: "case-tab-builtin", block: "case-block-builtin" }
+  ];
+  caseTabs.forEach(function (t) {
+    var btn = document.getElementById(t.btn);
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      caseTabs.forEach(function (x) {
+        document.getElementById(x.btn).classList.toggle("active", x.btn === t.btn);
+        document.getElementById(x.block).classList.toggle("hidden", x.block !== t.block);
+      });
+    });
+  });
+
+  /* ---------- 典型情景案例（内置） ---------- */
   var caseBox = document.getElementById("case-list");
   if (caseBox) {
     window.CASES.forEach(function (c) {
@@ -196,17 +225,15 @@
     });
   }
 
-  /* ---------- 欢迎语 ---------- */
+  /* ---------- 欢迎语（精简） ---------- */
   appendBot(
-    "您好！我是<b>法律咨询助手</b>，专注于<b>劳动法、公司法、专利法</b>三大领域 🧑‍🏭 🏢 💡<br><br>" +
-    "请用一两句话描述您遇到的问题（例如「公司口头把我辞退了，没有赔偿」），我会判断问题类型、询问关键事实，并给出<b>初步分析 + 依据法条 + 行动建议 + 时效提示</b>。<br><br>" +
-    "也可以直接点击下方示例问题或左侧「快捷咨询」开始；「法条检索」页支持联网查询<b>国家法律法规数据库</b>官方原文，「案例检索」页可检索<b>裁判文书网</b>与<b>最高法指导性案例</b>。"
+    "您好！我是<b>法律咨询助手</b>，专注<b>劳动法 · 公司法 · 专利法</b>。<br>" +
+    "请描述您的问题，我会澄清关键事实后给出<b>分析 + 法条 + 行动建议</b>；也可从左侧场景直接开始。"
   );
 
   /* ---------- 模块装配 ---------- */
   window.LAWSEARCH.init();
   window.TOOLS.init();
-  window.ANALYSIS.init();
   window.ONLINE.init();
   window.AI.init();
   window.AGENT.init();
