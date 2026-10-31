@@ -19,7 +19,8 @@
     </div>
     <div class="header-right">
       <div id="net-badge" class="net-badge off">○ 检测中<span class="nb-sub">正在探测本地服务…</span></div>
-      <button id="ai-gear" class="ai-gear" title="配置 AI 模型（智谱/DeepSeek/Kimi/通义/OpenAI/Ollama）">🤖 AI 模型</button>
+      <button id="gsearch-btn" class="ghost-btn header-search" title="全局搜索（法条/讲堂/场景/案例）">🔍 搜索</button>
+      <button id="ai-gear" class="ai-gear" title="配置 AI 模型（智谱/DeepSeek/Kimi/通义/千帆/OpenAI/Ollama）">🤖 AI 模型</button>
     </div>
   </div>
   <nav class="tabs">
@@ -46,12 +47,7 @@
         </div>
         <div id="session-list" class="session-list"></div>
         <div class="aside-title" style="margin-top:12px">快捷咨询</div>
-        <div id="scenario-filter" class="chips filter-chips" style="margin-bottom:8px">
-          <button class="filter-chip active" data-domain="">全部</button>
-          <button class="filter-chip" data-domain="labor">劳动</button>
-          <button class="filter-chip" data-domain="company">公司</button>
-          <button class="filter-chip" data-domain="patent">专利</button>
-        </div>
+        <div id="scenario-filter" class="chips filter-chips" style="margin-bottom:8px"></div>
         <div id="quick-scenarios" class="quick-list"></div>
       </aside>
       <div class="consult-main">
@@ -200,10 +196,28 @@
         <div id="pt-result" class="tool-result"></div>
       </div>
 
+      <div class="tool-card">
+        <div class="tool-title">⏳ 时效倒计时</div>
+        <div class="tool-form">
+          <label>事件日期（如离职日、知道权利被侵害之日）<input id="dl-date" type="date"></label>
+          <label>时效类型
+            <select id="dl-type">
+              <option value="365">劳动仲裁 —— 1年（追索报酬等部分情形在职不受限）</option>
+              <option value="1095">民事诉讼 / 专利侵权 —— 3年</option>
+              <option value="60">行政复议 / 决议撤销 —— 60日</option>
+              <option value="180">行政诉讼 —— 6个月</option>
+              <option value="90">回购诉讼（公司法） —— 90日</option>
+              <option value="custom">自定义天数…</option>
+            </select>
+          </label>
+          <label id="dl-custom-wrap" class="hidden">自定义天数<input id="dl-days" type="number" min="1" placeholder="如 30"></label>
+          <button id="dl-calc" class="calc-btn">计算</button>
+        </div>
+        <div id="dl-result" class="tool-result"></div>
+      </div>
+
     </div>
   </section>
-
-  <!-- ================= 案例检索 ================= -->
   <section id="view-cases" class="view">
     <div class="view-head">
       <h2>案例检索</h2>
@@ -275,12 +289,63 @@
       </label>
       <div class="modal-note">🔒 API Key 仅保存在本机浏览器（localStorage），请求经<b>本地代理服务</b>转发，不会经过任何第三方服务器。推荐智谱 <b>glm-4-flash</b>（官方免费）；百度千帆注意区分：<b>Token 计划个人版</b>的 Key（套餐订阅）请选「Token 计划个人版」专属端点（模型如 glm-5.3-flash、deepseek-v4.1-flash），<b>通用付费 Key</b> 才选「通用 OpenAI 兼容 v2」（ernie 系列）；已装 Ollama 的可选本地模型，无需联网与密钥。跨域受限时请运行 <code>node server.js</code>。</div>
       <div id="ai-status" class="ai-status"></div>
+      <div class="modal-section-title">💾 数据备份</div>
+      <div style="display:flex;gap:10px">
+        <button id="data-export" class="ghost-btn">导出备份（对话+设置）</button>
+        <button id="data-import" class="ghost-btn">导入备份</button>
+        <input id="data-import-file" type="file" accept="application/json,.json" class="hidden">
+      </div>
     </div>
     <div class="modal-foot">
       <button id="ai-save" class="primary">保存</button>
       <button id="ai-test">测试连接</button>
       <button id="ai-close">关闭</button>
     </div>
+  </div>
+</div>
+
+<!-- 文书生成弹窗 -->
+<div id="doc-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card" style="width:min(760px, calc(100vw - 32px))">
+    <div class="modal-title">📄 生成文书草稿</div>
+    <div class="modal-body">
+      <div id="doc-list" class="chips" style="margin-bottom:4px"></div>
+      <textarea id="doc-text" class="doc-textarea" rows="18"></textarea>
+      <div class="modal-note">草稿依据您在问答中提供的事实自动生成，【】为待补信息。使用前请结合实际情况修改核对，重要文书建议由执业律师审核。</div>
+    </div>
+    <div class="modal-foot">
+      <button id="doc-copy" class="primary">📋 复制全文</button>
+      <button id="doc-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 全局搜索弹窗 -->
+<div id="gsearch-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card">
+    <div class="modal-title">🔍 全局搜索</div>
+    <div class="modal-body">
+      <input id="gsearch-input" type="text" placeholder="搜索法条、讲堂问答、咨询场景、案例…">
+      <div id="gsearch-results" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="modal-foot"><button id="gsearch-close">关闭</button></div>
+  </div>
+</div>
+
+<!-- 首次使用引导 -->
+<div id="guide-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card" style="width:min(520px, calc(100vw - 32px))">
+    <div class="modal-title">👋 欢迎使用法律咨询助手</div>
+    <div class="modal-body">
+      <div class="guide-step"><b>1️⃣ 描述问题或选场景</b><span>在「智能咨询」直接提问，或从左侧 22 个场景开始，系统会澄清关键事实后给出分析。</span></div>
+      <div class="guide-step"><b>2️⃣ 需要深度分析？</b><span>把完整案情贴到「深度分析」：规则报告离线可用，AI 模式还会逐条核验法条引用，杜绝杜撰。</span></div>
+      <div class="guide-step"><b>3️⃣ 想用 AI？</b><span>点右上角「AI 模型」配置一个服务商（推荐智谱 glm-4-flash，官方免费）。</span></div>
+      <div class="modal-note">🔒 全部数据仅存本机浏览器；「法条检索」可联网查询国家法律法规数据库官方原文。本工具仅供参考，不构成法律意见。</div>
+    </div>
+    <div class="modal-foot"><button id="guide-close" class="primary">开始使用</button></div>
   </div>
 </div>
 
@@ -291,7 +356,9 @@
   </div>
 </footer>
 
+<script src="js/registry.js"></script>
 <script src="js/data/laws.js"></script>
+<script src="js/data/laws-extra.js"></script>
 <script src="js/data/scenarios.js"></script>
 <script src="js/data/faq.js"></script>
 <script src="js/data/guiding.js"></script>
@@ -303,6 +370,8 @@
 <script src="js/ai.js"></script>
 <script src="js/agent.js"></script>
 <script src="js/history.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/gsearch.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
