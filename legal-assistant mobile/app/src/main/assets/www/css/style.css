@@ -67,7 +67,8 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
 .brand-icon { font-size: 22px; }
 .brand-text { min-width: 0; }
 .brand-title { font-size: 16.5px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
-.brand-sub { font-size: 10.5px; color: var(--ink-2); white-space: nowrap; }
+/* 覆盖范围描述在移动端顶栏不展示（空间有限，完整覆盖说明见欢迎语与首次引导） */
+.brand-sub { display: none; }
 .topbar-right { display: flex; align-items: center; gap: 4px; }
 
 .net-badge {
@@ -544,7 +545,6 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
 
 /* 窄屏（<380dp）微调 */
 @media (max-width: 379px) {
-  .brand-sub { display: none; }
   .msg .bubble { max-width: 88%; }
 }
 
