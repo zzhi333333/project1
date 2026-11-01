@@ -223,7 +223,9 @@ window.AI = (function () {
     window.UI.appendUser(text);
     var div = streamBubble(box);
     var ctx = buildContext(text);
-    var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx }]
+    var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
+      "\n【追问规则】若用户描述的关键事实明显不足（未说明时间、金额、合同状态、双方关系等核心要素），" +
+      "请先合并提出最多两个关键追问，等用户补充后再给完整分析；若信息已足够，直接分析，不要为追问而追问。" }]
       .concat(aiHistory)
       .concat([{ role: "user", content: text }]);
     var full = "";
@@ -399,6 +401,8 @@ window.AI = (function () {
       app: "legal-assistant", version: 1, exportedAt: new Date().toISOString(),
       chatSessions: JSON.parse(localStorage.getItem("legal-chat-sessions") || "[]"),
       chatCurrent: localStorage.getItem("legal-chat-current"),
+      deadlines: JSON.parse(localStorage.getItem("legal-deadlines") || "[]"),
+      feedback: JSON.parse(localStorage.getItem("legal-feedback") || "[]"),
       aiSettings: S
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -415,9 +419,11 @@ window.AI = (function () {
       try {
         var d = JSON.parse(reader.result);
         if (!d || d.app !== "legal-assistant") throw new Error("不是本工具的备份文件");
-        if (!confirm("导入将覆盖当前的对话历史与 AI 设置，是否继续？")) return;
+        if (!confirm("导入将覆盖当前的对话历史、日历与 AI 设置，是否继续？")) return;
         if (d.chatSessions) localStorage.setItem("legal-chat-sessions", JSON.stringify(d.chatSessions));
         if (d.chatCurrent) localStorage.setItem("legal-chat-current", d.chatCurrent);
+        if (d.deadlines) localStorage.setItem("legal-deadlines", JSON.stringify(d.deadlines));
+        if (d.feedback) localStorage.setItem("legal-feedback", JSON.stringify(d.feedback));
         if (d.aiSettings) { S = Object.assign({}, DEFAULTS, d.aiSettings); save(); }
         setStatus("✅ 导入成功，页面即将刷新", "ok");
         setTimeout(function () { location.reload(); }, 800);

@@ -3,6 +3,7 @@
  * ========================================================= */
 (function () {
   function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function fmt(n) {
     if (!isFinite(n)) return "—";
     return "¥ " + n.toLocaleString("zh-CN", { maximumFractionDigits: 2 });
@@ -176,9 +177,71 @@
     out.innerHTML = '<div class="' + cls + '" style="border-radius:8px;padding:10px 13px;font-size:14.5px">⏳ ' + status + '</div>' +
       '<div class="calc-detail">起算日：' + fmt(start) + '　→　时效届满：' + fmt(deadline) + '（' + days + ' 天）<br>' +
       '临近届满（30 天内）务必启动相应程序，或留存时效中断证据（书面催告、对方付款或承认等）。</div>' +
-      '<div class="calc-note">说明：时效可因主张权利、对方同意履行、起诉等而中断重新起算；部分情形有特殊规则（如劳动报酬在职期间不受 1 年限制）。本工具按通用规则估算，仅供参考。</div>';
+      '<div class="calc-note">说明：时效可因主张权利、对方同意履行、起诉等而中断重新起算；部分情形有特殊规则（如劳动报酬在职期间不受 1 年限制）。本工具按通用规则估算，仅供参考。</div>' +
+      '<button id="dl-to-cal" class="ghost-btn" style="margin-top:10px">📅 加入合规日历</button>';
+    var toCal = $("dl-to-cal");
+    if (toCal) toCal.addEventListener("click", function () {
+      var opt = $("dl-type").selectedOptions[0];
+      $("cal-name").value = "时效届满：" + (opt ? opt.textContent.split("——")[0].trim() : "关键日期");
+      $("cal-date").value = fmt(deadline);
+      $("cal-name").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   }
 
+  /* ---------- 6. 合规日历 ---------- */
+  var CAL_KEY = "legal-deadlines";
+  function calLoad() {
+    try { return JSON.parse(localStorage.getItem(CAL_KEY) || "[]"); }
+    catch (e) { return []; }
+  }
+  function calSave(list) {
+    try { localStorage.setItem(CAL_KEY, JSON.stringify(list.slice(0, 100))); } catch (e) {}
+  }
+  function calRender() {
+    var box = $("cal-list");
+    if (!box) return;
+    var list = calLoad().sort(function (a, b) { return a.date.localeCompare(b.date); });
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    if (!list.length) {
+      box.innerHTML = '<div class="dim" style="font-size:12.5px;padding:6px 2px">暂无事项——从时效倒计时结果一键加入，或手动添加关键日期。</div>';
+      return;
+    }
+    box.innerHTML = list.map(function (it, i) {
+      var left = Math.ceil((new Date(it.date + "T00:00:00").getTime() - today.getTime()) / 86400000);
+      var status = left < 0 ? '<span style="color:var(--danger)">已过期 ' + (-left) + ' 天</span>'
+        : left <= 7 ? '<span style="color:var(--danger)">仅剩 ' + left + ' 天</span>'
+        : left <= 30 ? '<span style="color:#b45309">' + left + ' 天</span>'
+        : '<span>' + left + ' 天</span>';
+      return '<div class="cal-item"><div class="cal-name">' + esc(it.name) + '</div>' +
+        '<div class="cal-meta">' + it.date + ' · ' + status + '</div>' +
+        '<button class="cal-del" data-i="' + i + '" title="删除">✕</button></div>';
+    }).join("");
+    box.querySelectorAll(".cal-del").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var list2 = calLoad();
+        list2.splice(parseInt(b.getAttribute("data-i"), 10), 1);
+        calSave(list2);
+        calRender();
+      });
+    });
+  }
+  function calNotifyCheck() {
+    var list = calLoad();
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    list.forEach(function (it) {
+      var left = Math.ceil((new Date(it.date + "T00:00:00").getTime() - today.getTime()) / 86400000);
+      if (left >= 0 && left <= 7 && window.Notification && Notification.permission === "granted") {
+        try {
+          if (!window.__calNotified) window.__calNotified = {};
+          if (window.__calNotified[it.name + it.date]) return;
+          window.__calNotified[it.name + it.date] = 1;
+          new Notification("合规日历提醒", { body: "「" + it.name + "」仅剩 " + left + " 天（" + it.date + "）" });
+        } catch (e) { /* 通知失败静默 */ }
+      }
+    });
+  }
+
+  /* ---------- 装配 ---------- */
   window.TOOLS = {
     init: function () {
       $("sv-calc").addEventListener("click", calcSeverance);
@@ -190,6 +253,43 @@
       if (sel) sel.addEventListener("change", function () {
         $("dl-custom-wrap").classList.toggle("hidden", sel.value !== "custom");
       });
+
+      /* 合规日历 */
+      var calAdd = $("cal-add");
+      if (calAdd) {
+        calAdd.addEventListener("click", function () {
+          var name = $("cal-name").value.trim();
+          var date = $("cal-date").value;
+          if (!name || !date) {
+            $("cal-list").innerHTML = '<div class="tool-warn">请填写事项名称与日期。</div>';
+            return;
+          }
+          var list = calLoad();
+          list.push({ name: name, date: date });
+          calSave(list);
+          $("cal-name").value = "";
+          calRender();
+          calNotifyCheck();
+        });
+      }
+      var calNotifyBtn = $("cal-notify");
+      if (calNotifyBtn) {
+        var stateEl = $("cal-notify-state");
+        if (window.Notification && Notification.permission === "granted") {
+          stateEl.textContent = "已开启";
+        }
+        calNotifyBtn.addEventListener("click", function () {
+          if (!window.Notification) { stateEl.textContent = "当前浏览器不支持通知"; return; }
+          if (Notification.permission === "granted") { stateEl.textContent = "已开启（浏览器授权）"; return; }
+          Notification.requestPermission().then(function (p) {
+            stateEl.textContent = p === "granted" ? "已开启：7 天内到期事项将提醒" : "未授权，可稍后再试";
+            if (p === "granted") calNotifyCheck();
+          });
+        });
+      }
+      calRender();
+      calNotifyCheck();
+      setTimeout(calNotifyCheck, 3000);   /* 页面加载稳定后再查一次 */
     }
   };
 })();

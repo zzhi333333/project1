@@ -46,15 +46,16 @@ window.AGENT = (function () {
 
   /* ============ flk 全文缓存（会话级） ============ */
   var LAW_TEXT_CACHE = {};
-  function fetchLawFullText(lawName) {
-    var key = normLaw(lawName);
+  function fetchLawFullText(name) {
+    var key = normLaw(name);
     if (LAW_TEXT_CACHE[key] !== undefined) return Promise.resolve(LAW_TEXT_CACHE[key]);
     if (!window.ONLINE || !window.ONLINE.isAvailable()) return Promise.resolve(null);
-    var p = window.ONLINE.flkSearch(lawName, 1).then(function (r) {
+    /* 检索定位 bbbs → 官方 docx 正文提取（服务端解压）→ 全文入资料区 */
+    var p = window.ONLINE.flkSearch(name, 1).then(function (r) {
       if (!r || !r.ok || !r.results || !r.results.length) return null;
       var hit = r.results[0];
-      return window.ONLINE.flkDetail(hit.id).then(function (d) {
-        return d && d.ok ? { title: hit.title, text: d.text || "", links: d.links || {} } : null;
+      return window.ONLINE.flkText(hit.id).then(function (t) {
+        return (t && t.ok && t.text) ? { title: (hit.title || t.title || "").replace(/<[^>]+>/g, ""), text: t.text } : null;
       });
     }).catch(function () { return null; });
     /* 8 秒兜底，避免拖慢工作流 */

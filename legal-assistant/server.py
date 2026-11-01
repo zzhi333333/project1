@@ -87,6 +87,40 @@ def _flk_get(path):
     return json.loads(body.decode("utf-8"))
 
 
+def _flk_get(path):
+    status, body = http_request("https://flk.npc.gov.cn" + path,
+                                headers=_flk_headers())
+    if status != 200:
+        raise RuntimeError("flk 返回状态 %s，可能被限流，请稍后重试" % status)
+    return json.loads(body.decode("utf-8"))
+
+
+def flk_text(lid):
+    """官方 docx 下载 → ZIP 解析 → 提取 word/document.xml 纯文本"""
+    import io
+    import zipfile
+    d = flk_detail(lid)
+    word_url = (d.get("links") or {}).get("word")
+    if not word_url:
+        raise RuntimeError("官方未提供 Word 文本或链接获取失败")
+    status, buf = http_request(word_url, headers={"Referer": "https://flk.npc.gov.cn/"})
+    if status != 200:
+        raise RuntimeError("docx 下载失败（%s）" % status)
+    zf = zipfile.ZipFile(io.BytesIO(buf))
+    xml = zf.read("word/document.xml").decode("utf-8", "ignore")
+    xml = re.sub(r"<w:tab[^>]*/>", "\t", xml)
+    xml = re.sub(r"</w:p>", "\n", xml)
+    text = re.sub(r"<[^>]+>", "", xml)
+    for a, b in (("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
+                 ("&quot;", '"'), ("&apos;", "'")):
+        text = text.replace(a, b)
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    if len(text) < 50:
+        raise RuntimeError("docx 正文提取失败")
+    return {"title": d.get("title"), "text": text, "chars": len(text)}
+
+
 def flk_search(q, page=1):
     """POST /law-search/search/list —— 2026 新版接口（旧 POST /api/ 已下线）"""
     payload = json.dumps({
@@ -305,6 +339,17 @@ class Handler(BaseHTTPRequestHandler):
                 v = cached("flkd:%s" % lid, lambda: flk_detail(lid))
                 return self._json({"ok": True, "title": v["title"], "text": v["text"],
                                    "links": v["links"], "meta": v.get("meta")})
+            except Exception as e:
+                return self._json({"ok": False, "msg": str(e)})
+
+        if p == "/api/flk/text":
+            lid = (params.get("bbbs") or [""])[0]
+            if not lid:
+                return self._json({"ok": False, "msg": "缺少参数 bbbs"})
+            try:
+                v = cached("flkt:%s" % lid, lambda: flk_text(lid))
+                return self._json({"ok": True, "bbbs": lid, "title": v["title"],
+                                   "text": v["text"], "chars": v["chars"]})
             except Exception as e:
                 return self._json({"ok": False, "msg": str(e)})
 

@@ -114,6 +114,10 @@
           '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button>' +
           '<button class="mini-btn primary deep-btn" data-deep="' + rid + '">🧭 转深度核验分析</button>' +
           '<button class="mini-btn doc-btn" data-rid="' + rid + '">📄 生成文书</button>' +
+          '<button class="mini-btn ev-btn" data-rid="' + rid + '">📑 证据清单</button>' +
+          '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助">👍</button>' +
+          '<button class="mini-btn fb-bad" data-rid="' + rid + '" title="需改进">👎</button>' +
+          '<button class="mini-btn print-card-btn" data-rid="' + rid + '" title="打印此分析">🖨</button>' +
           '<span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span>' +
         '</div>' +
       '</div>';
@@ -125,6 +129,7 @@
 
     div.querySelectorAll(".law-chip").forEach(bindLawChip);
     bindRelLinks(div);
+    bindFeedback(div, rid);
     scrollDown();
   }
 
@@ -300,6 +305,8 @@
       var btn = div.querySelector(".result-ai-btn");
       if (btn) btn.setAttribute("data-rid", rid);
       div.querySelectorAll(".law-chip").forEach(bindLawChip);
+      bindRelLinks(div);
+      bindFeedback(div, rid);
     }
   }
 
@@ -513,6 +520,74 @@
   }
   window.renderSessionList();
 
+  /* ---------- 打印辅助：标记目标元素 → @media print 仅显示该元素 ---------- */
+  window.printEl = function (el) {
+    el.classList.add("print-target");
+    document.body.classList.add("print-mode");
+    var cleanup = function () {
+      el.classList.remove("print-target");
+      document.body.classList.remove("print-mode");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+    /* afterprint 在部分浏览器不触发时的兜底恢复 */
+    setTimeout(function () {
+      if (document.body.classList.contains("print-mode")) cleanup();
+    }, 60000);
+  };
+
+  /* ---------- 结果卡反馈 ---------- */
+  function saveFeedback(entry, verdict, comment) {
+    try {
+      var fb = JSON.parse(localStorage.getItem("legal-feedback") || "[]");
+      fb.push({
+        scene: entry.name, domain: entry.domain, verdict: verdict,
+        comment: comment || "", time: new Date().toISOString()
+      });
+      localStorage.setItem("legal-feedback", JSON.stringify(fb.slice(-200)));
+    } catch (e) { /* 存储失败静默 */ }
+  }
+  function bindFeedback(div, rid) {
+    var like = div.querySelector(".fb-like");
+    var bad = div.querySelector(".fb-bad");
+    if (!like || !bad) return;
+    var entry = (window.AI_RESULTS || [])[rid];
+    like.addEventListener("click", function () {
+      saveFeedback(entry, "up");
+      like.textContent = "✅ 已感谢";
+      like.disabled = true; bad.disabled = true;
+    });
+    bad.addEventListener("click", function () {
+      saveFeedback(entry, "down");
+      bad.textContent = "📝 已记录";
+      bad.disabled = true; like.disabled = true;
+      var input = document.createElement("textarea");
+      input.className = "fb-comment";
+      input.rows = 2;
+      input.placeholder = "哪里不准确或没帮助？（选填，仅存本机）";
+      input.addEventListener("change", function () {
+        saveFeedback(entry, "down", input.value.slice(0, 300));
+      });
+      div.querySelector(".result-ai-row").appendChild(input);
+    });
+  }
+
+  /* ---------- 证据清单文档 ---------- */
+  function openEvidenceModal(entry) {
+    var evList = (window.ANALYSIS && window.ANALYSIS.EVIDENCE_MAP && window.ANALYSIS.EVIDENCE_MAP[entry.scenarioId]) || [];
+    if (!evList.length && entry.r && entry.r.advice) evList = entry.r.advice;
+    var text = "证据准备清单（" + entry.name + "）\n生成日期：" + new Date().toLocaleDateString("zh-CN") + "\n\n";
+    text += "说明：逐项核对已有证据，勾选状态可自行标注；缺失项即为下一步取证重点。\n\n";
+    evList.forEach(function (x, i) {
+      text += "☐ " + (i + 1) + ". " + x + "\n";
+    });
+    text += "\n提示：电子证据保留原始载体，书面证据保留原件或核对无误的复印件；证据清单随起诉/仲裁材料一并提交。";
+    document.getElementById("doc-list").innerHTML = "";
+    document.getElementById("doc-text").value = text;
+    document.getElementById("doc-modal").classList.remove("hidden");
+  }
+
   /* ---------- 深度核验跳转：问答实录 → 案情文本 → 自动执行 ---------- */
   function buildCaseText(entry) {
     var lines = ["咨询场景：" + entry.name + "。"];
@@ -525,19 +600,34 @@
     return lines.join("\n");
   }
 
-  /* ---------- 文书生成弹窗 ---------- */
+  /* ---------- 文书生成 / 证据清单 / 深度核验 / 打印（事件委托） ---------- */
   box.addEventListener("click", function (e) {
     var deepBtn = e.target.closest ? e.target.closest(".deep-btn") : null;
     if (deepBtn) {
-      var entry = (window.AI_RESULTS || [])[parseInt(deepBtn.getAttribute("data-deep"), 10)];
-      if (entry) {
+      var dEntry = (window.AI_RESULTS || [])[parseInt(deepBtn.getAttribute("data-deep"), 10)];
+      if (dEntry) {
         var mode = window.AI && window.AI.isConfigured() ? "ai" : "report";
         window.APP.switchView("agent");
-        window.AGENT.runWith(buildCaseText(entry), mode);
+        window.AGENT.runWith(buildCaseText(dEntry), mode);
         window.scrollTo(0, 0);
       }
       return;
     }
+    var evBtn = e.target.closest ? e.target.closest(".ev-btn") : null;
+    if (evBtn) {
+      var evEntry = (window.AI_RESULTS || [])[parseInt(evBtn.getAttribute("data-rid"), 10)];
+      if (evEntry) openEvidenceModal(evEntry);
+      return;
+    }
+    var pBtn = e.target.closest ? e.target.closest(".print-card-btn") : null;
+    if (pBtn) {
+      var card = pBtn.closest(".result-card");
+      if (card) window.printEl(card);
+      return;
+    }
+    var fbLike = e.target.closest ? e.target.closest(".fb-like") : null;
+    var fbBad = e.target.closest ? e.target.closest(".fb-bad") : null;
+    if (fbLike || fbBad) return;   /* 反馈由 bindFeedback 的专属监听处理 */
     var btn = e.target.closest ? e.target.closest(".doc-btn") : null;
     if (!btn) return;
     var entry = (window.AI_RESULTS || [])[parseInt(btn.getAttribute("data-rid"), 10)];

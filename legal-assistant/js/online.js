@@ -83,6 +83,9 @@ window.ONLINE = (function () {
   function flkDetail(id) {
     return api("/api/flk/detail", { id: id });
   }
+  function flkText(bbbs) {
+    return api("/api/flk/text", { bbbs: bbbs });
+  }
 
   /* ---------- 案例检索（wenshu / 最高法官网，经搜索引擎定位） ---------- */
   function caseSearch(q, site) {
@@ -127,33 +130,68 @@ window.ONLINE = (function () {
         var bodyEl = item.querySelector(".flk-body");
         if (bodyEl.dataset.loaded) { bodyEl.classList.toggle("hidden"); return; }
         bodyEl.innerHTML = '<div class="loading">正在从国家法律法规数据库获取…</div>';
+        /* 优先使用本地缓存的官方全文（离线可看） */
+        var cacheKey = "legal-flk-text:" + item.getAttribute("data-id");
+        var cachedText = null;
+        try { cachedText = JSON.parse(localStorage.getItem(cacheKey) || "null"); } catch (e) {}
+        if (cachedText && cachedText.text) {
+          bodyEl.innerHTML = renderDetailBody({ ok: true, meta: cachedText.meta, links: cachedText.links || {} }, cachedText.text, true);
+          bodyEl.dataset.loaded = "1";
+          return;
+        }
         flkDetail(item.getAttribute("data-id")).then(function (r) {
           if (!r.ok) { bodyEl.innerHTML = '<div class="tool-warn">' + esc(r.msg || "获取失败，请稍后重试") + '</div>'; return; }
-          var links = r.links || {};
-          var m = r.meta || {};
-          var chip = function (t) { return '<span class="prop">' + esc(t) + '</span>'; };
-          var okCls = m.status === "3" ? "ok" : "warn";
-          bodyEl.innerHTML =
-            '<div class="flk-props">' +
-              (m.flxz ? chip("性质：" + m.flxz) : "") +
-              (m.office ? chip("制定机关：" + m.office) : "") +
-              (m.publish ? chip("公布：" + m.publish) : "") +
-              (m.expiry ? chip("施行：" + m.expiry) : "") +
-              (m.status ? '<span class="prop ' + okCls + '">' + (STATUS_MAP[m.status] || esc(m.status)) + '</span>' : "") +
-            '</div>' +
-            '<div class="flk-actions">' +
-              (links.preview ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(links.preview) + '">📖 官方在线预览</a>' : "") +
-              (links.word ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.word) + '">下载 Word 正式文本</a>' : "") +
-              (links.pdf ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.pdf) + '">下载 PDF 正式文本</a>' : "") +
-              (links.relatedCount ? '<span class="prop">相关资料 ' + esc(links.relatedCount) + ' 件</span>' : "") +
-            '</div>' +
-            '<div class="dim" style="margin-top:8px;font-size:12.5px">正文由数据库以 Word/PDF 正式文本提供（官方签名直链，约1小时内有效）；「在线预览」为官方阅读器页面。</div>';
+          bodyEl.innerHTML = renderDetailBody(r, null, false);
           bodyEl.dataset.loaded = "1";
+          /* 异步提取官方 docx 全文（正文入缓存，离线可查） */
+          flkText(item.getAttribute("data-id")).then(function (t) {
+            if (t && t.ok && t.text) {
+              try { localStorage.setItem(cacheKey, JSON.stringify({ title: t.title, text: t.text, meta: r.meta, links: r.links })); } catch (e) {}
+              var doc = bodyEl.querySelector(".flk-doc");
+              if (doc) doc.textContent = t.text;
+              else {
+                var d2 = document.createElement("div");
+                d2.className = "flk-doc";
+                d2.textContent = t.text;
+                bodyEl.insertBefore(d2, bodyEl.querySelector(".flk-actions"));
+              }
+              var note = bodyEl.querySelector(".flk-textnote");
+              if (note) note.remove();
+            }
+          }).catch(function () { });
         }).catch(function () {
           bodyEl.innerHTML = '<div class="tool-warn">网络请求失败，请确认本地服务与外网连接正常。</div>';
         });
       });
     });
+  }
+
+  function renderDetailBody(r, fullText, fromCache) {
+    var links = r.links || {};
+    var m = r.meta || {};
+    var chip = function (t) { return '<span class="prop">' + esc(t) + '</span>'; };
+    var okCls = m.status === "3" ? "ok" : "warn";
+    var html =
+      '<div class="flk-props">' +
+        (m.flxz ? chip("性质：" + m.flxz) : "") +
+        (m.office ? chip("制定机关：" + m.office) : "") +
+        (m.publish ? chip("公布：" + m.publish) : "") +
+        (m.expiry ? chip("施行：" + m.expiry) : "") +
+        (m.status ? '<span class="prop ' + okCls + '">' + (STATUS_MAP[m.status] || esc(m.status)) + '</span>' : "") +
+        (fromCache ? '<span class="prop ok">📦 本地缓存版本</span>' : "") +
+      '</div>' +
+      (fullText ? '<div class="flk-doc">' + esc(fullText) + '</div>' : "") +
+      '<div class="flk-actions">' +
+        (links.preview ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(links.preview) + '">📖 官方在线预览</a>' : "") +
+        (links.word ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.word) + '">下载 Word 正式文本</a>' : "") +
+        (links.pdf ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.pdf) + '">下载 PDF 正式文本</a>' : "") +
+        (links.relatedCount ? '<span class="prop">相关资料 ' + esc(links.relatedCount) + ' 件</span>' : "") +
+      '</div>' +
+      '<div class="dim flk-textnote" style="margin-top:8px;font-size:12.5px">' +
+        (fullText ? "以上为官方 Word 文本提取的正文（已缓存到本机，可离线查看）；以官方发布的正式文本为准。" :
+        "正文正在从官方 Word 文本提取（或可点击上方官方预览/下载按钮）；提取后自动缓存到本机，可离线查看。") +
+      '</div>';
+    return html;
   }
 
   function renderCaseResults(r) {
@@ -262,7 +300,7 @@ window.ONLINE = (function () {
   return {
     init: init, check: check,
     isAvailable: function () { return available; },
-    flkSearch: flkSearch, flkDetail: flkDetail, caseSearch: caseSearch,
+    flkSearch: flkSearch, flkDetail: flkDetail, flkText: flkText, caseSearch: caseSearch,
     renderGuiding: renderGuiding
   };
 })();

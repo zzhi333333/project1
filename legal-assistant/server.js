@@ -27,7 +27,7 @@ var ROOT = __dirname;
 var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 /* ---------------- 通用 HTTP 请求（支持重定向与 gzip） ---------------- */
-function request(opt, body, cb) {
+function request(opt, body, cb, timeoutMs) {
   var chunks = [];
   var req = (opt.protocol === "http:" ? http : https).request(opt, function (res) {
     /* 手动跟随重定向 */
@@ -49,7 +49,7 @@ function request(opt, body, cb) {
     stream.on("error", cb);
   });
   req.on("error", cb);
-  req.setTimeout(20000, function () { req.destroy(new Error("上游请求超时")); });
+  req.setTimeout(timeoutMs || 20000, function () { req.destroy(new Error("上游请求超时")); });
   if (body) req.write(body);
   req.end();
 }
@@ -185,6 +185,75 @@ function flkDetail(id, cb) {
     pending++;
     signedDownload("pdf", function (u) { links.pdf = u; pending--; tryFinish(); });
     tryFinish();
+  });
+}
+
+/* ---------------- 最小 ZIP 读取器（docx 正文提取用，零依赖） ---------------- */
+function zipFindEntry(buf, targetName) {
+  /* 从 EOCD 定位中央目录，遍历条目，返回目标条目的本地数据 */
+  var i = buf.length - 22;
+  while (i >= 0 && buf.readUInt32LE(i) !== 0x06054b50) i--;
+  if (i < 0) return null;
+  var count = buf.readUInt16LE(i + 10);
+  var cdOffset = buf.readUInt32LE(i + 16);
+  var p = cdOffset;
+  while (count-- > 0) {
+    if (buf.readUInt32LE(p) !== 0x02014b50) return null;
+    var method = buf.readUInt16LE(p + 10);
+    var csize = buf.readUInt32LE(p + 20);
+    var nameLen = buf.readUInt16LE(p + 28);
+    var extraLen = buf.readUInt16LE(p + 30);
+    var commentLen = buf.readUInt16LE(p + 32);
+    var localOffset = buf.readUInt32LE(p + 42);
+    var name = buf.slice(p + 46, p + 46 + nameLen).toString("utf8");
+    var norm = name.replace(/\\/g, "/");   /* 兼容个别压缩工具的反斜杠条目名 */
+    if (norm === targetName || name === targetName) {
+      var lh = localOffset;
+      var lNameLen = buf.readUInt16LE(lh + 26);
+      var lExtraLen = buf.readUInt16LE(lh + 28);
+      var dataStart = lh + 30 + lNameLen + lExtraLen;
+      var data = buf.slice(dataStart, dataStart + csize);
+      return method === 8 ? zlib.inflateRawSync(data) : (method === 0 ? data : null);
+    }
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return null;
+}
+
+function docxToText(buf) {
+  var xmlBuf = zipFindEntry(buf, "word/document.xml");
+  if (!xmlBuf) return "";
+  var xml = xmlBuf.toString("utf8");
+  return xml
+    .replace(/<w:tab[^>]*\/>/g, "\t")
+    .replace(/<\/w:p>/g, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/* 官方正文本地提取：flkDetail 拿签名直链 → 下载 docx → 解压提取文本 */
+function flkText(id, cb) {
+  flkDetail(id, function (err, d) {
+    if (err) return cb(err);
+    if (!d.links || !d.links.word) return cb(new Error("官方未提供 Word 文本或链接获取失败"));
+    var u;
+    try { u = new URL(d.links.word); } catch (e) { return cb(new Error("下载链接无效")); }
+    request({
+      protocol: u.protocol, hostname: u.hostname,
+      port: u.port || (u.protocol === "http:" ? 80 : 443),
+      path: u.pathname + u.search, method: "GET",
+      headers: { "User-Agent": UA, "Referer": "https://flk.npc.gov.cn/" }
+    }, null, function (e2, b2, res2) {
+      if (e2) return cb(new Error("官方文本下载超时或失败（网络波动时请重试）：" + e2.message));
+      if (res2.statusCode !== 200) return cb(new Error("docx 下载失败（" + res2.statusCode + "）"));
+      var text = docxToText(b2);
+      if (text.length < 50) return cb(new Error("docx 正文提取失败"));
+      cb(null, { title: d.title, text: text, chars: text.length });
+    }, 45000);
   });
 }
 
@@ -343,6 +412,16 @@ var server = http.createServer(function (req, res) {
     return cached("flkd:" + id, function (done) { flkDetail(id, done); }, function (err, v) {
       if (err) return sendJSON(res, 200, { ok: false, msg: err.message });
       sendJSON(res, 200, { ok: true, title: v.title, text: v.text, links: v.links, meta: v.meta });
+    });
+  }
+
+  /* 官方正文本地提取（docx → 纯文本），供详情页展示 / AI 资料区 / 离线缓存 */
+  if (p === "/api/flk/text") {
+    var tid = u.searchParams.get("bbbs") || "";
+    if (!tid) return sendJSON(res, 200, { ok: false, msg: "缺少参数 bbbs" });
+    return cached("flkt:" + tid, function (done) { flkText(tid, done); }, function (err, v) {
+      if (err) return sendJSON(res, 200, { ok: false, msg: err.message });
+      sendJSON(res, 200, { ok: true, bbbs: tid, title: v.title, text: v.text, chars: v.chars });
     });
   }
 

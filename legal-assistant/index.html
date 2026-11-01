@@ -239,6 +239,20 @@
         <div id="dl-result" class="tool-result"></div>
       </div>
 
+      <div class="tool-card">
+        <div class="tool-title">📅 合规日历</div>
+        <div class="tool-form">
+          <label>事项名称<input id="cal-name" type="text" maxlength="30" placeholder="如：劳动仲裁申请截止"></label>
+          <label>关键日期<input id="cal-date" type="date"></label>
+          <button id="cal-add" class="calc-btn">＋ 添加到日历</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+          <button id="cal-notify" class="ghost-btn">🔔 开启到期提醒</button>
+          <span id="cal-notify-state" class="dim" style="font-size:12px"></span>
+        </div>
+        <div id="cal-list" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+
     </div>
   </section>
   <section id="view-cases" class="view">
