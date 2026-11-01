@@ -606,6 +606,40 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
 .guide-step span { color: var(--ink-2); font-size: 12.5px; }
 
 /* =========================================================
+ * v1.3 新增（合规日历 / 反馈 / flk 全文 / 证据清单）
+ * ========================================================= */
+
+/* 合规日历 */
+.cal-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.cal-item {
+  position: relative; border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 36px 8px 11px; background: #fbfcfe;
+}
+.cal-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.cal-meta { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.cal-del {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: none; background: transparent; color: var(--ink-2); font-size: 13px;
+  width: 26px; height: 26px; border-radius: 6px;
+}
+.cal-del:active { background: #fee2e2; color: var(--danger); }
+
+/* 结果卡反馈输入框 */
+.fb-comment {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
+  font-size: 12.5px; outline: none; resize: vertical; margin-top: 4px; background: #fbfcfe;
+}
+.fb-comment:focus { border-color: var(--primary); }
+
+/* flk 官方全文（docx 提取结果） */
+.flk-doc {
+  font-size: 13.5px; line-height: 1.75; white-space: pre-wrap;
+  background: #f9fafb; border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; margin-top: 8px;
+  max-height: 300px; overflow-y: auto;
+}
+
+/* =========================================================
  * v1.2 新增（合同审查 / 语音 / 打印）
  * ========================================================= */
 
@@ -623,19 +657,22 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
 /* 通用整行按钮（打印 / AI 审查等次级操作） */
 .block-btn { display: block; width: 100%; padding: 11px; border-radius: 12px; font-size: 14.5px; text-align: center; margin-top: 8px; }
 
-/* 打印：只输出「深度分析」页的意见书与核验报告 */
+/* 打印模式：仅显示 .print-target 标记的内容（意见书/结果卡，配合原生 PrintManager） */
 @media print {
-  #app, .topbar, .tabbar, .drawer, .drawer-mask, .modal, .suggestions, .input-row,
-  .mode-switch, .analysis-editor, .agent-steps, .view-head { display: none !important; }
-  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
-  #views { position: static !important; overflow: visible !important; height: auto !important; }
-  .view { position: static !important; display: none !important; overflow: visible !important; height: auto !important; }
-  #view-agent.active { display: block !important; }
-  .view-pad { padding: 0 !important; }
-  .ai-stop, .mini-btn, .ai-cursor, .result-ai-row { display: none !important; }
-  .msg .avatar { display: none; }
-  .msg .bubble { max-width: 100% !important; border: none !important; background: #fff !important; box-shadow: none !important; }
-  .bubble, .bubble.ai-stream { white-space: pre-wrap; }
-  .report-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .verify-panel { border: 1px solid #d7e8dc !important; }
+  body.print-mode * { visibility: hidden !important; }
+  body.print-mode .print-target, body.print-mode .print-target * { visibility: visible !important; }
+  body.print-mode .print-target { position: absolute; left: 0; top: 0; width: 100%; }
+  /* 移动端布局中立化：解除滚动容器对内容的裁剪 */
+  body.print-mode #app, body.print-mode #views { position: static !important; height: auto !important; overflow: visible !important; display: block !important; }
+  body.print-mode .view { position: static !important; display: block !important; overflow: visible !important; height: auto !important; }
+  body.print-mode .topbar, body.print-mode .tabbar, body.print-mode .drawer, body.print-mode .drawer-mask,
+  body.print-mode .modal, body.print-mode .suggestions, body.print-mode .input-row { display: none !important; }
+  body.print-mode .mini-btn, body.print-mode .result-ai-row, body.print-mode .ai-stop,
+  body.print-mode .ai-cursor, body.print-mode .fb-comment { display: none !important; }
+  body.print-mode .msg .avatar { display: none; }
+  body.print-mode .msg .bubble { max-width: 100% !important; border: none !important; background: #fff !important; box-shadow: none !important; }
+  body.print-mode .bubble, body.print-mode .bubble.ai-stream { white-space: pre-wrap; }
+  body.print-mode .report-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.print-mode .verify-panel { border: 1px solid #d7e8dc !important; }
+  body { background: #fff !important; }
 }

@@ -21,6 +21,7 @@ window.ONLINE = (function () {
     if (base === "bridge") {
       if (path === "/api/flk/search") return flkBridgeSearch(params.q, params.page || 1);
       if (path === "/api/flk/detail") return flkBridgeDetail(params.id);
+      if (path === "/api/flk/text") return flkBridgeText(params.bbbs);
       if (path === "/api/cases/search") return caseBridgeSearch(params.q, params.site || "wenshu");
       return Promise.resolve({ ok: false, msg: "未知接口：" + path });
     }
@@ -68,9 +69,8 @@ window.ONLINE = (function () {
     var badge = document.getElementById("net-badge");
     if (!badge) return;
     if (available) {
-      var sub = base === "bridge" ? "App 内置直连 flk 官方库" : "flk.npc.gov.cn 已连接";
       badge.className = "net-badge on";
-      badge.innerHTML = '● 联网模式<span class="nb-sub">' + sub + '</span>';
+      badge.innerHTML = '● 联网模式<span class="nb-sub">App 内置直连 flk 官方库</span>';
     } else {
       badge.className = "net-badge off";
       badge.innerHTML = '○ 离线模式<span class="nb-sub">联网检索暂不可用</span>';
@@ -173,6 +173,81 @@ window.ONLINE = (function () {
     });
   }
 
+  /* ---------- 官方 docx 全文提取（JS 端零依赖 ZIP 解析，与 server.js 同逻辑） ---------- */
+  function b64ToBytes(b64) {
+    var bin = atob(b64);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  /* 在 ZIP（docx）中找到指定条目并解压，返回 Uint8Array；无 DecompressionStream 时返回 null */
+  function zipExtract(bytes, targetName) {
+    var dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    /* 从尾部找 End of Central Directory（0x06054b50） */
+    var i = bytes.length - 22;
+    while (i >= 0 && dv.getUint32(i, true) !== 0x06054b50) i--;
+    if (i < 0) return null;
+    var cdCount = dv.getUint16(i + 10, true);
+    var cdOffset = dv.getUint32(i + 16, true);
+    var p = cdOffset, enc = new TextDecoder("utf-8");
+    for (var n = 0; n < cdCount; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) return null;
+      var method = dv.getUint16(p + 10, true);
+      var compSize = dv.getUint32(p + 20, true);
+      var nameLen = dv.getUint16(p + 28, true);
+      var extraLen = dv.getUint16(p + 30, true);
+      var cmtLen = dv.getUint16(p + 32, true);
+      var lhoOffset = dv.getUint32(p + 42, true);
+      var name = enc.decode(bytes.subarray(p + 46, p + 46 + nameLen));
+      if (name === targetName) {
+        /* 读本地文件头，取数据起点 */
+        var nameLen2 = dv.getUint16(lhoOffset + 26, true);
+        var extraLen2 = dv.getUint16(lhoOffset + 28, true);
+        var dataStart = lhoOffset + 30 + nameLen2 + extraLen2;
+        var data = bytes.subarray(dataStart, dataStart + compSize);
+        if (method === 0) return data;
+        if (method !== 8 || !window.DecompressionStream) return null;
+        return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw")))
+          .arrayBuffer().then(function (buf) { return new Uint8Array(buf); });
+      }
+      p += 46 + nameLen + extraLen + cmtLen;
+    }
+    return null;
+  }
+
+  function docxBytesToText(xmlBytes) {
+    var xml = new TextDecoder("utf-8").decode(xmlBytes);
+    return xml
+      .replace(/<w:tab[^>]*\/>/g, "\t")
+      .replace(/<\/w:p>/g, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  /* /api/flk/text：flkDetail 拿 docx 签名直链 → 原生二进制下载 → JS 解压提取正文 */
+  function flkBridgeText(bbbs) {
+    return flkBridgeDetail(bbbs).then(function (d) {
+      if (!d.ok || !d.links || !d.links.word) return { ok: false, msg: d.msg || "官方未提供 Word 文本或链接获取失败" };
+      if (!window.DecompressionStream) return { ok: false, msg: "当前 WebView 版本较低，无法自动提取正文（可点击上方官方预览/下载按钮）" };
+      return window.BRIDGE.httpB64("GET", d.links.word, { "Referer": "https://flk.npc.gov.cn/" }, "").then(function (r) {
+        if (r.status >= 400) return { ok: false, msg: "docx 下载失败（" + r.status + "）" };
+        var bytes;
+        try { bytes = b64ToBytes(r.b64); } catch (e) { return { ok: false, msg: "下载数据解码失败" }; }
+        return Promise.resolve(zipExtract(bytes, "word/document.xml")).then(function (xmlBytes) {
+          if (!xmlBytes) return { ok: false, msg: "docx 正文提取失败" };
+          var text = docxBytesToText(xmlBytes);
+          if (text.length < 50) return { ok: false, msg: "docx 正文提取失败" };
+          return { ok: true, bbbs: bbbs, title: d.title, text: text, chars: text.length };
+        });
+      });
+    });
+  }
+
   function bingBridgeSearch(query) {
     var u = "https://cn.bing.com/search?q=" + encodeURIComponent(query) + "&count=12&mkt=zh-CN";
     return window.BRIDGE.http("GET", u, { "Accept-Language": "zh-CN,zh;q=0.9" }, "").then(function (r) {
@@ -212,6 +287,9 @@ window.ONLINE = (function () {
   }
   function flkDetail(id) {
     return api("/api/flk/detail", { id: id });
+  }
+  function flkText(bbbs) {
+    return api("/api/flk/text", { bbbs: bbbs });
   }
 
   /* ---------- 案例检索（wenshu / 最高法官网，经搜索引擎定位） ---------- */
@@ -257,33 +335,68 @@ window.ONLINE = (function () {
         var bodyEl = item.querySelector(".flk-body");
         if (bodyEl.dataset.loaded) { bodyEl.classList.toggle("hidden"); return; }
         bodyEl.innerHTML = '<div class="loading">正在从国家法律法规数据库获取…</div>';
+        /* 优先使用本地缓存的官方全文（离线可看） */
+        var cacheKey = "legal-flk-text:" + item.getAttribute("data-id");
+        var cachedText = null;
+        try { cachedText = JSON.parse(localStorage.getItem(cacheKey) || "null"); } catch (e) {}
+        if (cachedText && cachedText.text) {
+          bodyEl.innerHTML = renderDetailBody({ ok: true, meta: cachedText.meta, links: cachedText.links || {} }, cachedText.text, true);
+          bodyEl.dataset.loaded = "1";
+          return;
+        }
         flkDetail(item.getAttribute("data-id")).then(function (r) {
           if (!r.ok) { bodyEl.innerHTML = '<div class="tool-warn">' + esc(r.msg || "获取失败，请稍后重试") + '</div>'; return; }
-          var links = r.links || {};
-          var m = r.meta || {};
-          var chip = function (t) { return '<span class="prop">' + esc(t) + '</span>'; };
-          var okCls = m.status === "3" ? "ok" : "warn";
-          bodyEl.innerHTML =
-            '<div class="flk-props">' +
-              (m.flxz ? chip("性质：" + m.flxz) : "") +
-              (m.office ? chip("制定机关：" + m.office) : "") +
-              (m.publish ? chip("公布：" + m.publish) : "") +
-              (m.expiry ? chip("施行：" + m.expiry) : "") +
-              (m.status ? '<span class="prop ' + okCls + '">' + (STATUS_MAP[m.status] || esc(m.status)) + '</span>' : "") +
-            '</div>' +
-            '<div class="flk-actions">' +
-              (links.preview ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(links.preview) + '">📖 官方在线预览</a>' : "") +
-              (links.word ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.word) + '">下载 Word 正式文本</a>' : "") +
-              (links.pdf ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.pdf) + '">下载 PDF 正式文本</a>' : "") +
-              (links.relatedCount ? '<span class="prop">相关资料 ' + esc(links.relatedCount) + ' 件</span>' : "") +
-            '</div>' +
-            '<div class="dim" style="margin-top:8px;font-size:12.5px">正文由数据库以 Word/PDF 正式文本提供（官方签名直链，约1小时内有效）；「在线预览」为官方阅读器页面。</div>';
+          bodyEl.innerHTML = renderDetailBody(r, null, false);
           bodyEl.dataset.loaded = "1";
+          /* 异步提取官方 docx 全文（正文入缓存，离线可查） */
+          flkText(item.getAttribute("data-id")).then(function (t) {
+            if (t && t.ok && t.text) {
+              try { localStorage.setItem(cacheKey, JSON.stringify({ title: t.title, text: t.text, meta: r.meta, links: r.links })); } catch (e) {}
+              var doc = bodyEl.querySelector(".flk-doc");
+              if (doc) doc.textContent = t.text;
+              else {
+                var d2 = document.createElement("div");
+                d2.className = "flk-doc";
+                d2.textContent = t.text;
+                bodyEl.insertBefore(d2, bodyEl.querySelector(".flk-actions"));
+              }
+              var note = bodyEl.querySelector(".flk-textnote");
+              if (note) note.remove();
+            }
+          }).catch(function () { });
         }).catch(function () {
           bodyEl.innerHTML = '<div class="tool-warn">网络请求失败，请检查手机网络后重试。</div>';
         });
       });
     });
+  }
+
+  function renderDetailBody(r, fullText, fromCache) {
+    var links = r.links || {};
+    var m = r.meta || {};
+    var chip = function (t) { return '<span class="prop">' + esc(t) + '</span>'; };
+    var okCls = m.status === "3" ? "ok" : "warn";
+    var html =
+      '<div class="flk-props">' +
+        (m.flxz ? chip("性质：" + m.flxz) : "") +
+        (m.office ? chip("制定机关：" + m.office) : "") +
+        (m.publish ? chip("公布：" + m.publish) : "") +
+        (m.expiry ? chip("施行：" + m.expiry) : "") +
+        (m.status ? '<span class="prop ' + okCls + '">' + (STATUS_MAP[m.status] || esc(m.status)) + '</span>' : "") +
+        (fromCache ? '<span class="prop ok">📦 本地缓存版本</span>' : "") +
+      '</div>' +
+      (fullText ? '<div class="flk-doc">' + esc(fullText) + '</div>' : "") +
+      '<div class="flk-actions">' +
+        (links.preview ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(links.preview) + '">📖 官方在线预览</a>' : "") +
+        (links.word ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.word) + '">下载 Word 正式文本</a>' : "") +
+        (links.pdf ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.pdf) + '">下载 PDF 正式文本</a>' : "") +
+        (links.relatedCount ? '<span class="prop">相关资料 ' + esc(links.relatedCount) + ' 件</span>' : "") +
+      '</div>' +
+      '<div class="dim flk-textnote" style="margin-top:8px;font-size:12.5px">' +
+        (fullText ? "以上为官方 Word 文本提取的正文（已缓存到本机，可离线查看）；以官方发布的正式文本为准。" :
+        "正文正在从官方 Word 文本提取（或可点击上方官方预览/下载按钮）；提取后自动缓存到本机，可离线查看。") +
+      '</div>';
+    return html;
   }
 
   function renderCaseResults(r) {
@@ -392,7 +505,7 @@ window.ONLINE = (function () {
   return {
     init: init, check: check,
     isAvailable: function () { return available; },
-    flkSearch: flkSearch, flkDetail: flkDetail, caseSearch: caseSearch,
+    flkSearch: flkSearch, flkDetail: flkDetail, flkText: flkText, caseSearch: caseSearch,
     renderGuiding: renderGuiding
   };
 })();

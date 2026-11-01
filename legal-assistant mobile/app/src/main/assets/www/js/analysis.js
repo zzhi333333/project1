@@ -489,5 +489,5 @@ window.ANALYSIS = (function () {
     return { domain: domain, domainName: window.DOMAINS[domain].name, scenarios: scenarios, laws: laws, cases: cases };
   }
 
-  return { run: run, render: render, init: init, matchContext: matchContext };
+  return { run: run, render: render, init: init, matchContext: matchContext, EVIDENCE_MAP: EVIDENCE };
 })();

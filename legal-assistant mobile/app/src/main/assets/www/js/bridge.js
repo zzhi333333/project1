@@ -59,6 +59,10 @@ window.BRIDGE = (function () {
     http: function (method, url, headers, body) {
       return call("http", [method, url, JSON.stringify(headers || {}), body || ""]);
     },
+    /* httpB64(...) → Promise<{status, b64}>：二进制下载（docx 等），b64 为响应体 base64 */
+    httpB64: function (method, url, headers, body) {
+      return call("httpB64", [method, url, JSON.stringify(headers || {}), body || ""]);
+    },
     /* stream("POST", url, headers, body, onChunk) → Promise<{status, text}>，onChunk 收到原始文本块 */
     stream: function (method, url, headers, body, onChunk) {
       var pr = call("stream", [method, url, JSON.stringify(headers || {}), body || ""], onChunk);

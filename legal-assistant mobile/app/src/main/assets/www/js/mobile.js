@@ -75,9 +75,19 @@
   })();
 
   /* ---------- ⑥ 意见书打印/PDF：走系统打印服务 ----------
-     桌面绑定的是 window.print()（WebView 中无效），这里改为原生
-     PrintManager；打印内容由 @media print 样式裁剪为意见书正文 */
+     桌面的打印入口（意见书按钮 / 结果卡打印）最终都调 window.print()，
+     WebView 中无效——这里整体替换为原生 PrintManager；
+     打印内容由 @media print 样式（body.print-mode + .print-target）裁剪，
+     原生打印对话框弹出后延时恢复页面元素（WebView 无 afterprint 事件） */
   if (window.BRIDGE && window.BRIDGE.available) {
+    window.print = function () {
+      window.BRIDGE.printDoc("法律咨询意见书");
+      setTimeout(function () {
+        var el = document.querySelector(".print-target");
+        if (el) el.classList.remove("print-target");
+        document.body.classList.remove("print-mode");
+      }, 1500);
+    };
     var printBtn = document.getElementById("agent-print");
     if (printBtn) {
       printBtn.addEventListener("click", function () {

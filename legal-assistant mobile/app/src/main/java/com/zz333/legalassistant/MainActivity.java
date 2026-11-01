@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
+import android.util.Base64;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
@@ -206,7 +207,13 @@ public class MainActivity extends Activity {
         /** 一次性 HTTP 请求（GET/POST，返回完整文本） */
         @JavascriptInterface
         public void http(String method, String url, String headersJson, String body, String cbId) {
-            pool.execute(() -> emit(cbId, doRequest(cbId, method, url, headersJson, body, null, 30000)));
+            pool.execute(() -> emit(cbId, doRequest(cbId, method, url, headersJson, body, null, 30000, false)));
+        }
+
+        /** 二进制下载（docx 等）：响应体以 base64 返回（payload.b64），供 JS 端 ZIP 解压 */
+        @JavascriptInterface
+        public void httpB64(String method, String url, String headersJson, String body, String cbId) {
+            pool.execute(() -> emit(cbId, doRequest(cbId, method, url, headersJson, body, null, 60000, true)));
         }
 
         /** 流式 HTTP 请求（SSE）：每个文本块回调 __brChunk，结束时 __brResolve */
@@ -219,7 +226,7 @@ public class MainActivity extends Activity {
                             "window.__brChunk&&window.__brChunk(" + JSONObject.quote(cbId) + "," +
                                     JSONObject.quote(chunk) + ");", null);
                 });
-            }, 180000)));
+            }, 180000, false)));
         }
 
         /** 「⏹ 停止」：断开指定请求的连接 */
@@ -287,6 +294,7 @@ public class MainActivity extends Activity {
         try {
             payload.put("status", r.status);
             payload.put("text", r.text);
+            if (r.b64 != null) payload.put("b64", r.b64);
             if (r.error != null) payload.put("msg", r.error);
         } catch (Exception ignored) {}
         String ok = r.error == null ? "true" : "false";
@@ -298,10 +306,11 @@ public class MainActivity extends Activity {
     private static class Result {
         int status = 0;
         String text = "";
+        String b64;     /* 二进制模式时响应体的 base64 */
         String error;
     }
 
-    private Result doRequest(String cbId, String method, String url, String headersJson, String body, ChunkSink sink, int readTimeout) {
+    private Result doRequest(String cbId, String method, String url, String headersJson, String body, ChunkSink sink, int readTimeout, boolean binary) {
         Result r = new Result();
         HttpURLConnection conn = null;
         try {
@@ -338,18 +347,27 @@ public class MainActivity extends Activity {
             r.status = conn.getResponseCode();
             java.io.InputStream in = r.status >= 400 ? conn.getErrorStream() : conn.getInputStream();
             if (in != null) {
-                /* InputStreamReader 自带多字节 UTF-8 断裂缓冲，适合 SSE 流式 */
-                BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-                char[] buf = new char[2048];
-                StringBuilder full = new StringBuilder();
-                int n;
-                while ((n = br.read(buf)) > 0) {
-                    String piece = new String(buf, 0, n);
-                    if (full.length() < 4_000_000) full.append(piece);
-                    if (sink != null) sink.accept(piece);
+                if (binary) {
+                    /* 二进制模式：原样收集字节，base64 返回（docx ZIP 由 JS 端解压） */
+                    java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) bos.write(buf, 0, n);
+                    r.b64 = Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP);
+                } else {
+                    /* InputStreamReader 自带多字节 UTF-8 断裂缓冲，适合 SSE 流式 */
+                    BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+                    char[] buf = new char[2048];
+                    StringBuilder full = new StringBuilder();
+                    int n;
+                    while ((n = br.read(buf)) > 0) {
+                        String piece = new String(buf, 0, n);
+                        if (full.length() < 4_000_000) full.append(piece);
+                        if (sink != null) sink.accept(piece);
+                    }
+                    br.close();
+                    r.text = full.toString();
                 }
-                br.close();
-                r.text = full.toString();
             }
         } catch (Exception e) {
             r.error = (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
