@@ -210,9 +210,13 @@ window.AGENT = (function () {
   }
 
   /* ============ 硬约束提示词 ============ */
+  function agentDomainText() {
+    return window.DomainRegistry.metas().map(function (d) { return d.name; }).join("、") +
+      "，以及美国/欧盟经贸合规要点（涉外内容为要点指引，涉具体合规决策须提示咨询专业律师并以官方最新文本为准）";
+  }
   var AGENT_PROMPT =
-    "你是「法律咨询Agent」，服务于中国劳动法、公司法、专利法咨询。你必须严格遵守以下「可核验性」规则：\n" +
-    "1. 只能依据【资料区】提供的法条原文、案例要点和用户案情作答；【资料区】未涵盖的问题，明确回答「本工具资料未涵盖该问题，建议查询国家法律法规数据库或咨询执业律师」，不得凭训练记忆猜测。\n" +
+    "你是「法律咨询Agent」，服务领域：" + agentDomainText() + "。你必须严格遵守以下「可核验性」规则：\n" +
+    "1. 只能依据【资料区】提供的法条原文、案例要点和用户案情作答；【资料区】未涵盖的问题，明确回答「本工具资料未涵盖该问题，建议查询国家法律法规数据库或官方来源并咨询执业律师」，不得凭训练记忆猜测。\n" +
     "2. 引用法条必须使用《法律名》第X条的完整格式，且该法条必须出现在【资料区】中；严禁引用【资料区】之外的任何法条、司法解释、条例。\n" +
     "3. 涉及期限（多少日/月/年）、比例（百分之X）、金额、机关名称的表述，只能来自【资料区】或用户案情原文；资料区没有的数字一律不得出现，也不得换算编造。\n" +
     "4. 严禁编造案例名称、案号、政策文件名、统计数据。\n" +
@@ -410,6 +414,13 @@ window.AGENT = (function () {
       });
   }
 
+  /* 供外部跳转：预填案情 + 指定模式 + 立即执行 */
+  function runWith(text, m) {
+    setMode(m === "ai" ? "ai" : "report");
+    els.input.value = text;
+    runAgent();
+  }
+
   /* ============ 供 ai.js 挂载的轻量核验 ============ */
   function attachVerification(bubbleDiv, answerText, ctxText) {
     if (!answerText) return;
@@ -443,6 +454,8 @@ window.AGENT = (function () {
     var btnA = document.getElementById("agent-mode-ai");
     if (btnR) btnR.addEventListener("click", function () { setMode("report"); });
     if (btnA) btnA.addEventListener("click", function () { setMode("ai"); });
+    var printBtn = document.getElementById("agent-print");
+    if (printBtn) printBtn.addEventListener("click", function () { window.print(); });
     var ex = document.getElementById("agent-examples");
     [
       "公司口头把我辞退了没有赔偿，我能主张2N吗？程序怎么走？",
@@ -466,6 +479,7 @@ window.AGENT = (function () {
     verifyText: verifyText,
     annotate: annotate,
     attachVerification: attachVerification,
-    runAgent: runAgent
+    runAgent: runAgent,
+    runWith: runWith
   };
 })();

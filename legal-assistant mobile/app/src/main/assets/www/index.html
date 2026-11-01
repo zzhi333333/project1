@@ -41,6 +41,7 @@
             <input id="ai-mode" type="checkbox"><span>🤖 AI</span>
           </label>
           <input id="consult-input" type="text" placeholder="描述您的问题，如：公司口头把我辞退了…">
+          <button id="voice-btn" class="mic-btn" title="语音提问（点击开始/停止）">🎤</button>
           <button id="consult-send" class="send-btn">发送</button>
         </div>
       </div>
@@ -63,6 +64,7 @@
           <textarea id="agent-input" rows="7" placeholder="请尽量完整描述案情：时间线、当事人与关系、发生了什么、涉及金额、您的诉求。"></textarea>
           <div class="analysis-actions">
             <button id="agent-run" class="primary-btn">🚀 开始分析</button>
+            <button id="agent-print" class="mini-btn block-btn">🖨 导出意见书（打印/PDF）</button>
             <label class="ai-toggle block" id="agent-online-label"><input id="agent-online" type="checkbox" checked> 🌐 联网核验（flk官方全文）</label>
           </div>
           <div id="agent-examples" class="suggestions"></div>
@@ -76,6 +78,31 @@
 
         <div id="agent-answer"></div>
         <div id="agent-panel"></div>
+      </div>
+    </section>
+
+    <!-- 合同审查 -->
+    <section id="view-contract" class="view">
+      <div class="view-pad">
+        <div class="view-head">
+          <h2>合同审查</h2>
+          <p>粘贴合同文本：规则引擎即时核对必备条款与风险语句（离线可用）；AI 模式逐条给出缺漏、风险与修改建议</p>
+        </div>
+
+        <div class="analysis-editor">
+          <div class="mode-switch two">
+            <button id="ct-type-labor" class="mode-btn active">劳动合同</button>
+            <button id="ct-type-business" class="mode-btn">通用商业合同</button>
+          </div>
+          <textarea id="ct-input" rows="9" placeholder="粘贴合同全文（或关键条款）。劳动合同将核对九大必备条款与高危语句；商业合同核对标的/价款/违约责任/争议解决等要素。"></textarea>
+          <div class="analysis-actions">
+            <button id="ct-rule-run" class="primary-btn">📋 条款核对（离线）</button>
+            <button id="ct-ai-run" class="mini-btn block-btn">🤖 AI 深度审查</button>
+          </div>
+        </div>
+
+        <div id="ct-rule-result"></div>
+        <div id="ct-ai-result"></div>
       </div>
     </section>
 
@@ -99,9 +126,7 @@
           </div>
           <div id="law-domain-chips" class="chips filter-chips">
             <button class="filter-chip active" data-domain="">全部领域</button>
-            <button class="filter-chip" data-domain="labor">🧑‍🏭 劳动法</button>
-            <button class="filter-chip" data-domain="company">🏢 公司法</button>
-            <button class="filter-chip" data-domain="patent">💡 专利法</button>
+            <!-- 其余领域 chips 由注册表动态生成（只显示有法条数据的领域） -->
           </div>
           <div id="law-count" class="flk-meta"></div>
           <div id="law-results" class="law-results"></div>
@@ -265,6 +290,7 @@
   <nav class="tabbar">
     <button class="nav-tab active" data-view="consult"><span class="tab-ico">💬</span><span class="tab-label">咨询</span></button>
     <button class="nav-tab" data-view="agent"><span class="tab-ico">🧭</span><span class="tab-label">分析</span></button>
+    <button class="nav-tab" data-view="contract"><span class="tab-ico">📑</span><span class="tab-label">合同</span></button>
     <button class="nav-tab" data-view="laws"><span class="tab-ico">📚</span><span class="tab-label">法条</span></button>
     <button class="nav-tab" data-view="tools"><span class="tab-ico">🧮</span><span class="tab-label">工具</span></button>
     <button class="nav-tab" data-view="cases"><span class="tab-ico">🗂️</span><span class="tab-label">案例</span></button>
@@ -377,7 +403,7 @@
     <div class="modal-grab"></div>
     <div class="modal-title">👋 欢迎使用法律咨询助手</div>
     <div class="modal-body">
-      <div class="guide-step"><b>1️⃣ 描述问题或选场景</b><span>在「智能咨询」直接提问，或点左上角 ☰ 从 22 个场景开始，系统会澄清关键事实后给出分析。</span></div>
+      <div class="guide-step"><b>1️⃣ 描述问题或选场景</b><span>在「智能咨询」直接提问，或点左上角 ☰ 从 29 个场景开始，系统会澄清关键事实后给出分析。</span></div>
       <div class="guide-step"><b>2️⃣ 需要深度分析？</b><span>把完整案情贴到「深度分析」：规则报告离线可用，AI 模式还会逐条核验法条引用，杜绝杜撰。</span></div>
       <div class="guide-step"><b>3️⃣ 想用 AI？</b><span>点右上角「🤖」配置一个服务商（推荐智谱 glm-4-flash，官方免费）。</span></div>
       <div class="modal-note">🔒 全部数据仅存本机（App 私有存储）；「法条检索」可联网查询国家法律法规数据库官方原文。本工具仅供参考，不构成法律意见。</div>
@@ -393,6 +419,8 @@
 <script src="js/data/scenarios.js"></script>
 <script src="js/data/faq.js"></script>
 <script src="js/data/guiding.js"></script>
+<script src="js/domains/trade.js"></script>
+<script src="js/domains/patent-intl.js"></script>
 <script src="js/consult.js"></script>
 <script src="js/analysis.js"></script>
 <script src="js/search.js"></script>
@@ -400,6 +428,7 @@
 <script src="js/online.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/agent.js"></script>
+<script src="js/contract.js"></script>
 <script src="js/history.js"></script>
 <script src="js/templates.js"></script>
 <script src="js/gsearch.js"></script>

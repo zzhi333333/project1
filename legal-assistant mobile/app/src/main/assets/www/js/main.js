@@ -5,7 +5,7 @@
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
   /* ---------- 视图切换 ---------- */
-  var views = ["consult", "agent", "laws", "tools", "cases", "faq"];
+  var views = ["consult", "agent", "contract", "laws", "tools", "cases", "faq"];
   function switchView(name) {
     views.forEach(function (v) {
       var el = document.getElementById("view-" + v);
@@ -92,12 +92,12 @@
     });
   }
 
-  function appendResult(scenario, r, answers) {
+  function appendResult(scenario, r, answers, transcript) {
     var d = window.DOMAINS[scenario.domain];
-    /* 注册结果供 AI 深度解读 / 文书生成使用 */
+    /* 注册结果供 AI 深度解读 / 文书生成 / 深度核验跳转使用 */
     window.AI_RESULTS = window.AI_RESULTS || [];
     var rid = window.AI_RESULTS.length;
-    window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id });
+    window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] });
     var html =
       '<div class="result-card">' +
         '<div class="result-flag" style="border-color:' + d.color + '">' + scenario.icon + ' ' + d.name + ' · 初步分析意见</div>' +
@@ -112,6 +112,7 @@
         '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
         '<div class="result-ai-row">' +
           '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button>' +
+          '<button class="mini-btn primary deep-btn" data-deep="' + rid + '">🧭 转深度核验分析</button>' +
           '<button class="mini-btn doc-btn" data-rid="' + rid + '">📄 生成文书</button>' +
           '<span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span>' +
         '</div>' +
@@ -120,22 +121,41 @@
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
-    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id } });
+    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] } });
 
     div.querySelectorAll(".law-chip").forEach(bindLawChip);
     bindRelLinks(div);
     scrollDown();
   }
 
-  /* 相关阅读：同领域 FAQ 两条 + 指导性案例一条 */
+  /* 相关阅读：同领域 FAQ 两条 + 按案情要素相似度匹配的类案两条（指导案例/典型案例） */
   function relatedLinks(scenario) {
     var faqs = window.FAQ.filter(function (f) { return f.domain === scenario.domain; }).slice(0, 2);
-    var guides = window.GUIDING.filter(function (g) { return g.domain === scenario.domain; }).slice(0, 1);
+    var pool = [];
+    window.GUIDING.forEach(function (g) { pool.push({ rel: "case-guiding", label: "⭐ " + g.no.replace("指导案例", "指导性案例"), c: g }); });
+    window.CASES.forEach(function (c) { pool.push({ rel: "case-builtin", label: "📘 " + c.title, c: c }); });
+    var kws = (scenario.keywords || []).slice();
+    scenario.name.replace(/[（）()、，,\s]/g, "").split("").forEach(function (_, i, arr) {
+      if (i + 2 <= arr.length) kws.push(arr.slice(i, i + 2).join(""));
+    });
+    pool.forEach(function (p) {
+      var score = 0;
+      (p.c.keywords || []).forEach(function (k) {
+        if (scenario.keywords && scenario.keywords.indexOf(k) > -1) score += k.length;
+        if (scenario.name.indexOf(k) > -1) score += k.length;
+      });
+      kws.forEach(function (k) {
+        if (k.length > 1 && (p.c.title + p.c.facts).indexOf(k) > -1) score += 1;
+      });
+      if (p.c.domain === scenario.domain) score += 1;
+      p.score = score;
+    });
+    pool.sort(function (a, b) { return b.score - a.score; });
     var links = faqs.map(function (f) {
       return '<button class="rel-link" data-rel="faq" data-q="' + esc(f.q) + '">📖 ' + esc(f.q) + '</button>';
     });
-    guides.forEach(function (g) {
-      links.push('<button class="rel-link" data-rel="case">⭐ ' + esc(g.no.replace("指导案例", "指导性案例") + "精读") + '</button>');
+    pool.slice(0, 2).forEach(function (p) {
+      links.push('<button class="rel-link" data-rel="' + p.rel + '">' + esc(p.label.slice(0, 28)) + '</button>');
     });
     if (!links.length) return "";
     return '<div class="result-section"><span class="sec-label">🔗 相关阅读</span><div class="chips">' + links.join("") + '</div></div>';
@@ -144,7 +164,8 @@
   function bindRelLinks(div) {
     div.querySelectorAll(".rel-link").forEach(function (b) {
       b.addEventListener("click", function () {
-        if (b.getAttribute("data-rel") === "faq") {
+        var rel = b.getAttribute("data-rel");
+        if (rel === "faq") {
           switchView("faq");
           var q = b.getAttribute("data-q");
           setTimeout(function () {
@@ -157,13 +178,35 @@
           }, 100);
         } else {
           switchView("cases");
-          document.getElementById("case-tab-guiding").click();
+          document.getElementById(rel === "case-guiding" ? "case-tab-guiding" : "case-tab-builtin").click();
         }
       });
     });
   }
 
   window.UI = { appendUser: appendUser, appendBot: appendBot, appendQuestion: appendQuestion, appendResult: appendResult };
+
+  /* ---------- 语音提问（浏览器语音识别，Chrome/Edge 可用） ---------- */
+  var micBtn = document.getElementById("voice-btn");
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (micBtn && !SR) { micBtn.classList.add("hidden"); }
+  else if (micBtn) {
+    var rec = null, listening = false;
+    micBtn.addEventListener("click", function () {
+      if (listening) { rec.stop(); return; }
+      rec = new SR();
+      rec.lang = "zh-CN";
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      rec.onresult = function (e) {
+        var t = e.results[e.results.length - 1][0].transcript;
+        input.value = (input.value + " " + t).trim().slice(0, 500);
+      };
+      rec.onend = function () { listening = false; micBtn.classList.remove("listening"); };
+      rec.onerror = function () { listening = false; micBtn.classList.remove("listening"); };
+      try { rec.start(); listening = true; micBtn.classList.add("listening"); } catch (e) { /* 已在运行 */ }
+    });
+  }
 
   /* ---------- 咨询输入框 ---------- */
   var input = document.getElementById("consult-input");
@@ -253,7 +296,7 @@
     if (m.kind === "result" && m.data) {
       window.AI_RESULTS = window.AI_RESULTS || [];
       var rid = window.AI_RESULTS.length;
-      window.AI_RESULTS.push({ name: m.data.name, domain: m.data.domain, r: m.data.r });
+      window.AI_RESULTS.push({ name: m.data.name, domain: m.data.domain, r: m.data.r, answers: m.data.answers || {}, scenarioId: m.data.scenarioId, transcript: m.data.transcript || [] });
       var btn = div.querySelector(".result-ai-btn");
       if (btn) btn.setAttribute("data-rid", rid);
       div.querySelectorAll(".law-chip").forEach(bindLawChip);
@@ -470,8 +513,31 @@
   }
   window.renderSessionList();
 
+  /* ---------- 深度核验跳转：问答实录 → 案情文本 → 自动执行 ---------- */
+  function buildCaseText(entry) {
+    var lines = ["咨询场景：" + entry.name + "。"];
+    (entry.transcript || []).forEach(function (t) {
+      lines.push(t.q + " 答：" + t.a + "。");
+    });
+    if (!(entry.transcript || []).length && entry.r && entry.r.summary) {
+      lines.push(entry.r.summary);
+    }
+    return lines.join("\n");
+  }
+
   /* ---------- 文书生成弹窗 ---------- */
   box.addEventListener("click", function (e) {
+    var deepBtn = e.target.closest ? e.target.closest(".deep-btn") : null;
+    if (deepBtn) {
+      var entry = (window.AI_RESULTS || [])[parseInt(deepBtn.getAttribute("data-deep"), 10)];
+      if (entry) {
+        var mode = window.AI && window.AI.isConfigured() ? "ai" : "report";
+        window.APP.switchView("agent");
+        window.AGENT.runWith(buildCaseText(entry), mode);
+        window.scrollTo(0, 0);
+      }
+      return;
+    }
     var btn = e.target.closest ? e.target.closest(".doc-btn") : null;
     if (!btn) return;
     var entry = (window.AI_RESULTS || [])[parseInt(btn.getAttribute("data-rid"), 10)];
@@ -522,5 +588,6 @@
   window.ONLINE.init();
   window.AI.init();
   window.AGENT.init();
+  window.CONTRACT.init();
   window.GSEARCH.init();
 })();

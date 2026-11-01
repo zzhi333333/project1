@@ -73,6 +73,7 @@
         '<div class="law-title">' + highlight(l.title, query) + '</div>' +
         '<div class="law-text">' + highlight(l.text, query) + '</div>' +
         (l.note ? '<div class="law-note">💡 ' + highlight(l.note, query) + '</div>' : '') +
+        (l.url ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(l.url) + '" style="margin:8px 6px 0 0">🔗 官方原文（英文）</a>' : '') +
         '<div class="law-tags">' + l.tags.map(function (t) { return '<i>#' + esc(t) + '</i>'; }).join("") + '</div>';
       container.appendChild(card);
     });
@@ -85,8 +86,22 @@
       var input = document.getElementById("law-search-input");
       var btn = document.getElementById("law-search-btn");
       var container = document.getElementById("law-results");
-      var chips = document.querySelectorAll("#law-domain-chips .filter-chip");
+      var chipBox = document.getElementById("law-domain-chips");
       var currentDomain = "";
+
+      /* 领域筛选 chips 由注册表动态生成（只显示有法条数据的领域） */
+      if (chipBox) {
+        window.DomainRegistry.metas().forEach(function (d) {
+          var hasLaws = window.DomainRegistry.collect("laws", d.id).length > 0;
+          if (!hasLaws) return;
+          var c = document.createElement("button");
+          c.className = "filter-chip";
+          c.setAttribute("data-domain", d.id);
+          c.innerHTML = d.icon + " " + esc(d.name);
+          chipBox.appendChild(c);
+        });
+      }
+      var chips = chipBox ? Array.prototype.slice.call(chipBox.querySelectorAll(".filter-chip")) : [];
 
       function refresh() { renderList(container, input.value, currentDomain); }
       function selectChip(active) {

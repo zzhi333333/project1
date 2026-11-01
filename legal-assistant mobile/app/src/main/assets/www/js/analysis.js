@@ -96,14 +96,15 @@ window.ANALYSIS = (function () {
   function topLaws(text, tokens, scenarios, domain, n) {
     var pool = window.LAWS.filter(function (l) { return l.domain === domain; });
     var sLaws = scenarioLaws();
-    var scored = pool.map(function (l) {
+    var scored = pool.map(function (l, i) {
       var s = scoreLaw(l, tokens, text);
       scenarios.forEach(function (sc) {
         if ((sLaws[sc.id] || []).indexOf(l.id) > -1) s += 6;
       });
+      /* 保底分：保证领域内至少能按序取到法条（排名仍按相关度） */
+      s += (pool.length - i) * 0.01;
       return { l: l, s: s };
-    }).filter(function (x) { return x.s > 0; })
-      .sort(function (a, b) { return b.s - a.s; })
+    }).sort(function (a, b) { return b.s - a.s; })
       .slice(0, n || 6);
     return scored.map(function (x) { return x.l; });
   }

@@ -74,7 +74,19 @@
     });
   })();
 
-  /* ---------- ⑥ 通知：App 环境提示（一次性） ---------- */
+  /* ---------- ⑥ 意见书打印/PDF：走系统打印服务 ----------
+     桌面绑定的是 window.print()（WebView 中无效），这里改为原生
+     PrintManager；打印内容由 @media print 样式裁剪为意见书正文 */
+  if (window.BRIDGE && window.BRIDGE.available) {
+    var printBtn = document.getElementById("agent-print");
+    if (printBtn) {
+      printBtn.addEventListener("click", function () {
+        window.BRIDGE.printDoc("法律咨询意见书");
+      }, true);
+    }
+  }
+
+  /* ---------- ⑦ 通知：App 环境提示（一次性） ---------- */
   window.addEventListener("load", function () {
     if (window.BRIDGE && window.BRIDGE.available) {
       console.log("[mobile] 原生桥已连接，App 版本 " + window.BRIDGE.version());

@@ -604,3 +604,38 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
 .guide-step { display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; line-height: 1.6; }
 .guide-step b { color: var(--ink); }
 .guide-step span { color: var(--ink-2); font-size: 12.5px; }
+
+/* =========================================================
+ * v1.2 新增（合同审查 / 语音 / 打印）
+ * ========================================================= */
+
+/* 语音提问按钮（WebView 不支持语音识别时自动隐藏） */
+.mic-btn {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
+  border: 1px solid var(--line-2); background: #f9fafb; color: var(--ink-2);
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+}
+.mic-btn.listening {
+  background: #fef2f2; border-color: var(--danger); color: var(--danger);
+  animation: blink 1s steps(1) infinite;
+}
+
+/* 通用整行按钮（打印 / AI 审查等次级操作） */
+.block-btn { display: block; width: 100%; padding: 11px; border-radius: 12px; font-size: 14.5px; text-align: center; margin-top: 8px; }
+
+/* 打印：只输出「深度分析」页的意见书与核验报告 */
+@media print {
+  #app, .topbar, .tabbar, .drawer, .drawer-mask, .modal, .suggestions, .input-row,
+  .mode-switch, .analysis-editor, .agent-steps, .view-head { display: none !important; }
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  #views { position: static !important; overflow: visible !important; height: auto !important; }
+  .view { position: static !important; display: none !important; overflow: visible !important; height: auto !important; }
+  #view-agent.active { display: block !important; }
+  .view-pad { padding: 0 !important; }
+  .ai-stop, .mini-btn, .ai-cursor, .result-ai-row { display: none !important; }
+  .msg .avatar { display: none; }
+  .msg .bubble { max-width: 100% !important; border: none !important; background: #fff !important; box-shadow: none !important; }
+  .bubble, .bubble.ai-stream { white-space: pre-wrap; }
+  .report-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .verify-panel { border: 1px solid #d7e8dc !important; }
+}

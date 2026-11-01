@@ -96,11 +96,21 @@ window.DomainRegistry = (function () {
     return m;
   }
 
+  /* 增量补充某领域的关键词（分类用），保留原有词表 */
+  function extendKeywords(id, extra) {
+    if (LEGACY_META[id]) {
+      LEGACY_META[id].keywords = (LEGACY_META[id].keywords || []).concat(extra || []);
+      return;
+    }
+    var d = get(id);
+    if (d) d.keywords = (d.keywords || []).concat(extra || []);
+  }
+
   return {
     registerDomain: registerDomain,
     get: get, ids: ids, metas: metas, metaOf: metaOf,
     collect: collect, lawById: lawById, scenarioById: scenarioById,
-    allKeywords: allKeywords,
+    allKeywords: allKeywords, extendKeywords: extendKeywords,
     __setLegacy: function (field, arr) { LEGACY_STORE[field] = arr || []; }
   };
 })();

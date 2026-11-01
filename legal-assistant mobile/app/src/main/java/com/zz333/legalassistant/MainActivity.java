@@ -8,6 +8,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
@@ -243,6 +245,22 @@ public class MainActivity extends Activity {
                     Result r = new Result();
                     r.error = "无法打开保存选择器：" + e.getMessage();
                     emit(cbId, r);
+                }
+            });
+        }
+
+        /** 意见书打印/PDF：系统打印服务（打印内容由页面的 @media print 样式裁剪为意见书正文） */
+        @JavascriptInterface
+        public void printDoc(final String jobName) {
+            ui.post(() -> {
+                if (web == null) return;
+                try {
+                    PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                    String name = jobName == null || jobName.isEmpty() ? "法律咨询意见书" : jobName;
+                    pm.print(name, web.createPrintDocumentAdapter(name),
+                            new PrintAttributes.Builder().build());
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "打印服务不可用：" + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             });
         }
