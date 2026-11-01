@@ -39,6 +39,14 @@ window.DomainRegistry.registerDomain({
 3. **PowerShell 5.1**：.ps1 含中文必须 ASCII 化（无 BOM UTF-8 按 GBK 读会吞换行）；git fetch/push 进程退出阶段可能挂起（refs 实际已写入），重试即可
 4. **重构前 grep 调用点**：曾有 lawChips 被删导致结果卡静默消失
 
+## 移动版（Android APK，`legal-assistant mobile/` 目录名含空格）
+
+- **架构**：Android WebView 壳（`com.zz333.legalassistant`，MainActivity.java，minSdk 26/targetSdk 34，竖屏 2780×1264 适配）内嵌一份**移动适配版网页副本**：`app/src/main/assets/www/`（含全部网页版 js + 两个移动专属文件 **mobile.js / bridge.js**；index.html/css 为移动布局，与网页版不同）
+- **原生桥**（bridge.js ↔ MainActivity.java）：App 内**没有本地代理**——AI 请求/法条检索/搜索经原生网络直连（httpB64 二进制通道），语音走**原生 SpeechRecognizer**（v1.3.1，网页版 Web Speech API 的桥接替代），window.print 接管为系统 PrintManager
+- **构建**：`build.bat`（JDK17 + Android SDK，默认 `C:\Users\zz333\android\`；VERSION_NAME 写在脚本内）→ `dist/legal-assistant-mobile-v<版本>.apk`；签名密钥 `tools\debug.keystore`（密码 legal123，**已 gitignore——丢失后无法覆盖升级**）
+- **同步工作流（网页版 → 移动版，高频操作）**：桌面版改动后，把变更的 js/css 复制进 `assets/www/`，**必须保留 mobile.js/bridge.js 与移动版 index.html 的差异**（⚠️ 曾两次整目录覆盖导致网页版功能回退）；然后改 build.bat 内 VERSION_NAME → 运行 build.bat 出 APK → 提交推送
+- 移动版有自己的 README.md（功能对照表与安装说明）
+
 ## 状态与惯例
 
 - 对话历史/AI设置/日历存浏览器 localStorage；设置弹窗有 JSON 导出/导入
