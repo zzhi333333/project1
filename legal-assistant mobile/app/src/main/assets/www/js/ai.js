@@ -114,6 +114,49 @@ window.AI = (function () {
       acc += String(d);
       if (onDelta) onDelta(d);
     }
+
+    /* ── App 内：经原生桥直连流式（无本地代理，无需探测） ── */
+    if (window.BRIDGE && window.BRIDGE.available) {
+      var sseBuf = "";
+      var pumpSSE = function (raw) {
+        sseBuf += raw;
+        var lines = sseBuf.split("\n");
+        sseBuf = lines.pop();
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line || line.indexOf("data:") !== 0) continue;
+          var data = line.slice(5).trim();
+          if (data === "[DONE]") continue;
+          try {
+            var j = JSON.parse(data);
+            var ch = j.choices && j.choices[0];
+            var piece = ch && ((ch.delta && ch.delta.content) || (ch.message && ch.message.content)) || "";
+            if (piece) emit(piece);
+          } catch (e) { /* 忽略无法解析的行 */ }
+        }
+      };
+      /* 「⏹ 停止」→ AbortController 触发 → 通知原生断开当前连接 */
+      if (ctrl && ctrl.signal) {
+        ctrl.signal.addEventListener("abort", function () {
+          window.BRIDGE.cancelActive();
+        });
+      }
+      return window.BRIDGE.stream("POST",
+        cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions",
+        { "Content-Type": "application/json", "Authorization": "Bearer " + (cfg.apiKey || "") },
+        JSON.stringify({ model: cfg.model, messages: messages, temperature: temp, stream: true }),
+        pumpSSE
+      ).then(function (r) {
+        if (sseBuf) { var tail = sseBuf; sseBuf = ""; pumpSSE(tail + "\n"); }
+        if (!r || r.status == null) throw new Error("网络通道异常，请稍后重试。");
+        if (r.status >= 400) throw new Error("模型接口返回 " + r.status + "：" + String(r.text || acc || "").slice(0, 300));
+        if (!acc) throw new Error("模型未返回内容，请检查「模型名称 / 接口地址 / API Key」设置。");
+        return acc;
+      }).catch(function (e) {
+        if (e instanceof Error) throw e;
+        throw new Error(String(e && e.message || e));
+      });
+    }
     return detectProxy().then(function (pb) {
       var viaProxy = pb !== false;
       var p;
@@ -455,6 +498,18 @@ window.AI = (function () {
       feedback: JSON.parse(localStorage.getItem("legal-feedback") || "[]"),
       aiSettings: S
     };
+    /* App 内：调用原生「另存为」选择器写文件（WebView 的 blob 下载不可靠） */
+    if (window.BRIDGE && window.BRIDGE.available) {
+      setStatus("⏳ 请选择保存位置…");
+      window.BRIDGE.exportFile("legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json",
+        JSON.stringify(payload, null, 2))
+        .then(function () { setStatus("✅ 备份已导出", "ok"); })
+        .catch(function (e) {
+          var m = e && e.message || String(e);
+          setStatus(/cancel/i.test(m) ? "已取消导出" : "❌ 导出失败：" + m);
+        });
+      return;
+    }
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
