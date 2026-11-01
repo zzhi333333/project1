@@ -311,7 +311,7 @@
         var c = document.createElement("button");
         c.className = "filter-chip";
         c.setAttribute("data-domain", d.id);
-        c.textContent = d.name.replace("法", "");
+        c.textContent = d.short || d.name.replace("法", "");
         filterBox.appendChild(c);
       });
       filterBox.addEventListener("click", function (e) {
@@ -341,7 +341,7 @@
 
   /* ---------- 对话历史：渲染与会话列表 ---------- */
   function welcomeHtml() {
-    return "您好！我是<b>法律咨询助手</b>，专注<b>劳动法 · 公司法 · 专利法</b>。<br>" +
+    return "您好！我是<b>法律咨询助手</b>，覆盖<b>民法典 · 民事诉讼 · 劳动法 · 公司法 · 专利法 · 国际经贸合规</b>。<br>" +
       "请描述您的问题，我会澄清关键事实后给出<b>分析 + 法条 + 行动建议</b>；也可从左侧场景直接开始。";
   }
 
