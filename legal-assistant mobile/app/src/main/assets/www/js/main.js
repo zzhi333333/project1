@@ -198,9 +198,8 @@
     '<path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>' +
     '<path d="M19 11a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V20H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-2.08A7 7 0 0 0 19 11z"/></svg>' +
     '<span class="mic-label">语音</span>';
-  var inApp = !!(window.BRIDGE && window.BRIDGE.available);   /* App 内走原生语音识别（mobile.js 绑定） */
-  if (micBtn && !SR && !inApp) { micBtn.classList.add("hidden"); }
-  else if (micBtn && !inApp) {
+  if (micBtn && !SR) { micBtn.classList.add("hidden"); }
+  else if (micBtn) {
     micBtn.innerHTML = MIC_SVG;
     micBtn.title = "点击开始语音提问";
     /* 状态机：off ⇄ on。浏览器在静音数秒后会自动结束识别，
@@ -312,7 +311,7 @@
         var c = document.createElement("button");
         c.className = "filter-chip";
         c.setAttribute("data-domain", d.id);
-        c.textContent = d.name.replace("法", "");
+        c.textContent = d.short || d.name.replace("法", "");
         filterBox.appendChild(c);
       });
       filterBox.addEventListener("click", function (e) {
@@ -342,7 +341,7 @@
 
   /* ---------- 对话历史：渲染与会话列表 ---------- */
   function welcomeHtml() {
-    return "您好！我是<b>法律咨询助手</b>，专注<b>劳动法 · 公司法 · 专利法</b>。<br>" +
+    return "您好！我是<b>法律咨询助手</b>，覆盖<b>民法典 · 民事诉讼 · 劳动法 · 公司法 · 专利法 · 国际经贸合规</b>。<br>" +
       "请描述您的问题，我会澄清关键事实后给出<b>分析 + 法条 + 行动建议</b>；也可点左上角 ☰ 从「快捷咨询」直接开始。";
   }
 

@@ -46,13 +46,13 @@ window.DomainRegistry = (function () {
     return out;
   }
 
-  /* 领域元信息：window.DOMAINS[id] = {id,name,icon,color} */
+  /* 领域元信息：window.DOMAINS[id] = {id,name,icon,color,short?} */
   function metaOf(id) {
     var d = get(id);
-    if (d) return { id: d.id, name: d.name, icon: d.icon, color: d.color };
+    if (d) return { id: d.id, name: d.name, icon: d.icon, color: d.color, short: d.short || d.name.replace("法", "") };
     if (LEGACY_META[id]) {
       var m = LEGACY_META[id];
-      return { id: id, name: m.name, icon: m.icon, color: m.color };
+      return { id: id, name: m.name, icon: m.icon, color: m.color, short: m.short || m.name.replace("法", "") };
     }
     return { id: id, name: id, icon: "📁", color: "#6b7280" };
   }
