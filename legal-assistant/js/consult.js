@@ -46,12 +46,12 @@
     var matches = matchScenarios(text, cls.domain);
 
     if (!matches.length) {
-      UI.appendBot([
-        "我暂时没能准确判断您的问题类型。我目前擅长以下三个领域：",
-        "🧑‍🏭 <b>劳动法</b>——辞退补偿、加班费、社保、工伤、试用期、竞业限制等；",
-        "🏢 <b>公司法</b>——注册资本实缴、股权转让、股东查账、决议瑕疵、清算注销等；",
-        "💡 <b>专利法</b>——专利申请、被侵权维权、被诉应对、无效宣告、职务发明等。"
-      ].join("<br>"), null);
+      var lines = ["我暂时没能准确判断您的问题类型。我目前擅长以下领域："];
+      window.DomainRegistry.metas().forEach(function (d) {
+        lines.push(d.icon + " <b>" + d.name + "</b>——请点击左侧「快捷咨询」查看该领域的具体场景。");
+      });
+      lines.push("也可以使用右上角「🔍 搜索」查找法条与内容，或到「深度分析」页获得完整报告。");
+      UI.appendBot(lines.join("<br>"), null);
       if (cls.domain) {
         UI.appendBot("不过从您的描述看，可能与<b>" + window.DOMAINS[cls.domain].name + "</b>相关，您可以直接点击左侧「快捷咨询」中的场景开始：", null);
       }

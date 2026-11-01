@@ -166,8 +166,12 @@ window.AI = (function () {
   }
 
   /* ---------------- 系统提示词与上下文 ---------------- */
+  function domainListText() {
+    var names = window.DomainRegistry.metas().map(function (d) { return d.name; }).join("、");
+    return "覆盖领域：" + names + "；另含美国/欧盟经贸合规要点指引（政策变动频繁，涉外合规决策须提示咨询专业律师）。";
+  }
   var SYSTEM_PROMPT =
-    "你是「法律咨询助手」的 AI 法律顾问，专注中国劳动法、公司法、专利法。回答规则：" +
+    "你是「法律咨询助手」的 AI 法律顾问。" + domainListText() + " 回答规则：" +
     "①先给直接结论，再分点分析；" +
     "②引用法条写明法律名称与条文号（如《劳动合同法》第47条），优先依据下方提供的匹配资料；" +
     "③给出可执行建议：如何固定证据、走什么程序、注意什么时效；" +
