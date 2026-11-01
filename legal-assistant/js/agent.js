@@ -414,6 +414,13 @@ window.AGENT = (function () {
       });
   }
 
+  /* 供外部跳转：预填案情 + 指定模式 + 立即执行 */
+  function runWith(text, m) {
+    setMode(m === "ai" ? "ai" : "report");
+    els.input.value = text;
+    runAgent();
+  }
+
   /* ============ 供 ai.js 挂载的轻量核验 ============ */
   function attachVerification(bubbleDiv, answerText, ctxText) {
     if (!answerText) return;
@@ -472,6 +479,7 @@ window.AGENT = (function () {
     verifyText: verifyText,
     annotate: annotate,
     attachVerification: attachVerification,
-    runAgent: runAgent
+    runAgent: runAgent,
+    runWith: runWith
   };
 })();

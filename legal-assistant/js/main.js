@@ -92,12 +92,12 @@
     });
   }
 
-  function appendResult(scenario, r, answers) {
+  function appendResult(scenario, r, answers, transcript) {
     var d = window.DOMAINS[scenario.domain];
-    /* 注册结果供 AI 深度解读 / 文书生成使用 */
+    /* 注册结果供 AI 深度解读 / 文书生成 / 深度核验跳转使用 */
     window.AI_RESULTS = window.AI_RESULTS || [];
     var rid = window.AI_RESULTS.length;
-    window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id });
+    window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] });
     var html =
       '<div class="result-card">' +
         '<div class="result-flag" style="border-color:' + d.color + '">' + scenario.icon + ' ' + d.name + ' · 初步分析意见</div>' +
@@ -112,6 +112,7 @@
         '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
         '<div class="result-ai-row">' +
           '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button>' +
+          '<button class="mini-btn primary deep-btn" data-deep="' + rid + '">🧭 转深度核验分析</button>' +
           '<button class="mini-btn doc-btn" data-rid="' + rid + '">📄 生成文书</button>' +
           '<span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span>' +
         '</div>' +
@@ -120,7 +121,7 @@
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
-    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id } });
+    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] } });
 
     div.querySelectorAll(".law-chip").forEach(bindLawChip);
     bindRelLinks(div);
@@ -295,7 +296,7 @@
     if (m.kind === "result" && m.data) {
       window.AI_RESULTS = window.AI_RESULTS || [];
       var rid = window.AI_RESULTS.length;
-      window.AI_RESULTS.push({ name: m.data.name, domain: m.data.domain, r: m.data.r });
+      window.AI_RESULTS.push({ name: m.data.name, domain: m.data.domain, r: m.data.r, answers: m.data.answers || {}, scenarioId: m.data.scenarioId, transcript: m.data.transcript || [] });
       var btn = div.querySelector(".result-ai-btn");
       if (btn) btn.setAttribute("data-rid", rid);
       div.querySelectorAll(".law-chip").forEach(bindLawChip);
@@ -512,8 +513,31 @@
   }
   window.renderSessionList();
 
+  /* ---------- 深度核验跳转：问答实录 → 案情文本 → 自动执行 ---------- */
+  function buildCaseText(entry) {
+    var lines = ["咨询场景：" + entry.name + "。"];
+    (entry.transcript || []).forEach(function (t) {
+      lines.push(t.q + " 答：" + t.a + "。");
+    });
+    if (!(entry.transcript || []).length && entry.r && entry.r.summary) {
+      lines.push(entry.r.summary);
+    }
+    return lines.join("\n");
+  }
+
   /* ---------- 文书生成弹窗 ---------- */
   box.addEventListener("click", function (e) {
+    var deepBtn = e.target.closest ? e.target.closest(".deep-btn") : null;
+    if (deepBtn) {
+      var entry = (window.AI_RESULTS || [])[parseInt(deepBtn.getAttribute("data-deep"), 10)];
+      if (entry) {
+        var mode = window.AI && window.AI.isConfigured() ? "ai" : "report";
+        window.APP.switchView("agent");
+        window.AGENT.runWith(buildCaseText(entry), mode);
+        window.scrollTo(0, 0);
+      }
+      return;
+    }
     var btn = e.target.closest ? e.target.closest(".doc-btn") : null;
     if (!btn) return;
     var entry = (window.AI_RESULTS || [])[parseInt(btn.getAttribute("data-rid"), 10)];

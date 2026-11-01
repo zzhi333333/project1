@@ -61,7 +61,7 @@
   }
 
   function beginScenario(sc, cls) {
-    state = { scenario: sc, answers: {}, qIndex: 0, active: true };
+    state = { scenario: sc, answers: {}, qIndex: 0, active: true, transcript: [] };
     var d = window.DOMAINS[sc.domain];
     UI.appendBot(
       "已识别问题：<b>" + sc.icon + " " + sc.name + "</b>（" + d.name + "领域）<br>" +
@@ -77,6 +77,7 @@
       if (visible) {
         UI.appendQuestion(q.text, q.options, function (val, label) {
           state.answers[q.id] = val;
+          state.transcript.push({ q: q.text, a: label });   /* 问答实录：供深度核验页还原案情 */
           state.qIndex++;
           UI.appendUser(label);
           askNext();
@@ -97,7 +98,7 @@
       UI.appendBot("抱歉，分析过程出现了一点问题，请换个说法重新描述。", null);
       return;
     }
-    UI.appendResult(state.scenario, r, state.answers);
+    UI.appendResult(state.scenario, r, state.answers, state.transcript);
   }
 
   /* 快捷入口（点击场景卡片直接开始） */
