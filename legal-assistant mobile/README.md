@@ -2,11 +2,23 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `1.4`（versionCode 6）
+- 包名：`com.zz333.legalassistant`，版本 `1.5`（versionCode 9）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v1.4.1.apk`（约 430KB）
+- 产物：`dist/legal-assistant-mobile-v1.5.apk`（约 435KB）
 
-## 🆕 v1.4 更新（跟随网页版）
+## 🆕 v1.5 更新（跟随网页版）
+
+| 功能 | 移动端适配说明 |
+|---|---|
+| 💰 民间借贷利息计算器 | LPR 四倍判定 + 超限抵扣，工具页第 7 个卡片 |
+| ⚖️ 诉讼费用计算器 | 累进受理费 + 简易程序减半 + 保全费（上限 5000 元），第 8 个卡片 |
+| ⭐ 法条收藏夹 | 法条卡星标收藏、收藏条点击直达；数据随备份导出导入 |
+| 📋 AI 回答与报告一键复制 | WebView 内 clipboard API 不可用，自动走 execCommand 兜底 |
+| 🤔 结果卡快捷追问 | 三个场景化追问由 AI 带上下文回答 |
+| 📝 民诉小额诉讼表述修正 | 随桌面版同步（"简易程序减半，小额诉讼再减半"） |
+| 🐛 修复 | 快捷追问 chips 与相关阅读共用 rel-link 类导致点击误跳案例页——移动版已修，**网页版 main.js 的 bindRelLinks 建议同步加 `if (b.classList.contains("qf-btn")) return;`** |
+
+## v1.4 更新（跟随网页版）
 
 | 功能 | 说明 |
 |---|---|
@@ -19,7 +31,7 @@ v1.4.1：顶栏去掉覆盖范围描述（小屏与图标重叠）。历史版�
 
 ## 📲 安装到手机
 
-1. 把 `dist/legal-assistant-mobile-v1.4.1.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
+1. 把 `dist/legal-assistant-mobile-v1.5.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
 2. 在手机上点开 APK，系统会提示「未知来源应用」——允许本来源安装即可；**已装旧版可直接覆盖升级**（同一签名）
 3. 打开「法律咨询助手」App，右上角 🤖 配置 AI 模型（推荐智谱 glm-4-flash，官方免费）
 

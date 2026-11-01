@@ -14,7 +14,7 @@ OUT="$ROOT/build"
 DIST="$ROOT/dist"
 KS="$ROOT/tools/debug.keystore"
 KS_PASS="pass:legal123"
-VERSION_NAME="1.4.2"
+VERSION_NAME="1.5"
 VERSION_CODE="3"
 
 # ---------- 工具链定位 ----------
