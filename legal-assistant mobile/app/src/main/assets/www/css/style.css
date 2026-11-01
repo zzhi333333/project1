@@ -643,15 +643,23 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
  * v1.2 新增（合同审查 / 语音 / 打印）
  * ========================================================= */
 
-/* 语音提问按钮（WebView 不支持语音识别时自动隐藏） */
+/* 语音提问按钮（App 内走原生识别；桌面浏览器无 SR 时自动隐藏） */
 .mic-btn {
-  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
-  border: 1px solid var(--line-2); background: #f9fafb; color: var(--ink-2);
-  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; gap: 4px;
+  flex: 0 0 auto; height: 42px; padding: 0 10px;
+  border: 1px solid var(--line-2); background: #f9fafb; border-radius: 12px;
+  color: var(--ink-2); transition: .12s;
 }
+.mic-btn:active { border-color: var(--primary-border); color: var(--primary); }
+.mic-svg { width: 17px; height: 17px; display: block; }
+.mic-label { font-size: 12.5px; }
 .mic-btn.listening {
   background: #fef2f2; border-color: var(--danger); color: var(--danger);
-  animation: blink 1s steps(1) infinite;
+  animation: micPulse 1.4s ease-in-out infinite;
+}
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  50% { box-shadow: 0 0 0 5px rgba(220, 38, 38, .14); }
 }
 
 /* 通用整行按钮（打印 / AI 审查等次级操作） */

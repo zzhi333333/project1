@@ -4,12 +4,16 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.util.Base64;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -63,9 +67,13 @@ public class MainActivity extends Activity {
 
     private static final int REQ_EXPORT = 1001;   /* 数据备份另存为 */
     private static final int REQ_PICK_FILE = 1002; /* 数据备份导入选择 */
+    private static final int REQ_MIC = 1003;       /* 语音识别录音权限 */
     private String pendingExportCb = null;
     private String pendingExportContent = null;
     private ValueCallback<Uri[]> pendingFileChooser = null;
+
+    private SpeechRecognizer recognizer = null;
+    private boolean speechPendingPermission = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -272,6 +280,30 @@ public class MainActivity extends Activity {
             });
         }
 
+        /** 语音识别：App 内替代浏览器 SpeechRecognition（WebView 无识别后端） */
+        @JavascriptInterface
+        public void speechStart() {
+            ui.post(() -> {
+                if (SpeechRecognizer.isRecognitionAvailable(MainActivity.this)) {
+                    if (checkSelfPermission("android.permission.RECORD_AUDIO")
+                            != PackageManager.PERMISSION_GRANTED) {
+                        speechPendingPermission = true;
+                        requestPermissions(new String[]{"android.permission.RECORD_AUDIO"}, REQ_MIC);
+                        return;
+                    }
+                    doStartSpeech();
+                } else {
+                    jsCall("window.__brSpeechEnd&&window.__brSpeechEnd(true,'此手机未提供语音识别服务，按钮已隐藏');");
+                    jsCall("window.__brSpeechHide&&window.__brSpeechHide();");
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void speechStop() {
+            ui.post(() -> { if (recognizer != null) recognizer.stopListening(); });
+        }
+
         /** 用系统浏览器/下载器打开外链（官方原文页、Word/PDF 下载等） */
         @JavascriptInterface
         public void openUrl(String url) {
@@ -285,6 +317,71 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() { return "1.0"; }
+    }
+
+    /* ---------- 语音识别（原生 SpeechRecognizer，替代 WebView 缺失的网页 API） ---------- */
+    private void jsCall(String js) {
+        ui.post(() -> { if (web != null) web.evaluateJavascript(js, null); });
+    }
+
+    private void doStartSpeech() {
+        if (recognizer == null) recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN");
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        recognizer.setRecognitionListener(new RecognitionListener() {
+            @Override public void onResults(Bundle results) {
+                java.util.ArrayList<String> list =
+                        results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (list != null && !list.isEmpty() && list.get(0) != null && !list.get(0).isEmpty()) {
+                    jsCall("window.__brSpeech&&window.__brSpeech(" +
+                            JSONObject.quote(list.get(0)) + ");");
+                }
+                jsCall("window.__brSpeechEnd&&window.__brSpeechEnd();");
+            }
+            @Override public void onPartialResults(Bundle partialResults) {
+                java.util.ArrayList<String> list =
+                        partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (list != null && !list.isEmpty() && list.get(0) != null && !list.get(0).isEmpty()) {
+                    jsCall("window.__brSpeech&&window.__brSpeech(" +
+                            JSONObject.quote(list.get(0)) + ");");
+                }
+            }
+            @Override public void onError(int error) {
+                String msg;
+                if (error == SpeechRecognizer.ERROR_NO_MATCH) msg = null;             /* 静音：静默结束 */
+                else if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) msg = "麦克风权限未授权";
+                else if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) msg = "未听到语音，请重试";
+                else if (error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT) msg = "识别服务网络异常";
+                else msg = "识别失败（代码 " + error + "）";
+                if (msg != null) jsCall("window.__brSpeechEnd&&window.__brSpeechEnd(true," +
+                        JSONObject.quote(msg) + ");");
+                else jsCall("window.__brSpeechEnd&&window.__brSpeechEnd();");
+            }
+            @Override public void onReadyForSpeech(Bundle params) { }
+            @Override public void onBeginningOfSpeech() { }
+            @Override public void onRmsChanged(float rmsdB) { }
+            @Override public void onBufferReceived(byte[] buffer) { }
+            @Override public void onEndOfSpeech() { }
+            @Override public void onEvent(int eventType, Bundle params) { }
+        });
+        recognizer.startListening(intent);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_MIC && speechPendingPermission) {
+            speechPendingPermission = false;
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                doStartSpeech();
+            } else {
+                Toast.makeText(this, "未授权麦克风，语音提问不可用", Toast.LENGTH_SHORT).show();
+                jsCall("window.__brSpeechEnd&&window.__brSpeechEnd(true,'未授权麦克风');");
+            }
+        }
     }
 
     private interface ChunkSink { void accept(String chunk); }
@@ -421,6 +518,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (recognizer != null) {
+            recognizer.destroy();
+            recognizer = null;
+        }
         if (web != null) {
             web.destroy();
             web = null;

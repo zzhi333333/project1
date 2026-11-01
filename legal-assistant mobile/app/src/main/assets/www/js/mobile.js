@@ -74,7 +74,49 @@
     });
   })();
 
-  /* ---------- ⑥ 意见书打印/PDF：走系统打印服务 ----------
+  /* ---------- ⑥ 语音提问（App 内走原生 SpeechRecognizer）----------
+     WebView 没有浏览器的语音识别后端（桌面版 webkitSpeechRecognition
+     在 App 内不存在或无响应，这就是"点麦克风没反应"的根因）——
+     改走系统级 SpeechRecognizer（各家 ROM 均内置语音服务）：
+     原生回调 __brSpeech(文本) 实时上屏，__brSpeechEnd(err,msg) 结束 */
+  if (window.BRIDGE && window.BRIDGE.available) {
+    var micBtn = document.getElementById("voice-btn");
+    if (micBtn) {
+      micBtn.classList.remove("hidden");   /* main.js 在无网页 SR 时会隐藏；App 用原生识别 */
+      var listening = false;
+      window.__brSpeech = function (text) {
+        var input = document.getElementById("consult-input");
+        if (input && text) input.value = text;
+      };
+      window.__brSpeechEnd = function (err, msg) {
+        listening = false;
+        micBtn.classList.remove("listening");
+        var label = micBtn.querySelector(".mic-label");
+        if (label) label.textContent = "语音";
+        if (err && msg) {
+          window.BRIDGE.toast(msg);
+          if (/未提供语音识别/.test(msg)) micBtn.classList.add("hidden");
+        }
+      };
+      micBtn.addEventListener("click", function () {
+        if (listening) {
+          listening = false;
+          micBtn.classList.remove("listening");
+          var stopLabel = micBtn.querySelector(".mic-label");
+          if (stopLabel) stopLabel.textContent = "语音";
+          window.BRIDGE.speechStop();
+          return;
+        }
+        listening = true;
+        micBtn.classList.add("listening");
+        var startLabel = micBtn.querySelector(".mic-label");
+        if (startLabel) startLabel.textContent = "停止";
+        window.BRIDGE.speechStart();
+      });
+    }
+  }
+
+  /* ---------- ⑦ 意见书打印/PDF：走系统打印服务 ----------
      桌面的打印入口（意见书按钮 / 结果卡打印）最终都调 window.print()，
      WebView 中无效——这里整体替换为原生 PrintManager；
      打印内容由 @media print 样式（body.print-mode + .print-target）裁剪，
@@ -96,7 +138,7 @@
     }
   }
 
-  /* ---------- ⑦ 通知：App 环境提示（一次性） ---------- */
+  /* ---------- ⑧ 通知：App 环境提示（一次性） ---------- */
   window.addEventListener("load", function () {
     if (window.BRIDGE && window.BRIDGE.available) {
       console.log("[mobile] 原生桥已连接，App 版本 " + window.BRIDGE.version());

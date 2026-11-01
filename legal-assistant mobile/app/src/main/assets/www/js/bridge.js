@@ -86,6 +86,10 @@ window.BRIDGE = (function () {
     },
     /* 意见书打印/PDF：调用系统打印服务（打印内容由 @media print 样式裁剪） */
     printDoc: function (jobName) { try { native.printDoc(jobName); } catch (e) {} },
+    /* 语音识别（原生 SpeechRecognizer）：识别中间/最终结果回调 __brSpeech，
+       结束（完成/出错）回调 __brSpeechEnd(err?, msg?)，详情见 mobile.js */
+    speechStart: function () { try { native.speechStart(); } catch (e) {} },
+    speechStop: function () { try { native.speechStop(); } catch (e) {} },
     openUrl: function (url) { try { native.openUrl(url); } catch (e) {} },
     toast: function (msg) { try { native.toast(msg); } catch (e) {} },
     version: function () { try { return native.version(); } catch (e) { return "?"; } }
