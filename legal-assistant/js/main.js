@@ -194,22 +194,79 @@
   /* ---------- 语音提问（浏览器语音识别，Chrome/Edge 可用） ---------- */
   var micBtn = document.getElementById("voice-btn");
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var MIC_SVG = '<svg class="mic-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>' +
+    '<path d="M19 11a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V20H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-2.08A7 7 0 0 0 19 11z"/></svg>' +
+    '<span class="mic-label">语音</span>';
   if (micBtn && !SR) { micBtn.classList.add("hidden"); }
   else if (micBtn) {
-    var rec = null, listening = false;
+    micBtn.innerHTML = MIC_SVG;
+    micBtn.title = "点击开始语音提问";
+    /* 状态机：off ⇄ on。浏览器在静音数秒后会自动结束识别，
+       因此以显式状态机管理，而不是依赖识别对象的存活状态 */
+    var micState = "off";   /* off | on */
+    var rec = null;
+
+    function setMicUI(on) {
+      micState = on ? "on" : "off";
+      micBtn.classList.toggle("listening", on);
+      var label = micBtn.querySelector(".mic-label");
+      if (label) label.textContent = on ? "停止" : "语音";
+      micBtn.title = on ? "点击停止录音" : "点击开始语音提问";
+    }
+
+    function startRec() {
+      if (rec) { try { rec.abort(); } catch (e) {} rec = null; }
+      try {
+        rec = new SR();
+        rec.lang = "zh-CN";
+        rec.interimResults = true;    /* 中间结果实时上屏 */
+        rec.continuous = true;        /* 保持监听，静音不自动结束 */
+        rec.maxAlternatives = 1;
+        rec.onresult = function (e) {
+          var finalText = "", interim = "";
+          for (var i = 0; i < e.results.length; i++) {
+            if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+            else interim += e.results[i][0].transcript;
+          }
+          if (finalText) {
+            input.value = (input.value + " " + finalText).trim().slice(0, 500);
+            input.dataset.base = input.value;
+          } else if (interim) {
+            var base = input.dataset.base || input.value;
+            input.value = (base + " " + interim).trim().slice(0, 500);
+          }
+        };
+        rec.onend = function () {
+          /* continuous 模式下只有 stop/abort/出错才会到这里 */
+          if (micState === "on") setMicUI(false);
+          rec = null;
+        };
+        rec.onerror = function (e) {
+          if (e && e.error === "no-speech") return;   /* 静音忽略，保持监听 */
+          setMicUI(false);
+          rec = null;
+        };
+        rec.start();
+        setMicUI(true);
+      } catch (e) {
+        setMicUI(false);
+      }
+    }
+
+    function stopRec() {
+      micState = "off";
+      setMicUI(false);
+      if (rec) {
+        try { rec.stop(); }        /* 优雅结束：把已识别文本冲刷进输入框 */
+        catch (e) { try { rec.abort(); } catch (e2) {} }
+        rec = null;
+      }
+    }
+
     micBtn.addEventListener("click", function () {
-      if (listening) { rec.stop(); return; }
-      rec = new SR();
-      rec.lang = "zh-CN";
-      rec.interimResults = false;
-      rec.maxAlternatives = 1;
-      rec.onresult = function (e) {
-        var t = e.results[e.results.length - 1][0].transcript;
-        input.value = (input.value + " " + t).trim().slice(0, 500);
-      };
-      rec.onend = function () { listening = false; micBtn.classList.remove("listening"); };
-      rec.onerror = function () { listening = false; micBtn.classList.remove("listening"); };
-      try { rec.start(); listening = true; micBtn.classList.add("listening"); } catch (e) { /* 已在运行 */ }
+      if (micState === "on") { stopRec(); return; }
+      startRec();
     });
   }
 
@@ -218,11 +275,13 @@
   document.getElementById("consult-send").addEventListener("click", function () {
     window.CONSULT.start(input.value);
     input.value = "";
+    delete input.dataset.base;
   });
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter") {
       window.CONSULT.start(input.value);
       input.value = "";
+      delete input.dataset.base;
     }
   });
 
