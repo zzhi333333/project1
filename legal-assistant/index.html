@@ -240,6 +240,35 @@
       </div>
 
       <div class="tool-card">
+        <div class="tool-title">💰 民间借贷利息计算器</div>
+        <div class="tool-form">
+          <label>借款本金（元，按实际到手金额）<input id="ln-principal" type="number" min="0" placeholder="如 100000"></label>
+          <label>约定年利率（%）<input id="ln-rate" type="number" min="0" step="0.1" placeholder="如 15"></label>
+          <label>借款期限（月）<input id="ln-months" type="number" min="1" placeholder="如 12"></label>
+          <label>合同成立时一年期 LPR（%）<input id="ln-lpr" type="number" min="0" step="0.01" placeholder="如 3.1（以全国银行间同业拆借中心公布为准）"></label>
+          <label>已付利息（元，选填，用于超限抵扣）<input id="ln-paid" type="number" min="0" placeholder="选填"></label>
+          <button id="ln-calc" class="calc-btn">计算</button>
+        </div>
+        <div id="ln-result" class="tool-result"></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">⚖️ 诉讼费用计算器</div>
+        <div class="tool-form">
+          <label>诉讼标的额（元）<input id="cf-amount" type="number" min="0" placeholder="如 100000"></label>
+          <label>审理程序
+            <select id="cf-proc">
+              <option value="normal">普通程序（合议庭）</option>
+              <option value="simple">简易程序 / 小额诉讼（减半）</option>
+            </select>
+          </label>
+          <label>财产保全金额（元，选填）<input id="cf-baoquan" type="number" min="0" placeholder="选填，上限5000元"></label>
+          <button id="cf-calc" class="calc-btn">计算</button>
+        </div>
+        <div id="cf-result" class="tool-result"></div>
+      </div>
+
+      <div class="tool-card">
         <div class="tool-title">📅 合规日历</div>
         <div class="tool-form">
           <label>事项名称<input id="cal-name" type="text" maxlength="30" placeholder="如：劳动仲裁申请截止"></label>

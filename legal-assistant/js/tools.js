@@ -188,6 +188,82 @@
     });
   }
 
+  /* ---------- 7. 民间借贷利息 ---------- */
+  function calcLoan() {
+    var principal = parseFloat($("ln-principal").value);
+    var rate = parseFloat($("ln-rate").value);
+    var months = parseFloat($("ln-months").value);
+    var lpr = parseFloat($("ln-lpr").value);
+    var paid = parseFloat($("ln-paid").value);
+    var out = $("ln-result");
+    if (!(principal > 0) || !(rate >= 0) || !(months > 0) || !(lpr > 0)) {
+      out.innerHTML = '<div class="tool-warn">请填写本金、约定年利率、期限与 LPR（已付利息选填）。</div>';
+      return;
+    }
+    var cap = lpr * 4;
+    var over = rate > cap;
+    var legalRate = Math.min(rate, cap);
+    var interestAgreed = principal * rate / 100 * months / 12;
+    var interestCapped = principal * legalRate / 100 * months / 12;
+    var fmtN = function (v) { return "¥ " + v.toLocaleString("zh-CN", { maximumFractionDigits: 2 }); };
+    var html = '<div class="calc-head">司法保护利率上限 = ' + lpr + '%(LPR) × 4 = <b>' + cap.toFixed(2) + '%</b></div><div class="calc-detail">' +
+      '期限内利息（按约定 ' + rate + '%）：' + fmtN(interestAgreed) + '<br>' +
+      (over
+        ? '⚠️ 约定利率超过司法保护上限：法院仅支持按 <b>' + cap.toFixed(2) + '%</b> 计算 → 受保护利息 ' + fmtN(interestCapped) + '，超限部分 ' + fmtN(Math.max(0, interestAgreed - interestCapped)) + ' 不受支持<br>' +
+          (paid > 0 ? '已付利息中超出上限的部分（约 ' + fmtN(Math.max(0, paid - interestCapped)) + '）可主张<b>抵扣本金</b>或返还。' : '')
+        : '✅ 约定利率在司法保护上限之内：期限内利息 ' + fmtN(interestAgreed));
+    html += '</div><div class="calc-note">说明：①利率上限=合同成立时一年期 LPR 的四倍（以全国银行间同业拆借中心公布为准）；②「砍头息」按实际到手金额算本金；③已付超限利息可主张抵扣本金（不得要求返还已自愿支付的合法利息）。仅供参考。</div>';
+    out.innerHTML = html;
+  }
+
+  /* ---------- 8. 诉讼费用 ---------- */
+  function courtFee(amount) {
+    if (amount <= 10000) return 50;
+    var fee = 50;
+    var brackets = [
+      [100000, 0.025], [200000, 0.02], [500000, 0.015], [1000000, 0.01],
+      [2000000, 0.009], [5000000, 0.008], [10000000, 0.007], [Infinity, 0.006]
+    ];
+    var prev = 10000;
+    for (var i = 0; i < brackets.length; i++) {
+      var upper = brackets[i][0], rate = brackets[i][1];
+      if (amount > prev) {
+        var portion = Math.min(amount, upper) - prev;
+        fee += portion * rate;
+        prev = upper;
+        if (amount <= upper) break;
+      }
+    }
+    return Math.round(fee);
+  }
+  function baoquanFee(amount) {
+    if (!(amount > 0)) return 0;
+    var fee = amount <= 1000 ? 30 : (amount <= 100000 ? amount * 0.01 : 1000 + (amount - 100000) * 0.005);
+    return Math.min(5000, Math.round(fee));
+  }
+  function calcCourtFee() {
+    var amount = parseFloat($("cf-amount").value);
+    var proc = $("cf-proc").value;
+    var bq = parseFloat($("cf-baoquan").value);
+    var out = $("cf-result");
+    if (!(amount > 0)) {
+      out.innerHTML = '<div class="tool-warn">请填写诉讼标的额。</div>';
+      return;
+    }
+    var full = courtFee(amount);
+    var fee = proc === "simple" ? Math.round(full / 2) : full;
+    var fmtN = function (v) { return "¥ " + v.toLocaleString("zh-CN"); };
+    var html = '<div class="calc-head">案件受理费 ≈ <b>' + fmtN(fee) + '</b>' +
+      (proc === "simple" ? '（简易/小额程序减半）' : '') + '</div><div class="calc-detail">' +
+      '全额受理费：' + fmtN(full) + '　|　预交方：原告（判决后由败诉方负担，部分胜诉按比例）<br>';
+    if (bq > 0) {
+      var bf = baoquanFee(bq);
+      html += '财产保全费：' + fmtN(bf) + '（保全金额 ' + fmtN(bq) + '，上限 5000 元）<br>';
+    }
+    html += '</div><div class="calc-note">说明：①劳动争议案件每件 10 元；②调解结案/撤诉的减半；③小额诉讼程序减半交纳；④不含律师费、鉴定费、公告费等。以《诉讼费用交纳办法》与受诉法院核定为准。</div>';
+    out.innerHTML = html;
+  }
+
   /* ---------- 6. 合规日历 ---------- */
   var CAL_KEY = "legal-deadlines";
   function calLoad() {
@@ -249,6 +325,8 @@
       $("al-calc").addEventListener("click", calcLeave);
       $("pt-calc").addEventListener("click", calcPatent);
       $("dl-calc").addEventListener("click", calcDeadline);
+      $("ln-calc").addEventListener("click", calcLoan);
+      $("cf-calc").addEventListener("click", calcCourtFee);
       var sel = $("dl-type");
       if (sel) sel.addEventListener("change", function () {
         $("dl-custom-wrap").classList.toggle("hidden", sel.value !== "custom");

@@ -237,6 +237,49 @@ window.AGENT = (function () {
     return s;
   }
 
+  /* 复制辅助：把报告对象转为纯文本 */
+  function reportToText(rep) {
+    var L = [];
+    L.push("【案件分析参考报告】");
+    L.push("识别领域：" + rep.domainName + (rep.confidence ? "（置信度 " + rep.confidence + "%）" : ""));
+    if (rep.focus && rep.focus.length) L.push("争议焦点：" + rep.focus.join("、"));
+    if (rep.facts) {
+      var f = [];
+      if (rep.facts.amounts && rep.facts.amounts.length) f.push("涉案金额：" + rep.facts.amounts.map(function (a) { return a.raw; }).join("、"));
+      if (rep.facts.dates && rep.facts.dates.length) f.push("时间线索：" + rep.facts.dates.join("、"));
+      if (rep.facts.durations && rep.facts.durations.length) f.push("年限线索：" + rep.facts.durations.join("、"));
+      if (f.length) L.push(f.join("；"));
+    }
+    if (rep.scenarios && rep.scenarios.length) L.push("初步定性：" + rep.scenarios.map(function (s) { return s.name + "——" + s.desc; }).join("\n"));
+    if (rep.laws && rep.laws.length) L.push("\n【相关法条】\n" + rep.laws.map(function (l) { return "《" + l.lawShort + "》" + l.article + "（" + l.title + "）：" + l.text; }).join("\n"));
+    if (rep.procedure) L.push("\n【程序建议】\n" + rep.procedure.map(function (p) { return p.stage + "\n" + p.detail.map(function (x) { return " - " + x; }).join("\n"); }).join("\n"));
+    if (rep.claims && rep.claims.length) L.push("\n【请求事项参考】\n" + rep.claims.map(function (c, i) { return (i + 1) + ". " + c; }).join("\n"));
+    if (rep.evidence && rep.evidence.length) L.push("\n【证据清单】\n" + rep.evidence.map(function (x) { return " - " + x; }).join("\n"));
+    if (rep.risks && rep.risks.length) L.push("\n【风险提示】\n" + rep.risks.map(function (x) { return " - " + x; }).join("\n"));
+    L.push("\n以上仅供参考，不构成法律意见。");
+    return L.join("\n");
+  }
+  function appendCopyButton(container, text) {
+    var cp = document.createElement("button");
+    cp.className = "mini-btn";
+    cp.style.margin = "10px 14px";
+    cp.textContent = "📋 复制报告全文";
+    cp.addEventListener("click", function () {
+      var done = function () { cp.textContent = "✅ 已复制"; setTimeout(function () { cp.textContent = "📋 复制报告全文"; }, 1500); };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
+      else {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        done();
+      }
+    });
+    container.appendChild(cp);
+  }
+
   /* ============ Agent 视图工作流 ============ */
   var els = {};
   var mode = "report";  /* "report" = 规则引擎报告（离线） | "ai" = AI 可核验分析 */
@@ -278,6 +321,7 @@ window.AGENT = (function () {
       stepState(2, "skip", "规则报告内容全部来自内置知识库，天然可核验");
       els.answer.innerHTML = "";
       window.ANALYSIS.render(rep, els.answer);
+      appendCopyButton(els.answer, reportToText(rep));
       return;
     }
 
@@ -352,6 +396,7 @@ window.AGENT = (function () {
       var html = annotate(gen.text, v);
       els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
       renderPanel(v, gen.text);
+      appendCopyButton(els.answer, gen.text);
     }).catch(function (e) {
       els.answer.innerHTML += '<div class="tool-warn">⚠️ ' + esc(e && e.message || e) + "</div>";
     });
@@ -409,6 +454,7 @@ window.AGENT = (function () {
         stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
         renderPanel(v2, full);
+        appendCopyButton(els.answer, full);
       })
       .catch(function (e) {
         els.answer.innerHTML += '<div class="tool-warn">⚠️ ' + esc(e && e.message || e) + "</div>";

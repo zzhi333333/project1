@@ -109,6 +109,7 @@
         '<div class="result-section"><span class="sec-label">✅ 行动建议</span>' +
           '<ul>' + r.advice.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
         relatedLinks(scenario) +
+        quickFollowUps(rid) +
         '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
         '<div class="result-ai-row">' +
           '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button>' +
@@ -164,6 +165,15 @@
     });
     if (!links.length) return "";
     return '<div class="result-section"><span class="sec-label">🔗 相关阅读</span><div class="chips">' + links.join("") + '</div></div>';
+  }
+
+  /* 继续追问：三个场景化快捷问题，点击后由 AI 带上下文回答 */
+  function quickFollowUps(rid) {
+    var qs = ["还可能有哪些隐藏风险？", "关键金额/时限怎么计算？", "下一步具体怎么操作？"];
+    return '<div class="result-section"><span class="sec-label">🤔 继续追问</span><div class="chips">' +
+      qs.map(function (q) {
+        return '<button class="rel-link qf-btn" data-rid="' + rid + '" data-q="' + esc(q) + '">' + esc(q) + '</button>';
+      }).join("") + '</div></div>';
   }
 
   function bindRelLinks(div) {
@@ -661,6 +671,17 @@
 
   /* ---------- 文书生成 / 证据清单 / 深度核验 / 打印（事件委托） ---------- */
   box.addEventListener("click", function (e) {
+    var qfBtn = e.target.closest ? e.target.closest(".qf-btn") : null;
+    if (qfBtn) {
+      var qEntry = (window.AI_RESULTS || [])[parseInt(qfBtn.getAttribute("data-rid"), 10)];
+      var q = qfBtn.getAttribute("data-q");
+      if (qEntry && window.AI && window.AI.isConfigured()) {
+        window.AI.aiFollowUp(parseInt(qfBtn.getAttribute("data-rid"), 10), q);
+      } else {
+        UI.appendBot("继续追问需要先配置 AI 模型：点右上角「AI 模型」设置后即可使用；也可以直接在输入框描述这个问题。", null);
+      }
+      return;
+    }
     var deepBtn = e.target.closest ? e.target.closest(".deep-btn") : null;
     if (deepBtn) {
       var dEntry = (window.AI_RESULTS || [])[parseInt(deepBtn.getAttribute("data-deep"), 10)];

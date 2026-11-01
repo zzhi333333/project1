@@ -217,6 +217,27 @@ window.AI = (function () {
     div.querySelectorAll(".ai-stop").forEach(function (x) { x.remove(); });
     setText(div, text);
   }
+  function copyText(t) {
+    if (navigator.clipboard) return navigator.clipboard.writeText(t);
+    var ta = document.createElement("textarea");
+    ta.value = t;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  function addCopyButton(div, getText) {
+    var cp = document.createElement("button");
+    cp.className = "mini-btn";
+    cp.style.marginTop = "6px";
+    cp.textContent = "📋 复制全文";
+    cp.addEventListener("click", function () {
+      copyText(typeof getText === "function" ? getText() : getText);
+      cp.textContent = "✅ 已复制";
+      setTimeout(function () { cp.textContent = "📋 复制全文"; }, 1500);
+    });
+    div.querySelector(".bubble").appendChild(cp);
+  }
 
   function aiConsult(text) {
     var box = document.getElementById("chat-box");
@@ -237,6 +258,7 @@ window.AI = (function () {
       finishBubble(div, full);
       if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
       if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
+      addCopyButton(div, full);
       aiHistory.push({ role: "user", content: text }, { role: "assistant", content: full });
       if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
     }).catch(function (e) {
@@ -281,6 +303,34 @@ window.AI = (function () {
       .catch(function (e) { finishBubble(div, "⚠️ " + (e && e.message || e)); });
   }
   /* 集成③（案情分析 AI 深度分析）已并入「深度分析」页 AI 模式，见 agent.js */
+
+  /* ---------------- 集成②：结果卡快捷追问（带案情上下文） ---------------- */
+  function aiFollowUp(rid, question) {
+    var item = (window.AI_RESULTS || [])[rid];
+    if (!item) return;
+    var box = document.getElementById("chat-box");
+    window.UI.appendUser(question);
+    var div = streamBubble(box);
+    var brief = "咨询场景：" + item.name + "。" +
+      (item.transcript || []).map(function (t) { return t.q + " 答：" + t.a + "。"; }).join("") +
+      "初步结论：" + (item.r.headline || "") + " " + (item.r.summary || "");
+    var ctx = buildContext(brief);
+    var messages = [
+      { role: "system", content: SYSTEM_PROMPT + ctx },
+      { role: "user", content: "针对上述咨询案情，用户继续追问：" + question + "\n请结合已有分析直接回答，不要重复此前内容。" }
+    ];
+    var full = "";
+    aiChat(messages, function (d) { full += d; setText(div, full); })
+      .then(function () {
+        finishBubble(div, full || "（模型未返回内容。）");
+        if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
+        if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
+        addCopyButton(div, full);
+        aiHistory.push({ role: "user", content: question }, { role: "assistant", content: full });
+        if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
+      })
+      .catch(function (e) { finishBubble(div, "⚠️ " + (e && e.message || e)); });
+  }
 
   /* ---------------- 设置弹窗 ---------------- */
   function openModal() {
@@ -437,6 +487,7 @@ window.AI = (function () {
   return {
     init: init, aiChat: aiChat, openModal: openModal,
     resetHistory: resetHistory, stopCurrent: stopCurrent,
+    aiFollowUp: aiFollowUp,
     exportData: exportData, importData: importData,
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
