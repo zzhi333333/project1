@@ -26,6 +26,7 @@
   <nav class="tabs">
     <button class="nav-tab active" data-view="consult">💬 智能咨询</button>
     <button class="nav-tab" data-view="agent">🧭 深度分析</button>
+    <button class="nav-tab" data-view="contract">📑 合同审查</button>
     <button class="nav-tab" data-view="laws">📚 法条</button>
     <button class="nav-tab" data-view="tools">🧮 工具</button>
     <button class="nav-tab" data-view="cases">🗂️ 案例</button>
@@ -56,6 +57,7 @@
         <div class="input-row">
           <label class="ai-toggle" title="开启后，输入的问题由 AI 结合法条与案例回答"><input id="ai-mode" type="checkbox"> 🤖 AI</label>
           <input id="consult-input" type="text" placeholder="请描述您的问题，如：公司口头把我辞退了，没有给赔偿…">
+          <button id="voice-btn" class="mic-btn" title="语音提问（点击开始/停止）">🎤</button>
           <button id="consult-send">发送</button>
         </div>
       </div>
@@ -78,6 +80,7 @@
       <textarea id="agent-input" rows="6" placeholder="请尽量完整描述案情：时间线、当事人与关系、发生了什么、涉及金额、您的诉求。Ctrl+Enter 开始分析。"></textarea>
       <div class="analysis-actions">
         <button id="agent-run">🚀 开始分析</button>
+        <button id="agent-print" class="ghost-btn">🖨 导出意见书（打印/PDF）</button>
         <label class="ai-toggle" id="agent-online-label"><input id="agent-online" type="checkbox" checked> 🌐 联网核验（flk官方全文）</label>
         <div id="agent-examples" class="suggestions"></div>
       </div>
@@ -91,6 +94,29 @@
 
     <div id="agent-answer"></div>
     <div id="agent-panel"></div>
+  </section>
+
+  <!-- ================= 合同审查 ================= -->
+  <section id="view-contract" class="view">
+    <div class="view-head">
+      <h2>合同审查</h2>
+      <p>粘贴合同文本：规则引擎即时核对必备条款与风险语句（离线可用）；AI 模式逐条给出缺漏、风险与修改建议</p>
+    </div>
+
+    <div class="analysis-editor">
+      <div class="mode-switch">
+        <button id="ct-type-labor" class="mode-btn active">劳动合同</button>
+        <button id="ct-type-business" class="mode-btn">通用商业合同</button>
+      </div>
+      <textarea id="ct-input" rows="10" placeholder="粘贴合同全文（或关键条款）。劳动合同将核对九大必备条款与高危语句；商业合同核对标的/价款/违约责任/争议解决等要素。"></textarea>
+      <div class="analysis-actions">
+        <button id="ct-rule-run">📋 条款核对（离线）</button>
+        <button id="ct-ai-run" class="ghost-btn">🤖 AI 深度审查</button>
+      </div>
+    </div>
+
+    <div id="ct-rule-result"></div>
+    <div id="ct-ai-result"></div>
   </section>
 
   <!-- ================= 法条检索 ================= -->
@@ -369,6 +395,7 @@
 <script src="js/online.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/agent.js"></script>
+<script src="js/contract.js"></script>
 <script src="js/history.js"></script>
 <script src="js/templates.js"></script>
 <script src="js/gsearch.js"></script>

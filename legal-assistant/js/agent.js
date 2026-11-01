@@ -443,6 +443,8 @@ window.AGENT = (function () {
     var btnA = document.getElementById("agent-mode-ai");
     if (btnR) btnR.addEventListener("click", function () { setMode("report"); });
     if (btnA) btnA.addEventListener("click", function () { setMode("ai"); });
+    var printBtn = document.getElementById("agent-print");
+    if (printBtn) printBtn.addEventListener("click", function () { window.print(); });
     var ex = document.getElementById("agent-examples");
     [
       "公司口头把我辞退了没有赔偿，我能主张2N吗？程序怎么走？",
