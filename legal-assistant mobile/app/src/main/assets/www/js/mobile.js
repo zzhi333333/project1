@@ -116,7 +116,14 @@
     }
   }
 
-  /* ---------- ⑦ 意见书打印/PDF：走系统打印服务 ----------
+  /* ---------- ⑦ 引导场景数动态化（领域扩充后数字自动更新） ---------- */
+  var sceneSpan = document.getElementById("guide-scene-count");
+  if (sceneSpan && window.SCENARIOS) {
+    sceneSpan.textContent = "在「智能咨询」直接提问，或点左上角 ☰ 从 " +
+      window.SCENARIOS.length + " 个场景开始，系统会澄清关键事实后给出分析。";
+  }
+
+  /* ---------- ⑧ 意见书打印/PDF：走系统打印服务 ----------
      桌面的打印入口（意见书按钮 / 结果卡打印）最终都调 window.print()，
      WebView 中无效——这里整体替换为原生 PrintManager；
      打印内容由 @media print 样式（body.print-mode + .print-target）裁剪，
