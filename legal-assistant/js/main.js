@@ -179,6 +179,7 @@
   function bindRelLinks(div) {
     div.querySelectorAll(".rel-link").forEach(function (b) {
       b.addEventListener("click", function () {
+        if (b.classList.contains("qf-btn")) return;   /* 快捷追问由全局委托处理（data-rel 为空会误跳案例页） */
         var rel = b.getAttribute("data-rel");
         if (rel === "faq") {
           switchView("faq");

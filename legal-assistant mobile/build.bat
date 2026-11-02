@@ -13,7 +13,7 @@ set "APP=%ROOT%app\src\main"
 set "OUT=%ROOT%build"
 set "DIST=%ROOT%dist"
 set "KS=%ROOT%tools\debug.keystore"
-set "VERSION_NAME=1.6"
+set "VERSION_NAME=1.7"
 
 if "%JAVA_HOME%"=="" (
   for /d %%D in ("C:\Users\zz333\android\jdk-*") do set "JAVA_HOME=%%D"
@@ -47,7 +47,8 @@ dir /s /b "%OUT%\gen\*.java" >> "%OUT%\sources-raw.txt"
 break > "%OUT%\sources.txt"
 setlocal enabledelayedexpansion
 for /f "usebackq delims=" %%F in ("%OUT%\sources-raw.txt") do (
-  echo "%%F">>"%OUT%\sources.txt"
+  set "P=%%F"
+  echo "!P:\=/!">>"%OUT%\sources.txt"
 )
 javac --release 8 -encoding UTF-8 -nowarn -classpath "%PLAT%\android.jar" -d "%OUT%\obj" @"%OUT%\sources.txt"
 if errorlevel 1 goto :fail
