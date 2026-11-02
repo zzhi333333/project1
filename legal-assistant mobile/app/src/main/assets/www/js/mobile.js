@@ -37,6 +37,40 @@
     closeDrawer();
   };
 
+  /* ---------- ②b 「更多」弹层（收纳低频视图：合同/案例/讲堂/全局搜索） ---------- */
+  var moreTab = document.getElementById("more-tab");
+  var moreSheet = document.getElementById("more-sheet");
+  var moreMask = document.getElementById("more-sheet-mask");
+  if (moreTab && moreSheet && moreMask) {
+    function openSheet() { moreSheet.classList.add("open"); moreMask.classList.remove("hidden"); }
+    function closeSheet() { moreSheet.classList.remove("open"); moreMask.classList.add("hidden"); }
+    moreTab.addEventListener("click", function () {
+      moreSheet.classList.contains("open") ? closeSheet() : openSheet();
+    });
+    moreMask.addEventListener("click", closeSheet);
+    var moreClose = document.getElementById("more-close");
+    if (moreClose) moreClose.addEventListener("click", closeSheet);
+    moreSheet.addEventListener("click", function (e) {
+      var item = e.target.closest ? e.target.closest(".more-item") : null;
+      if (!item) return;
+      var v = item.getAttribute("data-view");
+      closeSheet();
+      if (v === "gsearch") {
+        var g = document.getElementById("gsearch-btn");
+        if (g) g.click();
+        return;
+      }
+      window.APP.switchView(v);
+      /* 被收纳的视图在 tabbar 无对应 tab——active 高亮到「更多」上 */
+      document.querySelectorAll(".tabbar .nav-tab").forEach(function (t) { t.classList.remove("active"); });
+      moreTab.classList.add("active");
+    });
+    /* 选中 5 个主 tab 时恢复其自身高亮（switchView 已处理），并确保更多态清除 */
+    document.querySelectorAll(".tabbar .nav-tab[data-view]:not([data-view='more'])").forEach(function (t) {
+      t.addEventListener("click", function () { closeSheet(); });
+    });
+  }
+
   /* ---------- ③ 外链接管 ---------- */
   if (window.BRIDGE && window.BRIDGE.available) {
     document.addEventListener("click", function (e) {

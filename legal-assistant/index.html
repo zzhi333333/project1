@@ -8,29 +8,64 @@
 </head>
 <body>
 
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<symbol id="i-consult" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></symbol>
+<symbol id="i-agent" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+<symbol id="i-contract" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></symbol>
+<symbol id="i-laws" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M7 21h10"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/><path d="M5 16l2.2-6 2.2 6c-.7.5-1.5.8-2.2.8s-1.5-.3-2.2-.8z"/><path d="M14.6 16l2.2-6 2.2 6c-.7.5-1.5.8-2.2.8s-1.5-.3-2.2-.8z"/></symbol>
+<symbol id="i-tools" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 7h7"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/></symbol>
+<symbol id="i-cases" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-1.2-1.2A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></symbol>
+<symbol id="i-faq" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+<symbol id="i-ai" viewBox="0 0 24 24"><path d="M11 4l1.7 4.3L17 10l-4.3 1.7L11 16l-1.7-4.3L5 10l4.3-1.7z"/><path d="M18.5 15v4M16.5 17h4"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 19v3"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+<symbol id="i-t-sev" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 8l2 3.5L14 8M12 11.5v5M10.2 13.5h3.6M10.2 15.5h3.6"/></symbol>
+<symbol id="i-t-ot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-t-al" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M12 12v6.5a1.8 1.8 0 0 1-3.6 0"/></symbol>
+<symbol id="i-t-pt" viewBox="0 0 24 24"><path d="M9 18.5h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6 6 0 0 1 3.5 10.9c-.7.5-1 1.3-1 2.1h-5c0-.8-.3-1.6-1-2.1A6 6 0 0 1 12 2.5z"/></symbol>
+<symbol id="i-t-dl" viewBox="0 0 24 24"><path d="M6 3h12"/><path d="M6 21h12"/><path d="M7 3v3.5L12 12l5-5.5V3"/><path d="M7 21v-3.5L12 12l5 5.5V21"/></symbol>
+<symbol id="i-t-ln" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 15l6-6"/><circle cx="9.2" cy="9.2" r="1.2"/><circle cx="14.8" cy="14.8" r="1.2"/></symbol>
+<symbol id="i-t-cf" viewBox="0 0 24 24"><path d="M5 3v18l2.3-1.4 2.4 1.4 2.3-1.4 2.3 1.4 2.4-1.4L19 21V3z"/><path d="M9 8h6M9 12h6"/></symbol>
+<symbol id="i-t-fy" viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M12 17.3s-2.6-1.6-2.6-3.3c0-.9.7-1.6 1.6-1.6.5 0 .9.2 1 .6.1-.4.5-.6 1-.6.9 0 1.6.7 1.6 1.6 0 1.7-2.6 3.3-2.6 3.3z"/></symbol>
+<symbol id="i-t-dj" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9.5 12l2 2 3.5-3.5"/></symbol>
+<symbol id="i-t-ip" viewBox="0 0 24 24"><path d="M12.6 3H20a1 1 0 0 1 1 1v7.4a2 2 0 0 1-.6 1.4l-7.6 7.6a2 2 0 0 1-2.8 0l-6-6a2 2 0 0 1 0-2.8l7.6-7.6a2 2 0 0 1 1.4-.6z"/><circle cx="16" cy="8" r="1.4"/></symbol>
+<symbol id="i-t-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M12 13.5v5M9.5 16h5"/></symbol>
+</svg>
+
+
 <header class="site-header">
   <div class="header-inner">
     <div class="brand">
-      <span class="brand-icon">⚖️</span>
+      <span class="brand-icon"><svg class="ico"><use href="#i-laws"/></svg></span>
       <div>
         <div class="brand-title">法律咨询助手</div>
         <div class="brand-sub">覆盖八大领域：民法 · 民事诉讼 · 婚姻家事 · 劳动 · 公司 · 知产 · 国际经贸合规</div>
       </div>
     </div>
     <div class="header-right">
+      <button id="theme-toggle" class="ghost-btn theme-toggle" title="切换深色/浅色模式"><svg class="ico"><use href="#i-moon"/></svg></button>
       <div id="net-badge" class="net-badge off">○ 检测中<span class="nb-sub">正在探测本地服务…</span></div>
-      <button id="gsearch-btn" class="ghost-btn header-search" title="全局搜索（法条/讲堂/场景/案例）">🔍 搜索</button>
-      <button id="ai-gear" class="ai-gear" title="配置 AI 模型（智谱/DeepSeek/Kimi/通义/千帆/OpenAI/Ollama）">🤖 AI 模型</button>
+      <button id="gsearch-btn" class="ghost-btn header-search" title="全局搜索（法条/讲堂/场景/案例）"><svg class="ico"><use href="#i-search"/></svg><span class="hdr-txt">搜索</span></button>
+      <button id="ai-gear" class="ai-gear" title="配置 AI 模型（智谱/DeepSeek/Kimi/通义/千帆/OpenAI/Ollama）"><svg class="ico"><use href="#i-ai"/></svg><span class="hdr-txt">AI 模型</span></button>
     </div>
   </div>
   <nav class="tabs">
-    <button class="nav-tab active" data-view="consult">💬 智能咨询</button>
-    <button class="nav-tab" data-view="agent">🧭 深度分析</button>
-    <button class="nav-tab" data-view="contract">📑 合同审查</button>
-    <button class="nav-tab" data-view="laws">📚 法条</button>
-    <button class="nav-tab" data-view="tools">🧮 工具</button>
-    <button class="nav-tab" data-view="cases">🗂️ 案例</button>
-    <button class="nav-tab" data-view="faq">📖 讲堂</button>
+    <button class="nav-tab active" data-view="consult"><svg class="ico"><use href="#i-consult"/></svg><span class="tab-txt">智能咨询</span></button>
+    <button class="nav-tab" data-view="agent"><svg class="ico"><use href="#i-agent"/></svg><span class="tab-txt">深度分析</span></button>
+    <button class="nav-tab" data-view="contract"><svg class="ico"><use href="#i-contract"/></svg><span class="tab-txt">合同审查</span></button>
+    <span class="tab-sep" aria-hidden="true"></span><button class="nav-tab" data-view="laws"><svg class="ico"><use href="#i-laws"/></svg><span class="tab-txt">法条</span></button>
+    <button class="nav-tab" data-view="tools"><svg class="ico"><use href="#i-tools"/></svg><span class="tab-txt">工具</span></button>
+    <button class="nav-tab" data-view="cases"><svg class="ico"><use href="#i-cases"/></svg><span class="tab-txt">案例</span></button>
+    <button class="nav-tab" data-view="faq"><svg class="ico"><use href="#i-faq"/></svg><span class="tab-txt">讲堂</span></button>
   </nav>
 </header>
 
@@ -171,7 +206,7 @@
     <div class="tools-grid">
 
       <div class="tool-card" data-tool="sv" data-cat="labor">
-        <div class="tool-title">💰 经济补偿金计算器（N / N+1 / 2N）</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-sev"/></svg></span><span>经济补偿金计算器（N / N+1 / 2N）</span></div>
         <div class="tool-form">
           <label>入职日期 <input id="sv-from" type="date"></label>
           <label>离职日期 <input id="sv-to" type="date"></label>
@@ -190,7 +225,7 @@
       </div>
 
       <div class="tool-card" data-tool="ot" data-cat="labor">
-        <div class="tool-title">⏰ 加班费计算器</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-ot"/></svg></span><span>加班费计算器</span></div>
         <div class="tool-form">
           <label>月工资（元）<input id="ot-salary" type="number" min="0" placeholder="如 8700"></label>
           <label>工作日延时加班（小时）<input id="ot-weekday" type="number" min="0" placeholder="×150%"></label>
@@ -203,7 +238,7 @@
       </div>
 
       <div class="tool-card" data-tool="al" data-cat="labor">
-        <div class="tool-title">🌴 年休假折算器</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-al"/></svg></span><span>年休假折算器</span></div>
         <div class="tool-form">
           <label>累计工作年限（年，所有单位加总）<input id="al-years" type="number" min="0" placeholder="如 12"></label>
           <label>入职本单位日期（选填，用于当年折算）<input id="al-join" type="date"></label>
@@ -213,7 +248,7 @@
       </div>
 
       <div class="tool-card" data-tool="ln" data-cat="civil">
-        <div class="tool-title">💡 专利关键期限计算器</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-ln"/></svg></span><span>民间借贷利息计算器</span></div>
         <div class="tool-form">
           <label>专利类型
             <select id="pt-type">
@@ -229,7 +264,7 @@
       </div>
 
       <div class="tool-card" data-tool="dj" data-cat="civil">
-        <div class="tool-title">⏳ 时效倒计时</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-dj"/></svg></span><span>违约金与定金计算器</span></div>
         <div class="tool-form">
           <label>事件日期（如离职日、知道权利被侵害之日）<input id="dl-date" type="date"></label>
           <label>时效类型
@@ -249,7 +284,7 @@
       </div>
 
       <div class="tool-card" data-tool="fy" data-cat="civil">
-        <div class="tool-title">💰 民间借贷利息计算器</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-fy"/></svg></span><span>抚养费计算器</span></div>
         <div class="tool-form">
           <label>借款本金（元，按实际到手金额）<input id="ln-principal" type="number" min="0" placeholder="如 100000"></label>
           <label>约定年利率（%）<input id="ln-rate" type="number" min="0" step="0.1" placeholder="如 15"></label>
@@ -262,7 +297,7 @@
       </div>
 
       <div class="tool-card" data-tool="pt" data-cat="ip">
-        <div class="tool-title">⚖️ 诉讼费用计算器</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-pt"/></svg></span><span>专利关键期限计算器</span></div>
         <div class="tool-form">
           <label>诉讼标的额（元）<input id="cf-amount" type="number" min="0" placeholder="如 100000"></label>
           <label>审理程序
@@ -278,7 +313,7 @@
       </div>
 
       <div class="tool-card" data-tool="ip" data-cat="ip">
-        <div class="tool-title">👶 抚养费计算器</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-ip"/></svg></span><span>知产侵权赔偿计算器（商标 / 著作权）</span></div>
         <div class="tool-form">
           <label>不直接抚养方月总收入（元）<input id="fy-income" type="number" min="0" placeholder="如 10000"></label>
           <label>子女数量
@@ -300,7 +335,7 @@
       </div>
 
       <div class="tool-card" data-tool="cf" data-cat="proc">
-        <div class="tool-title">🤝 违约金与定金计算器</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-cf"/></svg></span><span>诉讼费用计算器</span></div>
         <div class="tool-form">
           <label>主合同金额（元）<input id="dj-amount" type="number" min="0" placeholder="如 100000"></label>
           <label>约定定金数额（元，未约定可不填）<input id="dj-deposit" type="number" min="0" placeholder="如 20000"></label>
@@ -318,7 +353,7 @@
       </div>
 
       <div class="tool-card" data-tool="dl" data-cat="proc">
-        <div class="tool-title">🎨 知产侵权赔偿计算器（商标 / 著作权）</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-dl"/></svg></span><span>时效倒计时</span></div>
         <div class="tool-form">
           <label>权利类型
             <select id="ip-type">
@@ -344,7 +379,7 @@
       </div>
 
       <div class="tool-card" data-tool="cal" data-cat="util">
-        <div class="tool-title">📅 合规日历</div>
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-cal"/></svg></span><span>合规日历</span></div>
         <div class="tool-form">
           <label>事项名称<input id="cal-name" type="text" maxlength="30" placeholder="如：劳动仲裁申请截止"></label>
           <label>关键日期<input id="cal-date" type="date"></label>
@@ -521,5 +556,30 @@
 <script src="js/templates.js"></script>
 <script src="js/gsearch.js"></script>
 <script src="js/main.js"></script>
+<script>
+/* 主题切换：默认跟随系统，手动选择存 localStorage 覆盖 */
+(function () {
+  var btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  var KEY = "legal-theme";
+  function apply(t) {
+    if (t) document.documentElement.setAttribute("data-theme", t);
+    else document.documentElement.removeAttribute("data-theme");
+    var use = btn.querySelector("use");
+    if (use) use.setAttribute("href", t === "dark" ? "#i-sun" : "#i-moon");
+    btn.title = t === "dark" ? "切换到浅色模式" : "切换到深色模式";
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* ignore */ }
+  apply(saved === "dark" || saved === "light" ? saved : null);
+  btn.addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    var sysDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var next = cur === "dark" ? "light" : cur === "light" ? "dark" : (sysDark ? "light" : "dark");
+    try { localStorage.setItem(KEY, next); } catch (e) { /* ignore */ }
+    apply(next);
+  });
+})();
+</script>
 </body>
 </html>
