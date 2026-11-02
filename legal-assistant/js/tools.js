@@ -317,6 +317,33 @@
     });
   }
 
+  /* ---------- 9. 抚养费计算器 ---------- */
+  function calcFuyangfei() {
+    var income = parseFloat($("fy-income").value);
+    var kids = parseInt($("fy-kids").value, 10);
+    var fixed = $("fy-fixed").value;
+    var out = $("fy-result");
+    if (!(income > 0)) {
+      out.innerHTML = '<div class="tool-warn">请填写不直接抚养方的月总收入。</div>';
+      return;
+    }
+    var lo, hi;
+    if (kids >= 3) {
+      lo = income * 0.3; hi = income * 0.5;
+    } else if (kids === 2) {
+      lo = income * 0.25; hi = income * 0.5;
+    } else {
+      lo = income * 0.2; hi = income * 0.3;
+    }
+    var fmtN = function (v) { return "¥ " + v.toLocaleString("zh-CN", { maximumFractionDigits: 0 }); };
+    var html = '<div class="calc-head">月抚养费参考区间：<b>' + fmtN(lo) + ' – ' + fmtN(hi) + '</b></div><div class="calc-detail">' +
+      '计算口径：月总收入 ' + fmtN(income) + ' × ' + (kids === 1 ? '20%–30%' : kids === 2 ? '25%–50%（两子女一般不超 50%）' : '30%–50%（三子女以上一般不超 50%）') + '<br>' +
+      (fixed === "no" ? '无固定收入：参照当年总收入或同行业平均收入按同比例确定。<br>' : '') +
+      '教育费、医疗费大额开支可凭票据另行主张分担；给付至子女 18 周岁。</div>' +
+      '<div class="calc-note">说明：具体数额由法院综合子女实际需要、父母负担能力与当地生活水平确定——收入特别高或特别低的会酌情突破比例。协议约定高于法定比例的从约定。仅供参考。</div>';
+    out.innerHTML = html;
+  }
+
   /* ---------- 装配 ---------- */
   window.TOOLS = {
     init: function () {
@@ -327,6 +354,7 @@
       $("dl-calc").addEventListener("click", calcDeadline);
       $("ln-calc").addEventListener("click", calcLoan);
       $("cf-calc").addEventListener("click", calcCourtFee);
+      $("fy-calc").addEventListener("click", calcFuyangfei);
       var sel = $("dl-type");
       if (sel) sel.addEventListener("change", function () {
         $("dl-custom-wrap").classList.toggle("hidden", sel.value !== "custom");

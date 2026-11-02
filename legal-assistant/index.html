@@ -14,7 +14,7 @@
       <span class="brand-icon">⚖️</span>
       <div>
         <div class="brand-title">法律咨询助手</div>
-        <div class="brand-sub">覆盖民法 · 民事诉讼 · 劳动法 · 公司法 · 专利法 · 国际经贸合规</div>
+        <div class="brand-sub">覆盖八大领域：民法 · 民事诉讼 · 婚姻家事 · 劳动 · 公司 · 知产 · 国际经贸合规</div>
       </div>
     </div>
     <div class="header-right">
@@ -269,6 +269,28 @@
       </div>
 
       <div class="tool-card">
+        <div class="tool-title">👶 抚养费计算器</div>
+        <div class="tool-form">
+          <label>不直接抚养方月总收入（元）<input id="fy-income" type="number" min="0" placeholder="如 10000"></label>
+          <label>子女数量
+            <select id="fy-kids">
+              <option value="1">1 个</option>
+              <option value="2">2 个</option>
+              <option value="3">3 个及以上</option>
+            </select>
+          </label>
+          <label>有固定收入吗
+            <select id="fy-fixed">
+              <option value="yes">有固定收入（按比例）</option>
+              <option value="no">无固定收入（参照当年总收入或同行业平均）</option>
+            </select>
+          </label>
+          <button id="fy-calc" class="calc-btn">计算</button>
+        </div>
+        <div id="fy-result" class="tool-result"></div>
+      </div>
+
+      <div class="tool-card">
         <div class="tool-title">📅 合规日历</div>
         <div class="tool-form">
           <label>事项名称<input id="cal-name" type="text" maxlength="30" placeholder="如：劳动仲裁申请截止"></label>
@@ -429,9 +451,13 @@
 <script src="js/data/faq.js"></script>
 <script src="js/data/guiding.js"></script>
 <script src="js/domains/trade.js"></script>
+<script src="js/domains/jiashi.js"></script>
+<script src="js/domains/biaozhu.js"></script>
 <script src="js/domains/patent-intl.js"></script>
 <script src="js/domains/minfa.js"></script>
 <script src="js/domains/minsusong.js"></script>
+<script src="js/domains/jiashi.js"></script>
+<script src="js/domains/biaozhu.js"></script>
 <script src="js/consult.js"></script>
 <script src="js/analysis.js"></script>
 <script src="js/search.js"></script>
