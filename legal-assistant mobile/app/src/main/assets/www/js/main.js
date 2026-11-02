@@ -42,7 +42,7 @@
   function appendBot(html) {
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
+    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-laws></use></svg></div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
     recordMsg({ who: "bot", html: html });
     scrollDown();
@@ -56,7 +56,7 @@
       inner += '<button class="q-btn" data-value="' + esc(op.value) + '">' + esc(op.label) + '</button>';
     });
     inner += '</div>';
-    div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + inner + '</div>';
+    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-laws></use></svg></div><div class="bubble">' + inner + '</div>';
     box.appendChild(div);
     recordMsg({ who: "bot", kind: "question", html: inner });
     div.querySelectorAll(".q-btn").forEach(function (b) {
@@ -100,31 +100,31 @@
     window.AI_RESULTS.push({ name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] });
     var html =
       '<div class="result-card">' +
-        '<div class="result-flag" style="border-color:' + d.color + '">' + scenario.icon + ' ' + d.name + ' · 初步分析意见</div>' +
+        '<div class="result-flag" style="border-color:' + d.color + '">' + window.DomainRegistry.iconSvg(scenario.domain) + ' ' + d.name + ' · 初步分析意见</div>' +
         '<div class="result-title">' + esc(r.headline) + '</div>' +
-        '<div class="result-section"><span class="sec-label">📌 结论概要</span>' + esc(r.summary) + '</div>' +
-        '<div class="result-section"><span class="sec-label">🔍 具体分析</span>' +
+        '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-pin></use></svg> 结论概要</span>' + esc(r.summary) + '</div>' +
+        '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-search></use></svg> 具体分析</span>' +
           '<ul>' + r.analysis.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
-        '<div class="result-section"><span class="sec-label">📚 依据法条</span><div class="chips">' + lawChips(r.laws) + '</div></div>' +
-        '<div class="result-section"><span class="sec-label">✅ 行动建议</span>' +
+        '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-book-open></use></svg> 依据法条</span><div class="chips">' + lawChips(r.laws) + '</div></div>' +
+        '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-checkc></use></svg> 行动建议</span>' +
           '<ul>' + r.advice.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +
         relatedLinks(scenario) +
         quickFollowUps(rid) +
         '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
         '<div class="result-ai-row">' +
-          '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '">🤖 AI 深度解读</button>' +
-          '<button class="mini-btn primary deep-btn" data-deep="' + rid + '">🧭 转深度核验分析</button>' +
-          '<button class="mini-btn doc-btn" data-rid="' + rid + '">📄 生成文书</button>' +
-          '<button class="mini-btn ev-btn" data-rid="' + rid + '">📑 证据清单</button>' +
-          '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助">👍</button>' +
-          '<button class="mini-btn fb-bad" data-rid="' + rid + '" title="需改进">👎</button>' +
-          '<button class="mini-btn print-card-btn" data-rid="' + rid + '" title="打印此分析">🖨</button>' +
+          '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-ai></use></svg> AI 深度解读</button>' +
+          '<button class="mini-btn primary deep-btn" data-deep="' + rid + '"><svg class=ico><use href=#i-agent></use></svg> 转深度核验分析</button>' +
+          '<button class="mini-btn doc-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-file></use></svg> 生成文书</button>' +
+          '<button class="mini-btn ev-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-contract></use></svg> 证据清单</button>' +
+          '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助"><svg class=ico><use href=#i-tup></use></svg></button>' +
+          '<button class="mini-btn fb-bad" data-rid="' + rid + '" title="需改进"><svg class=ico><use href=#i-tdn></use></svg></button>' +
+          '<button class="mini-btn print-card-btn" data-rid="' + rid + '" title="打印此分析"><svg class=ico><use href=#i-print></use></svg></button>' +
           '<span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span>' +
         '</div>' +
       '</div>';
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar">⚖️</div><div class="bubble">' + html + '</div>';
+    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-laws></use></svg></div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
     recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] } });
 
@@ -138,8 +138,8 @@
   function relatedLinks(scenario) {
     var faqs = window.FAQ.filter(function (f) { return f.domain === scenario.domain; }).slice(0, 2);
     var pool = [];
-    window.GUIDING.forEach(function (g) { pool.push({ rel: "case-guiding", label: "⭐ " + g.no.replace("指导案例", "指导性案例"), c: g }); });
-    window.CASES.forEach(function (c) { pool.push({ rel: "case-builtin", label: "📘 " + c.title, c: c }); });
+    window.GUIDING.forEach(function (g) { pool.push({ rel: "case-guiding", label: g.no.replace("指导案例", "指导性案例"), c: g }); });
+    window.CASES.forEach(function (c) { pool.push({ rel: "case-builtin", label: c.title, c: c }); });
     var kws = (scenario.keywords || []).slice();
     scenario.name.replace(/[（）()、，,\s]/g, "").split("").forEach(function (_, i, arr) {
       if (i + 2 <= arr.length) kws.push(arr.slice(i, i + 2).join(""));
@@ -158,19 +158,19 @@
     });
     pool.sort(function (a, b) { return b.score - a.score; });
     var links = faqs.map(function (f) {
-      return '<button class="rel-link" data-rel="faq" data-q="' + esc(f.q) + '">📖 ' + esc(f.q) + '</button>';
+      return '<button class="rel-link" data-rel="faq" data-q="' + esc(f.q) + '"><svg class=ico><use href=#i-book-open></use></svg> ' + esc(f.q) + '</button>';
     });
     pool.slice(0, 2).forEach(function (p) {
       links.push('<button class="rel-link" data-rel="' + p.rel + '">' + esc(p.label.slice(0, 28)) + '</button>');
     });
     if (!links.length) return "";
-    return '<div class="result-section"><span class="sec-label">🔗 相关阅读</span><div class="chips">' + links.join("") + '</div></div>';
+    return '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-link></use></svg> 相关阅读</span><div class="chips">' + links.join("") + '</div></div>';
   }
 
   /* 继续追问：三个场景化快捷问题，点击后由 AI 带上下文回答 */
   function quickFollowUps(rid) {
     var qs = ["还可能有哪些隐藏风险？", "关键金额/时限怎么计算？", "下一步具体怎么操作？"];
-    return '<div class="result-section"><span class="sec-label">🤔 继续追问</span><div class="chips">' +
+    return '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-q></use></svg> 继续追问</span><div class="chips">' +
       qs.map(function (q) {
         return '<button class="rel-link qf-btn" data-rid="' + rid + '" data-q="' + esc(q) + '">' + esc(q) + '</button>';
       }).join("") + '</div></div>';
@@ -207,7 +207,7 @@
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var MIC_SVG = '<svg class="mic-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
     '<path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>' +
-    '<path d="M19 11a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V20H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-2.08A7 7 0 0 0 19 11z"/></svg>' +
+    '<path d="M19 11a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V20H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-2.08A7 7 0 0 0 19 11z/></svg>' +
     '<span class="mic-label">语音</span>';
   var inApp = !!(window.BRIDGE && window.BRIDGE.available);   /* App 内走原生语音（mobile.js 绑定） */
   if (micBtn && !SR && !inApp) { micBtn.classList.add("hidden"); }
@@ -305,7 +305,7 @@
       var card = document.createElement("button");
       card.className = "quick-card";
       card.setAttribute("data-domain", s.domain);
-      card.innerHTML = '<span class="qc-icon">' + s.icon + '</span><span class="qc-name">' + esc(s.name) + '</span><span class="qc-desc">' + esc(s.desc) + '</span>';
+      card.innerHTML = '<span class="qc-icon">' + window.DomainRegistry.iconSvg(s.domain) + '</span><span class="qc-name">' + esc(s.name) + '</span><span class="qc-desc">' + esc(s.desc) + '</span>';
       card.addEventListener("click", function () { window.CONSULT.quickStart(s.id); });
       quickBox.appendChild(card);
       cards[s.id] = card;
@@ -364,7 +364,7 @@
       div.className = "msg user";
       div.innerHTML = '<div class="bubble">' + m.html + '</div>';
     } else {
-      var avatar = m.who === "ai" ? "🤖" : "⚖️";
+      var avatar = m.who === "ai" ? "<svg class=ico><use href=#i-ai></use></svg>" : "<svg class=ico><use href=#i-laws></use></svg>";
       div.className = "msg bot";
       div.innerHTML = '<div class="avatar">' + avatar + '</div><div class="bubble">' + m.html + '</div>';
     }
@@ -427,11 +427,11 @@
     menu.className = "session-menu";
     var actions = [];
     if (s.archived) {
-      actions.push({ label: "📤 取消归档", act: function () { window.CHATHISTORY.archive(s.id, false); } });
+      actions.push({ label: "<svg class=ico><use href=#i-uptray></use></svg> 取消归档", act: function () { window.CHATHISTORY.archive(s.id, false); } });
     } else {
-      actions.push({ label: "📥 归档", act: function () { window.CHATHISTORY.archive(s.id, true); } });
+      actions.push({ label: "<svg class=ico><use href=#i-downtray></use></svg> 归档", act: function () { window.CHATHISTORY.archive(s.id, true); } });
     }
-    actions.push({ label: "🗑️ 删除", danger: true, act: null });   /* 删除走两段确认 */
+    actions.push({ label: "<svg class=ico><use href=#i-trash></use></svg> 删除", danger: true, act: null });   /* 删除走两段确认 */
     actions.forEach(function (a) {
       var b = document.createElement("button");
       b.textContent = a.label;
@@ -535,7 +535,7 @@
         '<div class="case-title">' + esc(c.title) + '</div>' +
         '<div class="case-sec"><b>案情</b>' + esc(c.facts) + '</div>' +
         '<div class="case-sec"><b>结果</b>' + esc(c.ruling) + '</div>' +
-        '<div class="case-lesson">💡 <b>要点</b>' + esc(c.lesson) + '</div>';
+        '<div class="case-lesson"><svg class=ico><use href=#i-d-patent></use></svg> <b>要点</b>' + esc(c.lesson) + '</div>';
       caseBox.appendChild(el);
     });
   }
@@ -566,7 +566,7 @@
       var d = window.DOMAINS[dom];
       var group = document.createElement("div");
       group.className = "faq-group";
-      group.innerHTML = '<div class="faq-group-title" style="color:' + d.color + '">' + d.icon + ' ' + d.name + '</div>';
+      group.innerHTML = '<div class="faq-group-title" style="color:' + d.color + '">' + window.DomainRegistry.iconSvg(d.id) + ' ' + d.name + '</div>';
       faqs.forEach(function (f) {
         var item = document.createElement("div");
         item.className = "faq-item";
@@ -626,12 +626,12 @@
     var entry = (window.AI_RESULTS || [])[rid];
     like.addEventListener("click", function () {
       saveFeedback(entry, "up");
-      like.textContent = "✅ 已感谢";
+      like.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已感谢";
       like.disabled = true; bad.disabled = true;
     });
     bad.addEventListener("click", function () {
       saveFeedback(entry, "down");
-      bad.textContent = "📝 已记录";
+      bad.innerHTML = "<svg class=ico><use href=#i-list></use></svg> 已记录";
       bad.disabled = true; like.disabled = true;
       var input = document.createElement("textarea");
       input.className = "fb-comment";
@@ -740,8 +740,8 @@
     if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
     else document.execCommand("copy");
     var b = this;
-    b.textContent = "✅ 已复制";
-    setTimeout(function () { b.textContent = "📋 复制全文"; }, 1500);
+    b.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已复制";
+    setTimeout(function () { b.innerHTML = "<svg class=ico><use href=#i-copy></use></svg> 复制全文"; }, 1500);
   });
 
   /* ---------- 首次使用引导 ---------- */

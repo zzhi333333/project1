@@ -239,7 +239,7 @@ window.AI = (function () {
   function streamBubble(box) {
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar">🤖</div><div class="bubble ai-stream"><span class="ai-text"></span><span class="ai-cursor">▍</span></div>';
+    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-ai></use></svg></div><div class="bubble ai-stream"><span class="ai-text"></span><span class="ai-cursor">▍</span></div>';
     var stop = document.createElement("button");
     stop.className = "ai-stop";
     stop.textContent = "⏹ 停止";
@@ -273,11 +273,11 @@ window.AI = (function () {
     var cp = document.createElement("button");
     cp.className = "mini-btn";
     cp.style.marginTop = "6px";
-    cp.textContent = "📋 复制全文";
+    cp.innerHTML = "<svg class=ico><use href=#i-copy></use></svg> 复制全文";
     cp.addEventListener("click", function () {
       copyText(typeof getText === "function" ? getText() : getText);
-      cp.textContent = "✅ 已复制";
-      setTimeout(function () { cp.textContent = "📋 复制全文"; }, 1500);
+      cp.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已复制";
+      setTimeout(function () { cp.innerHTML = "<svg class=ico><use href=#i-copy></use></svg> 复制全文"; }, 1500);
     });
     div.querySelector(".bubble").appendChild(cp);
   }
@@ -307,7 +307,7 @@ window.AI = (function () {
     }).catch(function (e) {
       var msg = (e && e.message || String(e));
       if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
-      finishBubble(div, "⚠️ " + msg);
+      finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
       var rbtn = document.createElement("button");
       rbtn.className = "mini-btn";
       rbtn.style.marginTop = "8px";
@@ -343,7 +343,7 @@ window.AI = (function () {
         if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, content);
         if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       })
-      .catch(function (e) { finishBubble(div, "⚠️ " + (e && e.message || e)); });
+      .catch(function (e) { finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + (e && e.message || e)); });
   }
   /* 集成③（案情分析 AI 深度分析）已并入「深度分析」页 AI 模式，见 agent.js */
 
@@ -372,7 +372,7 @@ window.AI = (function () {
         aiHistory.push({ role: "user", content: question }, { role: "assistant", content: full });
         if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
       })
-      .catch(function (e) { finishBubble(div, "⚠️ " + (e && e.message || e)); });
+      .catch(function (e) { finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + (e && e.message || e)); });
   }
 
   /* ---------------- 设置弹窗 ---------------- */
@@ -422,7 +422,7 @@ window.AI = (function () {
       S.apiKey = document.getElementById("ai-key").value.trim();
       S.temperature = document.getElementById("ai-temp").value;
       save();
-      setStatus("✅ 已保存：" + S.provider + " / " + S.model, "ok");
+      setStatus("<svg class=ico><use href=#i-checkc></use></svg> 已保存：" + S.provider + " / " + S.model, "ok");
       syncToggleLabel();
     });
     document.getElementById("ai-test").addEventListener("click", function () {
@@ -437,7 +437,7 @@ window.AI = (function () {
       setStatus("⏳ 正在测试连接…");
       aiChat([{ role: "user", content: "请只回复两个字：正常" }], function () {}, opts)
         .then(function (full) {
-          setStatus(full ? "✅ 连接成功，模型已响应：" + String(full).slice(0, 40) : "⚠️ 连接成功但未收到内容", "ok");
+          setStatus(full ? "<svg class=ico><use href=#i-checkc></use></svg> 连接成功，模型已响应：" + String(full).slice(0, 40) : "<svg class=ico><use href=#i-warn></use></svg> 连接成功但未收到内容", "ok");
         })
         .catch(function (e) {
           setStatus("❌ " + (e && e.message || e));
@@ -503,7 +503,7 @@ window.AI = (function () {
       setStatus("⏳ 请选择保存位置…");
       window.BRIDGE.exportFile("legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json",
         JSON.stringify(payload, null, 2))
-        .then(function () { setStatus("✅ 备份已导出", "ok"); })
+        .then(function () { setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出", "ok"); })
         .catch(function (e) {
           var m = e && e.message || String(e);
           setStatus(/cancel/i.test(m) ? "已取消导出" : "❌ 导出失败：" + m);
@@ -516,7 +516,7 @@ window.AI = (function () {
     a.download = "legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json";
     a.click();
     URL.revokeObjectURL(a.href);
-    setStatus("✅ 备份已导出到下载目录", "ok");
+    setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出到下载目录", "ok");
   }
   function importData(file) {
     var reader = new FileReader();
@@ -530,7 +530,7 @@ window.AI = (function () {
         if (d.deadlines) localStorage.setItem("legal-deadlines", JSON.stringify(d.deadlines));
         if (d.feedback) localStorage.setItem("legal-feedback", JSON.stringify(d.feedback));
         if (d.aiSettings) { S = Object.assign({}, DEFAULTS, d.aiSettings); save(); }
-        setStatus("✅ 导入成功，页面即将刷新", "ok");
+        setStatus("<svg class=ico><use href=#i-checkc></use></svg> 导入成功，页面即将刷新", "ok");
         setTimeout(function () { location.reload(); }, 800);
       } catch (e) {
         setStatus("❌ 导入失败：" + (e && e.message || e));

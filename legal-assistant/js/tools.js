@@ -171,14 +171,14 @@
     var left = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
     var status, cls;
     if (left < 0) { status = "已过期 " + (-left) + " 天"; cls = "tool-warn"; }
-    else if (left <= 30) { status = "⚠️ 紧急：仅剩 " + left + " 天"; cls = "tool-warn"; }
+    else if (left <= 30) { status = "<svg class=ico><use href=#i-warn></use></svg> 紧急：仅剩 " + left + " 天"; cls = "tool-warn"; }
     else { status = "剩余 " + left + " 天"; cls = "calc-head"; }
     function fmt(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
     out.innerHTML = '<div class="' + cls + '" style="border-radius:8px;padding:10px 13px;font-size:14.5px">⏳ ' + status + '</div>' +
       '<div class="calc-detail">起算日：' + fmt(start) + '　→　时效届满：' + fmt(deadline) + '（' + days + ' 天）<br>' +
       '临近届满（30 天内）务必启动相应程序，或留存时效中断证据（书面催告、对方付款或承认等）。</div>' +
       '<div class="calc-note">说明：时效可因主张权利、对方同意履行、起诉等而中断重新起算；部分情形有特殊规则（如劳动报酬在职期间不受 1 年限制）。本工具按通用规则估算，仅供参考。</div>' +
-      '<button id="dl-to-cal" class="ghost-btn" style="margin-top:10px">📅 加入合规日历</button>';
+      '<button id="dl-to-cal" class="ghost-btn" style="margin-top:10px"><svg class=ico><use href=#i-calendar></use></svg> 加入合规日历</button>';
     var toCal = $("dl-to-cal");
     if (toCal) toCal.addEventListener("click", function () {
       var opt = $("dl-type").selectedOptions[0];
@@ -209,9 +209,9 @@
     var html = '<div class="calc-head">司法保护利率上限 = ' + lpr + '%(LPR) × 4 = <b>' + cap.toFixed(2) + '%</b></div><div class="calc-detail">' +
       '期限内利息（按约定 ' + rate + '%）：' + fmtN(interestAgreed) + '<br>' +
       (over
-        ? '⚠️ 约定利率超过司法保护上限：法院仅支持按 <b>' + cap.toFixed(2) + '%</b> 计算 → 受保护利息 ' + fmtN(interestCapped) + '，超限部分 ' + fmtN(Math.max(0, interestAgreed - interestCapped)) + ' 不受支持<br>' +
+        ? '<svg class=ico><use href=#i-warn></use></svg> 约定利率超过司法保护上限：法院仅支持按 <b>' + cap.toFixed(2) + '%</b> 计算 → 受保护利息 ' + fmtN(interestCapped) + '，超限部分 ' + fmtN(Math.max(0, interestAgreed - interestCapped)) + ' 不受支持<br>' +
           (paid > 0 ? '已付利息中超出上限的部分（约 ' + fmtN(Math.max(0, paid - interestCapped)) + '）可主张<b>抵扣本金</b>或返还。' : '')
-        : '✅ 约定利率在司法保护上限之内：期限内利息 ' + fmtN(interestAgreed));
+        : '<svg class=ico><use href=#i-checkc></use></svg> 约定利率在司法保护上限之内：期限内利息 ' + fmtN(interestAgreed));
     html += '</div><div class="calc-note">说明：①利率上限=合同成立时一年期 LPR 的四倍（以全国银行间同业拆借中心公布为准）；②「砍头息」按实际到手金额算本金；③已付超限利息可主张抵扣本金（不得要求返还已自愿支付的合法利息）。仅供参考。</div>';
     out.innerHTML = html;
   }
@@ -434,7 +434,7 @@
         return;
       }
       if (basis === "statutory") {
-        html += '<b>⚠️ 惩罚性赔偿提示：</b>惩罚性赔偿的基数是<b>实际损失/违法所得/许可费倍数</b>三者之一，<b>不能以法定赔偿数额为基数</b>。主张惩罚性赔偿需先举证确定基数，并证明「故意 + 情节严重」。<br>';
+        html += '<b><svg class=ico><use href=#i-warn></use></svg> 惩罚性赔偿提示：</b>惩罚性赔偿的基数是<b>实际损失/违法所得/许可费倍数</b>三者之一，<b>不能以法定赔偿数额为基数</b>。主张惩罚性赔偿需先举证确定基数，并证明「故意 + 情节严重」。<br>';
       } else {
         var multi = baseAmount * times;
         html += '<b>惩罚性赔偿（故意且情节严重）</b>：基数 ' + fmt(baseAmount) + ' × ' + times + ' 倍 = <b>' + fmt(multi) + '</b><br>';
@@ -488,7 +488,7 @@
       star.className = "tool-fav" + (getToolFavs().indexOf(id) > -1 ? " on" : "");
       star.setAttribute("data-tool", id);
       star.title = "收藏该工具（收藏后置顶显示）";
-      star.textContent = getToolFavs().indexOf(id) > -1 ? "⭐" : "☆";
+      star.textContent = getToolFavs().indexOf(id) > -1 ? "<svg class=ico><use href=#i-star></use></svg>" : "☆";
       title.appendChild(star);
     });
     grid.addEventListener("click", function (e) {
@@ -498,7 +498,7 @@
       var favs = getToolFavs();
       var idx = favs.indexOf(id);
       if (idx > -1) { favs.splice(idx, 1); s.textContent = "☆"; s.classList.remove("on"); }
-      else { favs.push(id); s.textContent = "⭐"; s.classList.add("on"); }
+      else { favs.push(id); s.innerHTML = "<svg class=ico><use href=#i-star></use></svg>"; s.classList.add("on"); }
       setToolFavs(favs);
       applyToolOrder();
     });
@@ -527,7 +527,7 @@
     function done(okFlag) {
       if (!btn) return;
       var t = btn.textContent;
-      btn.textContent = okFlag ? "✅ 已复制" : "复制失败，请手动选择文本";
+      btn.textContent = okFlag ? "<svg class=ico><use href=#i-checkc></use></svg> 已复制" : "复制失败，请手动选择文本";
       setTimeout(function () { btn.textContent = t; }, 1500);
     }
     function fallback() {
@@ -579,7 +579,7 @@
       out.innerHTML = lawLinks(out.innerHTML);
       var copyBtn = document.createElement("button");
       copyBtn.className = "ghost-btn calc-copy";
-      copyBtn.textContent = "📋 复制结果";
+      copyBtn.innerHTML = "<svg class=ico><use href=#i-copy></use></svg> 复制结果";
       copyBtn.addEventListener("click", function () {
         var clone = out.cloneNode(true);
         var cb = clone.querySelector(".calc-copy");

@@ -119,15 +119,15 @@
       card.className = "law-card";
       card.innerHTML =
         '<div class="law-head">' +
-          '<span class="domain-chip" style="background:' + d.color + '1a;color:' + d.color + '">' + d.icon + " " + d.name + '</span>' +
+          '<span class="domain-chip" style="background:' + d.color + '1a;color:' + d.color + '">' + window.DomainRegistry.iconSvg(d.id) + " " + d.name + '</span>' +
           '<span class="law-name">' + highlight(l.law, query) + '</span>' +
           '<span class="law-article">' + highlight(l.article, query) + '</span>' +
           '<button class="fav-star" data-favid="' + esc(l.id) + '" title="收藏此法条">' + (favs.indexOf(l.id) > -1 ? "★" : "☆") + '</button>' +
         '</div>' +
         '<div class="law-title">' + highlight(l.title, query) + '</div>' +
         '<div class="law-text">' + highlight(l.text, query) + '</div>' +
-        (l.note ? '<div class="law-note">💡 ' + highlight(l.note, query) + '</div>' : '') +
-        (l.url ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(l.url) + '" style="margin:8px 6px 0 0">🔗 官方原文（英文）</a>' : '') +
+        (l.note ? '<div class="law-note"><svg class=ico><use href=#i-d-patent></use></svg> ' + highlight(l.note, query) + '</div>' : '') +
+        (l.url ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(l.url) + '" style="margin:8px 6px 0 0"><svg class=ico><use href=#i-link></use></svg> 官方原文（英文）</a>' : '') +
         '<div class="law-tags">' + l.tags.map(function (t) { return '<i>#' + esc(t) + '</i>'; }).join("") + '</div>';
       container.appendChild(card);
     });
@@ -151,7 +151,7 @@
           var c = document.createElement("button");
           c.className = "filter-chip";
           c.setAttribute("data-domain", d.id);
-          c.innerHTML = d.icon + " " + esc(d.name);
+          c.innerHTML = window.DomainRegistry.iconSvg(d.id) + " " + esc(d.name);
           chipBox.appendChild(c);
         });
       }

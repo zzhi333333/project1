@@ -19,14 +19,14 @@
     var out = [];
     window.DomainRegistry.collect("laws").forEach(function (l) {
       if (hit(l.title, q) || hit(l.article, q) || hit(l.text, q) || (l.tags || []).some(function (t) { return hit(t, q); }))
-        out.push({ g: "📚 法条", label: l.lawShort + " " + l.article + " " + l.title, sub: l.text.slice(0, 80), act: function () {
+        out.push({ g: "法条", label: l.lawShort + " " + l.article + " " + l.title, sub: l.text.slice(0, 80), act: function () {
           window.APP.switchView("laws");
           document.getElementById("law-search-input").value = l.title;
           document.getElementById("law-search-btn").click();
         } });
     });
     window.FAQ.forEach(function (f) {
-      if (hit(f.q, q) || hit(f.a, q)) out.push({ g: "📖 讲堂", label: f.q, sub: String(f.a).replace(/<[^>]+>/g, "").slice(0, 80), act: function () {
+      if (hit(f.q, q) || hit(f.a, q)) out.push({ g: "讲堂", label: f.q, sub: String(f.a).replace(/<[^>]+>/g, "").slice(0, 80), act: function () {
         window.APP.switchView("faq");
         setTimeout(function () {
           document.querySelectorAll("#faq-list .faq-item").forEach(function (item) {
@@ -40,20 +40,20 @@
     });
     window.SCENARIOS.forEach(function (s) {
       if (hit(s.name, q) || hit(s.desc, q) || (s.keywords || []).some(function (k) { return hit(k, q); }))
-        out.push({ g: "💬 咨询场景", label: s.icon + " " + s.name, sub: s.desc, act: function () {
+        out.push({ g: "咨询场景", label: s.name, sub: s.desc, act: function () {
           close();
           window.CONSULT.quickStart(s.id);
         } });
     });
     window.GUIDING.forEach(function (g) {
-      if (hit(g.title, q) || hit(g.gist, q)) out.push({ g: "⭐ 指导性案例", label: g.no + " " + g.title, sub: g.gist.slice(0, 80), act: function () {
+      if (hit(g.title, q) || hit(g.gist, q)) out.push({ g: "指导性案例", label: g.no + " " + g.title, sub: g.gist.slice(0, 80), act: function () {
         close();
         window.APP.switchView("cases");
         document.getElementById("case-tab-guiding").click();
       } });
     });
     window.CASES.forEach(function (c) {
-      if (hit(c.title, q) || hit(c.facts, q)) out.push({ g: "📘 典型案例", label: c.title, sub: c.facts.slice(0, 80), act: function () {
+      if (hit(c.title, q) || hit(c.facts, q)) out.push({ g: "典型案例", label: c.title, sub: c.facts.slice(0, 80), act: function () {
         close();
         window.APP.switchView("cases");
         document.getElementById("case-tab-builtin").click();

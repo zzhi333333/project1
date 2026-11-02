@@ -383,11 +383,11 @@ window.ONLINE = (function () {
         (m.publish ? chip("公布：" + m.publish) : "") +
         (m.expiry ? chip("施行：" + m.expiry) : "") +
         (m.status ? '<span class="prop ' + okCls + '">' + (STATUS_MAP[m.status] || esc(m.status)) + '</span>' : "") +
-        (fromCache ? '<span class="prop ok">📦 本地缓存版本</span>' : "") +
+        (fromCache ? '<span class="prop ok"><svg class=ico><use href=#i-box></use></svg> 本地缓存版本</span>' : "") +
       '</div>' +
       (fullText ? '<div class="flk-doc">' + esc(fullText) + '</div>' : "") +
       '<div class="flk-actions">' +
-        (links.preview ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(links.preview) + '">📖 官方在线预览</a>' : "") +
+        (links.preview ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(links.preview) + '"><svg class=ico><use href=#i-book-open></use></svg> 官方在线预览</a>' : "") +
         (links.word ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.word) + '">下载 Word 正式文本</a>' : "") +
         (links.pdf ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(links.pdf) + '">下载 PDF 正式文本</a>' : "") +
         (links.relatedCount ? '<span class="prop">相关资料 ' + esc(links.relatedCount) + ' 件</span>' : "") +
@@ -439,7 +439,7 @@ window.ONLINE = (function () {
         '<div class="case-title">' + esc(g.title) + '</div>' +
         '<div class="case-sec"><b>基本案情</b>' + esc(g.facts) + '</div>' +
         '<div class="case-sec"><b>裁判要点</b>' + esc(g.gist) + '</div>' +
-        '<div class="case-lesson">💡 <b>适用解析</b>' + esc(g.analysis) + '</div>' +
+        '<div class="case-lesson"><svg class=ico><use href=#i-d-patent></use></svg> <b>适用解析</b>' + esc(g.analysis) + '</div>' +
         '</div>';
     }).join("");
   }

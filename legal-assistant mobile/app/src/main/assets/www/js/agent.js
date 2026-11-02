@@ -5,7 +5,7 @@
  *            硬约束提示词禁止引用资料区外法条、禁止编造数字/期限/机关
  *   ②生成后：引用核验（每条《法名》第X条 对照本地库+flk全文逐条核实）
  *            + 数字断言核验（期限/比例/金额须在资料区有依据）
- *   ③展示层：引用内联 ✓/⚠️ 徽标 + 引用核验报告 + 严格模式重新生成
+ *   ③展示层：引用内联 ✓/<svg class=ico><use href=#i-warn></use></svg> 徽标 + 引用核验报告 + 严格模式重新生成
  * —— 工作流透明化：领域识别→场景→法条→联网全文→生成→核验
  * ========================================================= */
 window.AGENT = (function () {
@@ -188,11 +188,11 @@ window.AGENT = (function () {
     };
   }
 
-  /* 答案内联标注：给引用打 ✓/⚠️ 徽标 */
+  /* 答案内联标注：给引用打 ✓/<svg class=ico><use href=#i-warn></use></svg> 徽标 */
   function annotate(answerText, verification) {
     var html = esc(answerText);
     verification.citations.forEach(function (r) {
-      var badge = r.status === "ok" ? " ✓" : " ⚠️";
+      var badge = r.status === "ok" ? " ✓" : " <svg class=ico><use href=#i-warn></use></svg>";
       var cls = r.status === "ok" ? "cite-ok" : "cite-warn";
       var tip = r.status === "ok"
         ? "已核实：" + esc(r.lawDisplay) + (r.cit.articleNum ? " 第" + r.cit.articleNum + "条" : "") + "（" + esc(r.source) + "）"
@@ -205,7 +205,7 @@ window.AGENT = (function () {
       if (x.ok) return;
       var safeRaw = esc(x.claim.raw).replace(/"/g, "&quot;");
       var tip = "数字断言待核实：「" + esc(x.claim.raw) + "」未在资料区找到依据，请人工确认";
-      html = html.split(esc(x.claim.raw)).join('<span class="num-warn" title="' + tip + '">' + safeRaw + "⚠️</span>");
+      html = html.split(esc(x.claim.raw)).join('<span class="num-warn" title="' + tip + '">' + safeRaw + "<svg class=ico><use href=#i-warn></use></svg></span>");
     });
     return html;
   }
@@ -263,9 +263,9 @@ window.AGENT = (function () {
     var cp = document.createElement("button");
     cp.className = "mini-btn";
     cp.style.margin = "10px 14px";
-    cp.textContent = "📋 复制报告全文";
+    cp.innerHTML = "<svg class=ico><use href=#i-copy></use></svg> 复制报告全文";
     cp.addEventListener("click", function () {
-      var done = function () { cp.textContent = "✅ 已复制"; setTimeout(function () { cp.textContent = "📋 复制报告全文"; }, 1500); };
+      var done = function () { cp.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已复制"; setTimeout(function () { cp.textContent = "<svg class=ico><use href=#i-copy></use></svg> 复制报告全文"; }, 1500); };
       if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
       else {
         var ta = document.createElement("textarea");
@@ -398,18 +398,18 @@ window.AGENT = (function () {
       renderPanel(v, gen.text);
       appendCopyButton(els.answer, gen.text);
     }).catch(function (e) {
-      els.answer.innerHTML += '<div class="tool-warn">⚠️ ' + esc(e && e.message || e) + "</div>";
+      els.answer.innerHTML += '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + esc(e && e.message || e) + "</div>";
     });
   }
 
   /* 核验报告面板 */
   function renderPanel(v, answerText) {
-    var html = '<div class="verify-panel"><div class="vp-title">🛡️ 引用核验报告</div>';
+    var html = '<div class="verify-panel"><div class="vp-title"><svg class=ico><use href=#i-shield></use></svg> 引用核验报告</div>';
     if (!v.totalCitations && !v.numbers.length) {
       html += '<div class="vp-line dim">回答中未出现法条引用与数字断言。</div>';
     }
     v.citations.forEach(function (r) {
-      var icon = r.status === "ok" ? "✅" : "⚠️";
+      var icon = r.status === "ok" ? "<svg class=ico><use href=#i-checkc></use></svg>" : "<svg class=ico><use href=#i-warn></use></svg>";
       var desc = r.status === "ok"
         ? "已核实（" + r.source + "）"
         : "未能核实——本地知识库与联网检索均未找到该条文，请到「法条检索」页人工确认";
@@ -418,12 +418,12 @@ window.AGENT = (function () {
     });
     v.numbers.forEach(function (x) {
       if (x.ok) return;
-      html += '<div class="vp-line bad">⚠️ 数字断言待核实：「' + esc(x.claim.raw) + "」（上下文：…" + esc(x.claim.snippet) + "…）未在资料区找到依据</div>";
+      html += '<div class="vp-line bad"><svg class=ico><use href=#i-warn></use></svg> 数字断言待核实：「' + esc(x.claim.raw) + "」（上下文：…" + esc(x.claim.snippet) + "…）未在资料区找到依据</div>";
     });
     var level = v.allOk ? "高（全部引用已核实）" : (v.verifiedCount === v.totalCitations ? "中（引用已核实，" + v.flaggedNumbers + " 项数字待人工确认）" : "中低（" + (v.totalCitations - v.verifiedCount) + " 条引用未核实，请谨慎采纳）");
     html += '<div class="vp-summary">整体可信度：<b>' + level + "</b></div>";
     if (!v.allOk) {
-      html += '<button class="mini-btn primary" id="agent-regen">🔧 严格模式重新生成（仅使用已核实资料）</button>';
+      html += '<button class="mini-btn primary" id="agent-regen"><svg class=ico><use href=#i-wrench></use></svg> 严格模式重新生成（仅使用已核实资料）</button>';
     }
     html += "</div>";
     els.panel.innerHTML = html;
@@ -457,7 +457,7 @@ window.AGENT = (function () {
         appendCopyButton(els.answer, full);
       })
       .catch(function (e) {
-        els.answer.innerHTML += '<div class="tool-warn">⚠️ ' + esc(e && e.message || e) + "</div>";
+        els.answer.innerHTML += '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + esc(e && e.message || e) + "</div>";
       });
   }
 
@@ -474,8 +474,8 @@ window.AGENT = (function () {
     var v = verifyText(answerText, ctxText || "", null);
     if (!v.totalCitations && !v.flaggedNumbers) return;   /* 没有可核验内容则不打扰 */
     var html = '<div class="verify-mini' + (v.allOk ? "" : " warn") + '">' +
-      "🛡️ 核验：" + v.verifiedCount + "/" + v.totalCitations + " 条引用已核实" +
-      (v.flaggedNumbers ? "；⚠️ " + v.flaggedNumbers + " 项数字待核实" : "") +
+      "<svg class=ico><use href=#i-shield></use></svg> 核验：" + v.verifiedCount + "/" + v.totalCitations + " 条引用已核实" +
+      (v.flaggedNumbers ? "；<svg class=ico><use href=#i-warn></use></svg> " + v.flaggedNumbers + " 项数字待核实" : "") +
       (v.allOk ? "" : "（未核实内容请谨慎采纳，可到「深度分析」页获得完整核验报告）") + "</div>";
     var wrap = document.createElement("div");
     wrap.innerHTML = html;

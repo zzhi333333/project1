@@ -72,13 +72,13 @@ window.CONTRACT = (function () {
 
   function renderRule(res) {
     var html = '<div class="report"><div class="report-head" style="background:#0f766e">' +
-      '<div class="report-head-title">📋 合同条款核对报告（' + esc(res.name) + ' · 规则引擎 · 离线）</div>' +
+      '<div class="report-head-title"><svg class=ico><use href=#i-copy></use></svg> 合同条款核对报告（' + esc(res.name) + ' · 规则引擎 · 离线）</div>' +
       '<div>必备/要素条款：命中 ' + res.found.length + ' 项 · 缺失 ' + res.missing.length + ' 项 · 风险语句 ' + res.risks.length + ' 处</div></div>';
-    html += '<div class="report-sec"><div class="report-sec-title">✅ 已包含条款</div><div class="report-facts">' +
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-checkc></use></svg> 已包含条款</div><div class="report-facts">' +
       (res.found.length ? res.found.map(function (f) { return '<span class="fact-chip" style="color:#047857">✓ ' + esc(f) + '</span>'; }).join("") : '<span class="fact-chip dim">未识别到（可能因文本片段不全或用语差异）</span>') + '</div></div>';
-    html += '<div class="report-sec"><div class="report-sec-title">⚠️ 疑似缺失条款</div><div class="report-facts">' +
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 疑似缺失条款</div><div class="report-facts">' +
       (res.missing.length ? res.missing.map(function (f) { return '<span class="fact-chip" style="color:#b45309">✗ ' + esc(f) + '</span>'; }).join("") : '<span class="fact-chip" style="color:#047857">核心条款齐全</span>') + '</div></div>';
-    html += '<div class="report-sec"><div class="report-sec-title">🚨 高危语句识别</div>';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 高危语句识别</div>';
     if (res.risks.length) {
       html += '<ul class="report-list risk">' + res.risks.map(function (r) {
         return '<li>「' + esc(r.snippet) + '」— ' + esc(r.warn) + '</li>';
@@ -119,7 +119,7 @@ window.CONTRACT = (function () {
       box.querySelector(".ai-cursor") && box.querySelector(".ai-cursor").remove();
       if (window.AGENT && full) window.AGENT.attachVerification(bubble, full, ctxText + (rule.found.join("") || ""));
     }).catch(function (e) {
-      box.innerHTML = '<div class="tool-warn">⚠️ ' + (e && e.message || e) + "</div>";
+      box.innerHTML = '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + (e && e.message || e) + "</div>";
     });
   }
 

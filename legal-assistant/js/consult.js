@@ -48,9 +48,9 @@
     if (!matches.length) {
       var lines = ["我暂时没能准确判断您的问题类型。我目前擅长以下领域："];
       window.DomainRegistry.metas().forEach(function (d) {
-        lines.push(d.icon + " <b>" + d.name + "</b>——请点击左侧「快捷咨询」查看该领域的具体场景。");
+        lines.push(window.DomainRegistry.iconSvg(d.id) + " <b>" + d.name + "</b>——请点击左侧「快捷咨询」查看该领域的具体场景。");
       });
-      lines.push("也可以使用右上角「🔍 搜索」查找法条与内容，或到「深度分析」页获得完整报告。");
+      lines.push("也可以使用右上角「搜索」查找法条与内容，或到「深度分析」页获得完整报告。");
       UI.appendBot(lines.join("<br>"), null);
       if (cls.domain) {
         UI.appendBot("不过从您的描述看，可能与<b>" + window.DOMAINS[cls.domain].name + "</b>相关，您可以直接点击左侧「快捷咨询」中的场景开始：", null);
@@ -64,7 +64,7 @@
     state = { scenario: sc, answers: {}, qIndex: 0, active: true, transcript: [] };
     var d = window.DOMAINS[sc.domain];
     UI.appendBot(
-      "已识别问题：<b>" + sc.icon + " " + sc.name + "</b>（" + d.name + "领域）<br>" +
+      "已识别问题：<b>" + window.DomainRegistry.iconSvg(sc.domain) + " " + sc.name + "</b>（" + d.name + "领域）<br>" +
       "下面通过几个问题快速核实关键事实，请选择最接近的选项：", null);
     askNext();
   }

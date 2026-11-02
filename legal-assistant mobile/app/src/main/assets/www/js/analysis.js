@@ -314,7 +314,7 @@ window.ANALYSIS = (function () {
       domainName: window.DOMAINS[domain].name,
       confidence: Math.round(cls.confidence * 100),
       secondary: null,
-      focus: scenarios.map(function (s) { return s.icon + " " + s.name; }),
+      focus: scenarios.map(function (s) { return s.name; }),
       facts: facts,
       scenarios: scenarios,
       laws: laws,
@@ -331,17 +331,17 @@ window.ANALYSIS = (function () {
     var d = window.DOMAINS[item.domain];
     var h = "";
     if (item.kind === "guiding") {
-      h += '<div class="case-domain" style="background:' + d.color + '1a;color:' + d.color + '">⭐ ' + esc(item.no) + ' · ' + d.name + '</div>';
+      h += '<div class="case-domain" style="background:' + d.color + '1a;color:' + d.color + '"><svg class=ico><use href=#i-star></use></svg> ' + esc(item.no) + ' · ' + d.name + '</div>';
       h += '<div class="case-title">' + esc(item.title) + '</div>';
       h += '<div class="case-sec"><b>案情</b>' + esc(item.facts) + '</div>';
       h += '<div class="case-sec"><b>裁判要点</b>' + esc(item.gist) + '</div>';
-      h += '<div class="case-lesson">💡 <b>对本案的参考</b>' + esc(item.analysis) + '</div>';
+      h += '<div class="case-lesson"><svg class=ico><use href=#i-d-patent></use></svg> <b>对本案的参考</b>' + esc(item.analysis) + '</div>';
     } else {
       h += '<div class="case-domain" style="background:' + d.color + '1a;color:' + d.color + '">' + d.name + '·典型情景案例</div>';
       h += '<div class="case-title">' + esc(item.title) + '</div>';
       h += '<div class="case-sec"><b>案情</b>' + esc(item.facts) + '</div>';
       h += '<div class="case-sec"><b>结果</b>' + esc(item.ruling) + '</div>';
-      h += '<div class="case-lesson">💡 <b>要点</b>' + esc(item.lesson) + '</div>';
+      h += '<div class="case-lesson"><svg class=ico><use href=#i-d-patent></use></svg> <b>要点</b>' + esc(item.lesson) + '</div>';
     }
     var el = document.createElement("div");
     el.className = "case-card";
@@ -359,68 +359,68 @@ window.ANALYSIS = (function () {
 
     /* 报告头 */
     html += '<div class="report-head" style="background:' + d.color + '">' +
-      '<div class="report-head-title">📋 案件分析参考报告</div>' +
+      '<div class="report-head-title"><svg class=ico><use href=#i-copy></use></svg> 案件分析参考报告</div>' +
       '<div>识别领域：<b>' + d.name + '</b>' + (r.confidence ? '（置信度 ' + r.confidence + '%）' : '') +
       ' · 争议焦点：' + (r.focus.length ? r.focus.map(esc).join("、") : "综合咨询") + '</div></div>';
 
     /* 案情要素 */
-    html += '<div class="report-sec"><div class="report-sec-title">🧩 案情要素提取</div><div class="report-facts">';
-    if (r.facts.amounts.length) html += '<span class="fact-chip">💰 涉案金额：' + r.facts.amounts.map(function (a) { return esc(a.raw); }).join("、") + '</span>';
-    if (r.facts.dates.length) html += '<span class="fact-chip">📅 时间线索：' + r.facts.dates.slice(0, 4).map(esc).join("、") + '</span>';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-layers></use></svg> 案情要素提取</div><div class="report-facts">';
+    if (r.facts.amounts.length) html += '<span class="fact-chip"><svg class=ico><use href=#i-coins></use></svg> 涉案金额：' + r.facts.amounts.map(function (a) { return esc(a.raw); }).join("、") + '</span>';
+    if (r.facts.dates.length) html += '<span class="fact-chip"><svg class=ico><use href=#i-calendar></use></svg> 时间线索：' + r.facts.dates.slice(0, 4).map(esc).join("、") + '</span>';
     if (r.facts.durations.length) html += '<span class="fact-chip">⏳ 年限线索：' + r.facts.durations.slice(0, 3).map(esc).join("、") + '</span>';
     if (!r.facts.amounts.length && !r.facts.dates.length && !r.facts.durations.length)
       html += '<span class="fact-chip dim">未识别到明确金额/时间要素，补充后分析会更精准</span>';
     html += '</div></div>';
 
     /* 定性意见 */
-    html += '<div class="report-sec"><div class="report-sec-title">📌 初步定性</div><div class="report-focus">';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-pin></use></svg> 初步定性</div><div class="report-focus">';
     r.scenarios.forEach(function (s) {
-      html += '<div class="report-focus-item"><b>' + s.icon + " " + esc(s.name) + '</b>' + esc(s.desc) + '</div>';
+      html += '<div class="report-focus-item"><b>' + window.DomainRegistry.iconSvg(s.domain) + " " + esc(s.name) + '</b>' + esc(s.desc) + '</div>';
     });
     html += '</div></div>';
 
     /* 相关法条 */
-    html += '<div class="report-sec"><div class="report-sec-title">📚 相关法条（结合案情匹配）</div>';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-book-open></use></svg> 相关法条（结合案情匹配）</div>';
     r.laws.forEach(function (l) {
       html += '<div class="rep-law"><div class="rep-law-head"><b>' + esc(l.lawShort + " " + l.article) + '</b><span>' + esc(l.title) + '</span></div>' +
         '<div class="rep-law-text">' + esc(l.text) + '</div>' +
-        (l.note ? '<div class="law-note">💡 ' + esc(l.note) + '</div>' : '') + '</div>';
+        (l.note ? '<div class="law-note"><svg class=ico><use href=#i-d-patent></use></svg> ' + esc(l.note) + '</div>' : '') + '</div>';
     });
     html += '<div class="report-online-row">' +
-      '<button class="mini-btn primary" data-act="verify-laws">🌐 去 flk.npc.gov.cn 核对原文</button>' +
+      '<button class="mini-btn primary" data-act="verify-laws"><svg class=ico><use href=#i-globe></use></svg> 去 flk.npc.gov.cn 核对原文</button>' +
       '<span class="dim">（联网模式可用，需手机联网）</span></div></div>';
 
     /* 参考案例 */
-    html += '<div class="report-sec"><div class="report-sec-title">⚖️ 参考案例（与案情匹配）</div>';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-laws></use></svg> 参考案例（与案情匹配）</div>';
     if (r.cases.length) {
       html += '<div class="report-cases" id="report-cases"></div>';
     } else {
       html += '<div class="dim">未匹配到高度相关的内置案例，可到「案例检索」页在线检索更多公开文书。</div>';
     }
     html += '<div class="report-online-row">' +
-      '<button class="mini-btn primary" data-act="search-cases">🔎 在线检索类案（裁判文书网/最高法）</button></div></div>';
+      '<button class="mini-btn primary" data-act="search-cases"><svg class=ico><use href=#i-search></use></svg> 在线检索类案（裁判文书网/最高法）</button></div></div>';
 
     /* 咨询参考（请求事项） */
-    html += '<div class="report-sec"><div class="report-sec-title">📝 咨询参考 · 仲裁/诉讼请求事项参考</div><ol class="report-list">';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-list></use></svg> 咨询参考 · 仲裁/诉讼请求事项参考</div><ol class="report-list">';
     r.claims.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
     html += '</ol><div class="calc-note">请求金额需按您的事实具体化；以上为常见请求方向，最终以代理律师意见为准。</div></div>';
 
     /* 程序建议 */
-    html += '<div class="report-sec"><div class="report-sec-title">🧭 程序建议（阶段化路径）</div>';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-agent></use></svg> 程序建议（阶段化路径）</div>';
     r.procedure.forEach(function (p) {
       html += '<div class="proc-step"><div class="proc-stage">' + esc(p.stage) + '</div><ul>' +
         p.detail.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join("") +
-        '</ul><div class="proc-tip">💡 ' + esc(p.tip) + '</div></div>';
+        '</ul><div class="proc-tip"><svg class=ico><use href=#i-d-patent></use></svg> ' + esc(p.tip) + '</div></div>';
     });
     html += '</div>';
 
     /* 证据清单 */
-    html += '<div class="report-sec"><div class="report-sec-title">🗂️ 证据准备清单</div><ul class="report-list">';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-box></use></svg> 证据准备清单</div><ul class="report-list">';
     r.evidence.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
     html += '</ul></div>';
 
     /* 风险提示 */
-    html += '<div class="report-sec"><div class="report-sec-title">⚠️ 风险提示</div><ul class="report-list risk">';
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 风险提示</div><ul class="report-list risk">';
     r.risks.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
     html += '</ul></div>';
 

@@ -56,6 +56,15 @@ window.DomainRegistry = (function () {
     }
     return { id: id, name: id, icon: "📁", color: "#6b7280" };
   }
+  var DOMAIN_SVG = {
+    labor: "i-d-labor", company: "i-d-company", patent: "i-d-patent", trade: "i-d-trade",
+    jiashi: "i-d-jiashi", biaozhu: "i-d-biaozhu", minfa: "i-d-minfa", minsusong: "i-d-mss"
+  };
+  /* 领域线性图标（SVG sprite 引用，单色跟随主题）；icon 字段的 emoji 仅保留作纯文本兜底 */
+  function iconSvg(id) {
+    return '<svg class=ico><use href=#' + (DOMAIN_SVG[id] || "i-cases") + '></use></svg>';
+  }
+
   function metas() { return ids().map(metaOf); }
 
   function collect(field, domainId) {
@@ -109,7 +118,7 @@ window.DomainRegistry = (function () {
   return {
     registerDomain: registerDomain,
     get: get, ids: ids, metas: metas, metaOf: metaOf,
-    collect: collect, lawById: lawById, scenarioById: scenarioById,
+    collect: collect, lawById: lawById, scenarioById: scenarioById, iconSvg: iconSvg,
     allKeywords: allKeywords, extendKeywords: extendKeywords,
     __setLegacy: function (field, arr) { LEGACY_STORE[field] = arr || []; }
   };
