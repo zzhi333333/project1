@@ -682,3 +682,10 @@ mark { background: #fef3c7; padding: 0 2px; border-radius: 3px; }
   .search-row, .input-row { flex-direction: column; }
   .search-row button, .input-row button { padding: 10px; }
 }
+
+/* 工具卡：分类筛选 / 收藏置顶 / 结果复制 / 法条跳转 */
+.tool-fav { float: right; cursor: pointer; font-size: 13px; opacity: .5; user-select: none; }
+.tool-fav:hover, .tool-fav.on { opacity: 1; }
+.law-link { color: var(--primary); cursor: pointer; text-decoration: underline dotted; }
+.law-link:hover { color: var(--primary-2, #1d4ed8); }
+.calc-copy { margin-top: 8px; font-size: 12.5px; }

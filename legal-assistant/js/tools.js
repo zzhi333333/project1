@@ -447,19 +447,168 @@
     out.innerHTML = html;
   }
 
+  /* =========================================================
+   * 工具卡通用能力：分类筛选 / 排序 / 收藏置顶 / 一键复制 / 法条跳转
+   * ========================================================= */
+  var TOOL_ORDER = ["sv", "ot", "al", "ln", "dj", "fy", "pt", "ip", "cf", "dl", "cal"];
+  var FAV_KEY = "legal-fav-tools";
+
+  function getToolFavs() {
+    try { return JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch (e) { return []; }
+  }
+  function setToolFavs(a) {
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(a)); } catch (e) { /* 存储不可用时静默 */ }
+  }
+
+  /* 排序：收藏的置顶（按收藏先后），其余按分类默认顺序 */
+  function applyToolOrder() {
+    var grid = document.querySelector("#view-tools .tools-grid");
+    if (!grid) return;
+    var favs = getToolFavs();
+    var cards = {};
+    grid.querySelectorAll(".tool-card").forEach(function (c) { cards[c.getAttribute("data-tool")] = c; });
+    TOOL_ORDER.slice().sort(function (a, b) {
+      var fa = favs.indexOf(a), fb = favs.indexOf(b);
+      if (fa > -1 && fb > -1) return fa - fb;
+      if (fa > -1) return -1;
+      if (fb > -1) return 1;
+      return TOOL_ORDER.indexOf(a) - TOOL_ORDER.indexOf(b);
+    }).forEach(function (id) { if (cards[id]) grid.appendChild(cards[id]); });
+  }
+
+  /* 给每张卡标题注入收藏星标 */
+  function setupToolCards() {
+    var grid = document.querySelector("#view-tools .tools-grid");
+    if (!grid) return;
+    grid.querySelectorAll(".tool-card").forEach(function (card) {
+      var id = card.getAttribute("data-tool");
+      var title = card.querySelector(".tool-title");
+      if (!id || !title || title.querySelector(".tool-fav")) return;
+      var star = document.createElement("span");
+      star.className = "tool-fav" + (getToolFavs().indexOf(id) > -1 ? " on" : "");
+      star.setAttribute("data-tool", id);
+      star.title = "收藏该工具（收藏后置顶显示）";
+      star.textContent = getToolFavs().indexOf(id) > -1 ? "⭐" : "☆";
+      title.appendChild(star);
+    });
+    grid.addEventListener("click", function (e) {
+      var s = e.target.closest ? e.target.closest(".tool-fav") : null;
+      if (!s) return;
+      var id = s.getAttribute("data-tool");
+      var favs = getToolFavs();
+      var idx = favs.indexOf(id);
+      if (idx > -1) { favs.splice(idx, 1); s.textContent = "☆"; s.classList.remove("on"); }
+      else { favs.push(id); s.textContent = "⭐"; s.classList.add("on"); }
+      setToolFavs(favs);
+      applyToolOrder();
+    });
+    applyToolOrder();
+  }
+
+  /* 分类筛选 chips */
+  function bindToolFilter() {
+    var bar = $("tool-filter");
+    if (!bar) return;
+    bar.addEventListener("click", function (e) {
+      var chip = e.target.closest ? e.target.closest(".filter-chip") : null;
+      if (!chip) return;
+      bar.querySelectorAll(".filter-chip").forEach(function (x) { x.classList.remove("active"); });
+      chip.classList.add("active");
+      var cat = chip.getAttribute("data-cat");
+      document.querySelectorAll("#view-tools .tool-card").forEach(function (card) {
+        card.classList.toggle("hidden", cat !== "all" && card.getAttribute("data-cat") !== cat);
+      });
+      if (cat === "all") applyToolOrder();
+    });
+  }
+
+  /* 复制：优先 clipboard API，失败 execCommand 兜底（WebView 环境） */
+  function copyText(text, btn) {
+    function done(okFlag) {
+      if (!btn) return;
+      var t = btn.textContent;
+      btn.textContent = okFlag ? "✅ 已复制" : "复制失败，请手动选择文本";
+      setTimeout(function () { btn.textContent = t; }, 1500);
+    }
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { /* 忽略 */ }
+      document.body.removeChild(ta);
+      done(ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+    } else fallback();
+  }
+
+  /* 结果 HTML 里的法条引用 → 可点击跳转法条检索（如《商标法》第 63 条 / 民法典第 586 条） */
+  var LAW_RE = /(《?[\u4e00-\u9fa5]{2,12}法》?|《?民法典》?)\s*(第\s*[0-9]+\s*条)/g;
+  function lawLinks(html) {
+    return html.replace(LAW_RE, function (m, law, art) {
+      var q = law.replace(/[《》\s]/g, "") + " " + art.replace(/\s+/g, "");
+      return '<a class="law-link" data-lawq="' + esc(q) + '" title="点击在法条库中检索原文">' + m + '</a>';
+    });
+  }
+  /* 点击委托：跳到法条页并自动检索 */
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest ? e.target.closest(".law-link") : null;
+    if (!a) return;
+    var q = a.getAttribute("data-lawq");
+    /* switchView 是 main.js 内部函数，走 nav-tab 点击切视图 */
+    var tabBtn = document.querySelector('.nav-tab[data-view="laws"]');
+    if (tabBtn) tabBtn.click();
+    var input = document.getElementById("law-search-input");
+    var btn = document.getElementById("law-search-btn");
+    if (input && btn) { input.value = q; btn.click(); }
+  });
+
+  /* 包装计算按钮：计算 → 法条链接化 → 注入「复制结果」按钮 */
+  function bindCalc(btnId, outId, fn, name) {
+    var btn = $(btnId), out = $(outId);
+    if (!btn || !out) return;
+    btn.addEventListener("click", function () {
+      fn();
+      var old = out.querySelector(".calc-copy");
+      if (old) old.remove();
+      out.innerHTML = lawLinks(out.innerHTML);
+      var copyBtn = document.createElement("button");
+      copyBtn.className = "ghost-btn calc-copy";
+      copyBtn.textContent = "📋 复制结果";
+      copyBtn.addEventListener("click", function () {
+        var clone = out.cloneNode(true);
+        var cb = clone.querySelector(".calc-copy");
+        if (cb) cb.remove();
+        var text = (name ? name + "\n" : "") +
+          clone.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|h\d)>/gi, "\n")
+            .replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+            .replace(/\n{3,}/g, "\n\n").trim();
+        copyText(text, copyBtn);
+      });
+      out.appendChild(copyBtn);
+    });
+  }
+
   /* ---------- 装配 ---------- */
   window.TOOLS = {
     init: function () {
-      $("sv-calc").addEventListener("click", calcSeverance);
-      $("ot-calc").addEventListener("click", calcOvertime);
-      $("al-calc").addEventListener("click", calcLeave);
-      $("pt-calc").addEventListener("click", calcPatent);
-      $("dl-calc").addEventListener("click", calcDeadline);
-      $("ln-calc").addEventListener("click", calcLoan);
-      $("cf-calc").addEventListener("click", calcCourtFee);
-      $("fy-calc").addEventListener("click", calcFuyangfei);
-      $("dj-calc").addEventListener("click", calcDeposit);
-      $("ip-calc").addEventListener("click", calcIpDamage);
+      bindCalc("sv-calc", "sv-result", calcSeverance, "经济补偿金计算器");
+      bindCalc("ot-calc", "ot-result", calcOvertime, "加班费计算器");
+      bindCalc("al-calc", "al-result", calcLeave, "年休假折算器");
+      bindCalc("pt-calc", "pt-result", calcPatent, "专利关键期限计算器");
+      bindCalc("dl-calc", "dl-result", calcDeadline, "时效倒计时");
+      bindCalc("ln-calc", "ln-result", calcLoan, "民间借贷利息计算器");
+      bindCalc("cf-calc", "cf-result", calcCourtFee, "诉讼费用计算器");
+      bindCalc("fy-calc", "fy-result", calcFuyangfei, "抚养费计算器");
+      bindCalc("dj-calc", "dj-result", calcDeposit, "违约金与定金计算器");
+      bindCalc("ip-calc", "ip-result", calcIpDamage, "知产侵权赔偿计算器");
+      setupToolCards();
+      bindToolFilter();
       var sel = $("dl-type");
       if (sel) sel.addEventListener("change", function () {
         $("dl-custom-wrap").classList.toggle("hidden", sel.value !== "custom");

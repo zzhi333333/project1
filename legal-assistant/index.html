@@ -157,11 +157,20 @@
   <section id="view-tools" class="view">
     <div class="view-head">
       <h2>实用工具</h2>
-      <p>四个高频计算器，数据现场计算、不经过任何服务器</p>
+      <p>11 个分类计算与核查工具，数据现场计算、不经过任何服务器</p>
     </div>
+          <div id="tool-filter" class="chips filter-chips" style="margin-bottom:12px">
+        <button class="filter-chip active" data-cat="all">全部</button>
+        <button class="filter-chip" data-cat="labor">💼 劳动</button>
+        <button class="filter-chip" data-cat="civil">⚖️ 民事</button>
+        <button class="filter-chip" data-cat="ip">💡 知产</button>
+        <button class="filter-chip" data-cat="proc">🏛️ 程序</button>
+        <button class="filter-chip" data-cat="util">📅 通用</button>
+      </div>
+
     <div class="tools-grid">
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="sv" data-cat="labor">
         <div class="tool-title">💰 经济补偿金计算器（N / N+1 / 2N）</div>
         <div class="tool-form">
           <label>入职日期 <input id="sv-from" type="date"></label>
@@ -180,7 +189,7 @@
         <div id="sv-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="ot" data-cat="labor">
         <div class="tool-title">⏰ 加班费计算器</div>
         <div class="tool-form">
           <label>月工资（元）<input id="ot-salary" type="number" min="0" placeholder="如 8700"></label>
@@ -193,7 +202,7 @@
         <div id="ot-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="al" data-cat="labor">
         <div class="tool-title">🌴 年休假折算器</div>
         <div class="tool-form">
           <label>累计工作年限（年，所有单位加总）<input id="al-years" type="number" min="0" placeholder="如 12"></label>
@@ -203,7 +212,7 @@
         <div id="al-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="ln" data-cat="civil">
         <div class="tool-title">💡 专利关键期限计算器</div>
         <div class="tool-form">
           <label>专利类型
@@ -219,7 +228,7 @@
         <div id="pt-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="dj" data-cat="civil">
         <div class="tool-title">⏳ 时效倒计时</div>
         <div class="tool-form">
           <label>事件日期（如离职日、知道权利被侵害之日）<input id="dl-date" type="date"></label>
@@ -239,7 +248,7 @@
         <div id="dl-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="fy" data-cat="civil">
         <div class="tool-title">💰 民间借贷利息计算器</div>
         <div class="tool-form">
           <label>借款本金（元，按实际到手金额）<input id="ln-principal" type="number" min="0" placeholder="如 100000"></label>
@@ -252,7 +261,7 @@
         <div id="ln-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="pt" data-cat="ip">
         <div class="tool-title">⚖️ 诉讼费用计算器</div>
         <div class="tool-form">
           <label>诉讼标的额（元）<input id="cf-amount" type="number" min="0" placeholder="如 100000"></label>
@@ -268,7 +277,7 @@
         <div id="cf-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="ip" data-cat="ip">
         <div class="tool-title">👶 抚养费计算器</div>
         <div class="tool-form">
           <label>不直接抚养方月总收入（元）<input id="fy-income" type="number" min="0" placeholder="如 10000"></label>
@@ -290,7 +299,7 @@
         <div id="fy-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="cf" data-cat="proc">
         <div class="tool-title">🤝 违约金与定金计算器</div>
         <div class="tool-form">
           <label>主合同金额（元）<input id="dj-amount" type="number" min="0" placeholder="如 100000"></label>
@@ -308,7 +317,7 @@
         <div id="dj-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="dl" data-cat="proc">
         <div class="tool-title">🎨 知产侵权赔偿计算器（商标 / 著作权）</div>
         <div class="tool-form">
           <label>权利类型
@@ -334,7 +343,7 @@
         <div id="ip-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card">
+      <div class="tool-card" data-tool="cal" data-cat="util">
         <div class="tool-title">📅 合规日历</div>
         <div class="tool-form">
           <label>事项名称<input id="cal-name" type="text" maxlength="30" placeholder="如：劳动仲裁申请截止"></label>

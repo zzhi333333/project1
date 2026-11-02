@@ -66,7 +66,15 @@ else bad("index.html 缺少免责声明！");
 /* ---------- 2. 模拟 window 加载全部 js ---------- */
 head("加载 js（模拟 window，顺序同 index.html）");
 const window = {};
-const sandbox = { window: window, console: console };
+const sandbox = {
+  window: window,
+  console: console,
+  /* 最小 document stub：部分模块顶层会注册事件委托（如 tools.js 法条跳转）。
+     只提供 addEventListener——其余 DOM 访问仍会抛错并被捕获，不掩盖真问题 */
+  document: { addEventListener: function () {}, getElementById: function () { return null; } },
+  navigator: {},
+  localStorage: { getItem: function () { return null; }, setItem: function () {} },
+};
 sandbox.window = window;
 vm.createContext(sandbox);
 /* DOM 绑定模块无法在 Node 中执行（需浏览器 DOM），显式跳过而非误报 */
