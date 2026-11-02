@@ -280,6 +280,50 @@
           </div>
 
           <div class="tool-card">
+            <div class="tool-title">🤝 违约金与定金计算器</div>
+            <div class="tool-form">
+              <label>主合同金额（元）<input id="dj-amount" type="number" min="0" inputmode="decimal" placeholder="如 100000"></label>
+              <label>约定定金数额（元，未约定可不填）<input id="dj-deposit" type="number" min="0" inputmode="decimal" placeholder="如 20000"></label>
+              <label>约定违约金数额（元，未约定可不填）<input id="dj-penalty" type="number" min="0" inputmode="decimal" placeholder="如 30000"></label>
+              <label>实际损失（元，选填，用于违约金调整参考）<input id="dj-loss" type="number" min="0" inputmode="decimal" placeholder="如 15000"></label>
+              <label>违约方
+                <select id="dj-side">
+                  <option value="payer">我方（给付定金一方）</option>
+                  <option value="receiver">对方（收受定金一方）</option>
+                </select>
+              </label>
+              <button id="dj-calc" class="calc-btn">计算</button>
+            </div>
+            <div id="dj-result" class="tool-result"></div>
+          </div>
+
+          <div class="tool-card">
+            <div class="tool-title">🎨 知产侵权赔偿计算器（商标 / 著作权）</div>
+            <div class="tool-form">
+              <label>权利类型
+                <select id="ip-type">
+                  <option value="tm">注册商标专用权（《商标法》第 63 条）</option>
+                  <option value="cr">著作权（《著作权法》第 54 条）</option>
+                </select>
+              </label>
+              <label>计算依据
+                <select id="ip-basis">
+                  <option value="loss">权利人实际损失</option>
+                  <option value="profit">侵权人违法所得</option>
+                  <option value="license">许可使用费的合理倍数</option>
+                  <option value="statutory">法定赔偿（难以计算时）</option>
+                </select>
+              </label>
+              <label>对应金额 / 倍数<input id="ip-amount" type="number" min="0" inputmode="decimal" placeholder="金额填元；许可倍数填倍数（如 3）"></label>
+              <label class="check-line"><input id="ip-willful" type="checkbox"> 恶意侵权且情节严重（可主张 1–5 倍惩罚性赔偿）</label>
+              <label>惩罚性赔偿倍数（勾选上项时填写，1–5）<input id="ip-times" type="number" min="1" max="5" step="0.5" inputmode="decimal" placeholder="如 2"></label>
+              <label>合理维权开支（元，选填）<input id="ip-cost" type="number" min="0" inputmode="decimal" placeholder="律师费 / 公证费等"></label>
+              <button id="ip-calc" class="calc-btn">计算</button>
+            </div>
+            <div id="ip-result" class="tool-result"></div>
+          </div>
+
+          <div class="tool-card">
             <div class="tool-title">📅 合规日历</div>
             <div class="tool-form">
               <label>事项名称<input id="cal-name" type="text" maxlength="30" placeholder="如：劳动仲裁申请截止"></label>

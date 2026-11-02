@@ -344,6 +344,109 @@
     out.innerHTML = html;
   }
 
+  /* ---------- 10. 违约金与定金 ---------- */
+  function calcDeposit() {
+    var amount = parseFloat($("dj-amount").value);
+    var depRaw = parseFloat($("dj-deposit").value);
+    var penRaw = parseFloat($("dj-penalty").value);
+    var loss = parseFloat($("dj-loss").value);
+    var side = $("dj-side").value;
+    var out = $("dj-result");
+    if (!(amount > 0)) {
+      out.innerHTML = '<div class="tool-warn">请填写主合同金额。</div>';
+      return;
+    }
+    var cap = amount * 0.2;
+    var html = '<div class="calc-detail">';
+    /* 定金上限判定（民法典第 586 条） */
+    if (depRaw > 0) {
+      var valid = Math.min(depRaw, cap);
+      var over = depRaw - valid;
+      html += '<b>① 定金上限判定（民法典第 586 条）</b><br>';
+      html += '约定定金 ' + fmt(depRaw) + '，法定上限 = 合同金额 × 20% = <b>' + fmt(cap) + '</b><br>';
+      html += over > 0
+        ? '约定数额<b>超过上限</b>：超出部分 ' + fmt(over) + ' <b>不产生定金效力</b>（不适用定金罚则，可主张返还）；有效定金为 ' + fmt(valid) + '<br>'
+        : '约定数额<b>未超上限</b>，全部 ' + fmt(valid) + ' 产生定金效力<br>';
+      /* 定金罚则（民法典第 587 条） */
+      html += '<b>② 定金罚则（民法典第 587 条）—— 违约方为' + (side === "payer" ? "我方（给付方）" : "对方（收受方）") + '</b><br>';
+      html += side === "payer"
+        ? '给付方违约：<b>无权请求返还定金</b>，损失 ' + fmt(valid) + '<br>'
+        : '收受方违约：<b>双倍返还定金</b> = ' + fmt(valid) + ' × 2 = <b>' + fmt(valid * 2) + '</b>（其中 ' + fmt(valid) + ' 为返还本金 + ' + fmt(valid) + ' 为罚则部分）<br>';
+    }
+    /* 违约金调整（民法典第 585 条） */
+    if (penRaw > 0) {
+      html += '<b>③ 违约金调整参考（民法典第 585 条）</b><br>';
+      html += '约定违约金 ' + fmt(penRaw);
+      if (loss > 0) {
+        var upper = loss * 1.3;
+        if (penRaw > upper) {
+          html += '，实际损失 ' + fmt(loss) + ' → 违约金<b>过分高于损失</b>（超过损失的 30%，即 ' + fmt(upper) + '），违约方可请求法院或仲裁机构<b>适当减少</b><br>';
+        } else if (penRaw < loss) {
+          html += '，低于实际损失 ' + fmt(loss) + '，守约方可请求<b>予以增加</b><br>';
+        } else {
+          html += '，处于实际损失 ' + fmt(loss) + ' 至其 130%（' + fmt(upper) + '）区间内，一般<b>不予以调整</b><br>';
+        }
+      } else {
+        html += '（未填实际损失：约定违约金过分高于造成的损失的，可请求适当减少，司法实践一般以「超过损失 30%」为参考基准）<br>';
+      }
+      if (depRaw > 0) {
+        html += '<b>④ 定金与违约金择一（民法典第 588 条）</b><br>既约定定金又约定违约金的，守约方只能<b>择一适用</b>；定金不足以弥补损失的，可以请求赔偿超过定金数额的损失。<br>';
+      }
+    }
+    if (!(depRaw > 0) && !(penRaw > 0)) {
+      html += '未填写定金与违约金数额：可对照上方依据自行核算——定金上限为合同金额的 20%；定金与违约金不可并用，择一主张。';
+    }
+    html += '</div><div class="calc-note">说明：依据《民法典》第 585–588 条及合同编通则司法解释（法释〔2023〕13 号）。违约金是否酌减由法院/仲裁机构综合合同履行情况、当事人过错等因素裁量，30% 为重要参考而非硬性标准。结果仅供参考。</div>';
+    out.innerHTML = html;
+  }
+
+  /* ---------- 11. 知产侵权赔偿（商标 / 著作权） ---------- */
+  function calcIpDamage() {
+    var type = $("ip-type").value;
+    var basis = $("ip-basis").value;
+    var amount = parseFloat($("ip-amount").value);
+    var willful = $("ip-willful").checked;
+    var times = parseFloat($("ip-times").value);
+    var cost = parseFloat($("ip-cost").value);
+    var out = $("ip-result");
+    var lawName = type === "tm" ? "《商标法》第 63 条" : "《著作权法》第 54 条";
+    if (basis !== "statutory" && !(amount > 0)) {
+      out.innerHTML = '<div class="tool-warn">请填写对应金额或倍数（法定赔偿模式可不填）。</div>';
+      return;
+    }
+    var basisName = { loss: "权利人实际损失", profit: "侵权人违法所得", license: "许可使用费的合理倍数", statutory: "法定赔偿" }[basis];
+    var baseAmount;
+    var html = '<div class="calc-detail">';
+    html += '计算依据：<b>' + basisName + '</b>（' + lawName + '）<br>';
+    if (basis === "statutory") {
+      baseAmount = null;
+      html += '难以计算实际损失/违法所得/许可费的，适用<b>法定赔偿</b>：区间 <b>¥ 500 – ¥ 5,000,000</b>，由法院根据侵权行为情节判决（法定赔偿数额已包含制止侵权行为的合理开支）。<br>';
+    } else if (basis === "license") {
+      baseAmount = amount;
+      html += '赔偿金额参照该权利的许可使用费的<b>合理倍数</b>确定：填入 ' + fmt(amount) + ' 倍 × 实际许可使用费金额（请结合实际许可合同金额核算）。<br>';
+    } else {
+      baseAmount = amount;
+      html += '按' + basisName + '计算：' + fmt(amount) + '<br>';
+    }
+    if (willful) {
+      if (!(times >= 1 && times <= 5)) {
+        out.innerHTML = '<div class="tool-warn">已勾选惩罚性赔偿，请填写 1–5 之间的倍数。</div>';
+        return;
+      }
+      if (basis === "statutory") {
+        html += '<b>⚠️ 惩罚性赔偿提示：</b>惩罚性赔偿的基数是<b>实际损失/违法所得/许可费倍数</b>三者之一，<b>不能以法定赔偿数额为基数</b>。主张惩罚性赔偿需先举证确定基数，并证明「故意 + 情节严重」。<br>';
+      } else {
+        var multi = baseAmount * times;
+        html += '<b>惩罚性赔偿（故意且情节严重）</b>：基数 ' + fmt(baseAmount) + ' × ' + times + ' 倍 = <b>' + fmt(multi) + '</b><br>';
+      }
+    }
+    if (cost > 0) {
+      html += '合理维权开支：' + fmt(cost) + '（为制止侵权行为所支付的合理开支，可一并主张）<br>';
+    }
+    html += '</div><div class="calc-note">说明：' + lawName + '。商标与著作权的法定赔偿上限均为 500 万元、下限 500 元；惩罚性赔偿倍数均为 1–5 倍。具体数额由法院综合权利类型、侵权行为性质与情节等裁量，结果仅供参考。</div>';
+    out.innerHTML = html;
+  }
+
   /* ---------- 装配 ---------- */
   window.TOOLS = {
     init: function () {
@@ -355,6 +458,8 @@
       $("ln-calc").addEventListener("click", calcLoan);
       $("cf-calc").addEventListener("click", calcCourtFee);
       $("fy-calc").addEventListener("click", calcFuyangfei);
+      $("dj-calc").addEventListener("click", calcDeposit);
+      $("ip-calc").addEventListener("click", calcIpDamage);
       var sel = $("dl-type");
       if (sel) sel.addEventListener("change", function () {
         $("dl-custom-wrap").classList.toggle("hidden", sel.value !== "custom");
