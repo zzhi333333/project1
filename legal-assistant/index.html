@@ -128,6 +128,7 @@
         <div id="suggestions" class="suggestions"></div>
         <div class="input-row">
           <label class="ai-toggle" title="开启后，输入的问题由 AI 结合法条与案例回答"><input id="ai-mode" type="checkbox"> <svg class="ico"><use href="#i-ai"/></svg> AI</label>
+          <button id="intake-btn" class="ghost-btn intake-entry" title="AI 引导式深度咨询：逐项收集案件要素后生成可核验分析"><svg class="ico"><use href="#i-agent"/></svg> 深度咨询</button>
           <input id="consult-input" type="text" placeholder="请描述您的问题，如：公司口头把我辞退了，没有给赔偿…">
           <button id="voice-btn" class="mic-btn" title="语音提问（点击开始/停止）"><svg class="mic-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/><path d="M19 11a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V20H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-3v-2.08A7 7 0 0 0 19 11z"/></svg><span class="mic-label">语音</span></button>
           <button id="consult-send">发送</button>
@@ -596,7 +597,9 @@
 <script src="js/agent.js"></script>
 <script src="js/contract.js"></script>
 <script src="js/history.js"></script>
+<script src="js/pack.js"></script>
 <script src="js/caseimport.js"></script>
+<script src="js/intake.js"></script>
 <script src="js/templates.js"></script>
 <script src="js/gsearch.js"></script>
 <script src="js/main.js"></script>

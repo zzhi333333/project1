@@ -338,11 +338,13 @@ window.AI = (function () {
     var div = streamBubble(box);
     var ctx = buildContext(text);
     var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
+      (window.INTAKE && window.INTAKE.isActive() ? window.INTAKE.promptBlock() : "") +
       "\n【追问规则】若用户描述的关键事实明显不足（未说明时间、金额、合同状态、双方关系等核心要素），" +
       "请先合并提出最多两个关键追问，等用户补充后再给完整分析；若信息已足够，直接分析，不要为追问而追问。" }]
       .concat(aiHistory)
       .concat([{ role: "user", content: text }]);
     var full = "";
+    if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onUserMessage(text);
     var dId = (window.ANALYSIS.matchContext(text) || {}).domain;
     aiChat(messages, function (delta) {
       full += delta;
@@ -355,7 +357,7 @@ window.AI = (function () {
       addCopyButton(div, full);
       aiHistory.push({ role: "user", content: text }, { role: "assistant", content: full });
       if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
-      appendFollowUps(div, dId);
+      if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onAssistantDone(); else appendFollowUps(div, dId);
     }).catch(function (e) {
       var msg = (e && e.message || String(e));
       if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
@@ -497,6 +499,24 @@ window.AI = (function () {
     });
 
     /* 咨询页：AI 对话开关（「新对话」按钮已由 main.js/history.js 接管） */
+    /* 深度咨询入口：引导式要素收集（需已配置 AI） */
+    var intakeBtn = document.getElementById("intake-btn");
+    if (intakeBtn) intakeBtn.addEventListener("click", function () {
+      if (!(window.AI && window.AI.isConfigured())) {
+        var box = document.getElementById("chat-box");
+        if (box) { var d = document.createElement("div"); d.className = "msg bot"; d.innerHTML = '<div class="bubble">深度咨询需要先配置 AI 模型：点右上角「AI 模型」设置后即可使用。</div>'; box.appendChild(d); }
+        return;
+      }
+      var modeCb2 = document.getElementById("ai-mode");
+      if (modeCb2 && !modeCb2.checked) modeCb2.click();   /* 自动开启 AI 对话模式 */
+      var t = (document.getElementById("consult-input") || {}).value || "";
+      t = t.trim() || "您好，我需要法律帮助，请引导我梳理案情。";
+      if (window.INTAKE) window.INTAKE.start(t);
+      var inp = document.getElementById("consult-input");
+      if (inp) inp.value = "";
+      aiConsult(t);
+    });
+
     var modeCb = document.getElementById("ai-mode");
     if (modeCb) {
       modeCb.addEventListener("change", syncToggleLabel);

@@ -414,6 +414,26 @@ window.ANALYSIS = (function () {
     });
     html += '</div>';
 
+    /* 案件时间线：阶段序列可视化 + 一键加入合规日历 */
+    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-calendar></use></svg> 案件时间线（可加入合规日历）</div>';
+    html += '<div class="case-timeline">';
+    r.procedure.forEach(function (p, idx) {
+      var stageName = p.stage.replace(/^第\s*\S+\s*步\s*·\s*/, "");
+      html += '<div class="tl-node">' +
+        '<div class="tl-dot"></div>' +
+        '<div class="tl-body">' +
+          '<div class="tl-stage">' + esc(p.stage) + '</div>' +
+          '<div class="tl-sum">' + esc(p.detail[0] || "").slice(0, 60) + '</div>' +
+          '<div class="tl-add" data-stage="' + esc(stageName) + '" data-idx="' + idx + '">' +
+            '<input class="tl-date" type="date" aria-label="目标日期">' +
+            '<span class="tl-quick" data-days="7">+7天</span><span class="tl-quick" data-days="30">+30天</span><span class="tl-quick" data-days="365">+1年</span>' +
+            '<button class="mini-btn tl-cal-add"><svg class=ico><use href=#i-calendar></use></svg> 加入日历</button>' +
+          '</div>' +
+        '</div></div>';
+    });
+    html += '<div class="calc-note">建议日期仅供规划参考（时效以法律规定的起算规则为准），加入日历后会按日历提醒规则在到期前 7 天提醒。</div>';
+    html += '</div></div>';
+
     /* 证据清单 */
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-box></use></svg> 证据准备清单</div><ul class="report-list">';
     r.evidence.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
@@ -488,6 +508,29 @@ window.ANALYSIS = (function () {
     var cases = topCases(text, domain, 2);
     return { domain: domain, domainName: window.DOMAINS[domain].name, scenarios: scenarios, laws: laws, cases: cases };
   }
+
+  /* ---------- 案件时间线：快捷日期与加入日历（事件委托，报告可能在任意容器重渲染） ---------- */
+  document.addEventListener("click", function (e) {
+    var quick = e.target.closest ? e.target.closest(".tl-quick") : null;
+    if (quick) {
+      var row = quick.closest(".tl-add");
+      var inp = row.querySelector(".tl-date");
+      var days = parseInt(quick.getAttribute("data-days"), 10);
+      var d = new Date(Date.now() + days * 86400000);
+      inp.value = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+      return;
+    }
+    var addBtn = e.target.closest ? e.target.closest(".tl-cal-add") : null;
+    if (addBtn) {
+      var addRow = addBtn.closest(".tl-add");
+      var stage = addRow.getAttribute("data-stage");
+      var date = addRow.querySelector(".tl-date").value;
+      var reset = function (html) { addBtn.innerHTML = html; setTimeout(function () { addBtn.innerHTML = '<svg class=ico><use href=#i-calendar></use></svg> 加入日历'; }, 1600); };
+      if (!date) { reset("请先选日期"); return; }
+      var ok = window.TOOLS && window.TOOLS.calAdd ? window.TOOLS.calAdd(stage + "（期限）", date) : false;
+      reset(ok ? '<svg class=ico><use href=#i-checkc></use></svg> 已加入' : "加入失败");
+    }
+  });
 
   return { run: run, render: render, init: init, matchContext: matchContext, EVIDENCE_MAP: EVIDENCE };
 })();

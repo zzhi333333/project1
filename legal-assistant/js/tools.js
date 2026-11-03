@@ -804,6 +804,16 @@
     toolBtnForScenario: toolBtnForScenario,
     toolChipsForDomain: toolChipsForDomain,
     TOOL_META: TOOL_META,
-    TENURE_MAP: TENURE_MAP
+    TENURE_MAP: TENURE_MAP,
+    /* 供案件时间线等外部模块写入合规日历 */
+    calAdd: function (name, date) {
+      if (!name || !date) return false;
+      var list = calLoad();
+      list.push({ name: String(name).slice(0, 30), date: date });
+      calSave(list);
+      calRender();
+      calNotifyCheck();
+      return true;
+    }
   };
 })();

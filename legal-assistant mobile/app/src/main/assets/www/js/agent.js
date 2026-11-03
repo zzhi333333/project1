@@ -401,11 +401,208 @@ window.AGENT = (function () {
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
   }
 
+  /* ============ 劳动仲裁请求清单生成器（数字组合器） ============ */
+  /* 请求项模板：id/名称/参数说明/计算函数/法条依据。金额均保留 2 位小数，标注以官方最新口径为准 */
+  var ARBITRATION_ITEMS = [
+    { id: "severance2n", name: "违法解除劳动合同赔偿金（2N）", params: [
+        { k: "salary", label: "离职前12个月平均月工资（元）" }, { k: "years", label: "工作年限（年，半年以上按1年、不足半年按0.5）" }
+      ], law: "《劳动合同法》第87条、第47条",
+      calc: function (p) { return round2((parseFloat(p.salary) || 0) * (parseFloat(p.years) || 0) * 2); },
+      formula: function (p) { return fmt(p.salary) + " 元/月 × " + p.years + " 年 × 2"; } },
+    { id: "severanceN", name: "经济补偿金（N）", params: [
+        { k: "salary", label: "离职前12个月平均月工资（元）" }, { k: "years", label: "工作年限（年）" }
+      ], law: "《劳动合同法》第46条、第47条",
+      calc: function (p) { return round2((parseFloat(p.salary) || 0) * (parseFloat(p.years) || 0)); },
+      formula: function (p) { return fmt(p.salary) + " 元/月 × " + p.years + " 年"; } },
+    { id: "doublewage", name: "未签书面劳动合同二倍工资差额", params: [
+        { k: "salary", label: "月工资（元）" }, { k: "months", label: "未签合同的月数（最长 11）" }
+      ], law: "《劳动合同法》第82条",
+      calc: function (p) { var m = Math.min(parseFloat(p.months) || 0, 11); return round2((parseFloat(p.salary) || 0) * m); },
+      formula: function (p) { return fmt(p.salary) + " 元/月 × " + Math.min(parseFloat(p.months) || 0, 11) + " 个月（上限 11 个月）"; } },
+    { id: "overtime", name: "加班费", params: [
+        { k: "salary", label: "月工资（元）" }, { k: "wd", label: "工作日延时加班（小时）" },
+        { k: "we", label: "休息日加班（小时）" }, { k: "hd", label: "法定节假日加班（小时）" }
+      ], law: "《劳动法》第44条",
+      calc: function (p) {
+        var h = (parseFloat(p.salary) || 0) / 21.75 / 8;
+        return round2(h * (parseFloat(p.wd) || 0) * 1.5 + h * (parseFloat(p.we) || 0) * 2 + h * (parseFloat(p.hd) || 0) * 3);
+      },
+      formula: function (p) { return "时薪 " + fmt(parseFloat(p.salary) || 0) + " ÷ 21.75 ÷ 8 = " + fmt((parseFloat(p.salary) || 0) / 21.75 / 8) + " 元；延时 " + p.wd + "h×150% + 休息日 " + p.we + "h×200% + 节假日 " + p.hd + "h×300%"; } },
+    { id: "annual", name: "未休年休假工资折算（另付 200% 部分）", params: [
+        { k: "salary", label: "月工资（元）" }, { k: "days", label: "未休年休假天数" }
+      ], law: "《职工带薪年休假条例》第5条、《企业职工带薪年休假实施办法》第10条",
+      calc: function (p) { return round2((parseFloat(p.salary) || 0) / 21.75 * (parseFloat(p.days) || 0) * 2); },
+      formula: function (p) { return fmt(p.salary) + " ÷ 21.75 × " + p.days + " 天 × 200%（含正常工资的 300% 中，另行支付 200%）"; } },
+    { id: "arrears", name: "拖欠工资", params: [
+        { k: "amount", label: "拖欠金额合计（元）" }
+      ], law: "《劳动合同法》第30条",
+      calc: function (p) { return round2(parseFloat(p.amount) || 0); },
+      formula: function (p) { return "直接主张 " + fmt(p.amount); } }
+  ];
+  function round2(n) { return Math.round(n * 100) / 100; }
+  function fmt(n) { var v = parseFloat(n); return isFinite(v) ? v.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) : "0"; }
+
+  function openArbitrationList() {
+    var old = document.getElementById("arb-list-modal");
+    if (old) { old.remove(); return; }
+    var modal = document.createElement("div");
+    modal.id = "arb-list-modal";
+    modal.className = "modal";
+    var body = ARBITRATION_ITEMS.map(function (it, i) {
+      return '<div class="arb-item" data-i="' + i + '">' +
+        '<label class="arb-check"><input type="checkbox" checked> <b>' + esc(it.name) + '</b><span class="arb-law">' + esc(it.law) + '</span></label>' +
+        '<div class="arb-params">' + it.params.map(function (p) {
+          return '<label>' + esc(p.label) + '<input class="arb-in" data-k="' + p.k + '" type="number" min="0" inputmode="decimal" placeholder="0"></label>';
+        }).join("") + '</div>' +
+        '<div class="arb-sum dim" style="font-size:12px"></div>' +
+        '</div>';
+    }).join("");
+    modal.innerHTML =
+      '<div class="modal-mask"></div>' +
+      '<div class="modal-card" style="max-width:600px;width:94%">' +
+        '<div class="modal-title"><svg class=ico><use href=#i-list></use></svg> 劳动仲裁请求清单生成器</div>' +
+        '<div class="modal-body" style="max-height:56vh;overflow-y:auto">' + body +
+          '<div class="calc-note">金额为规则化试算，具体以仲裁委/法院认定与官方最新口径为准；经济补偿/赔偿金有「当地社平工资 3 倍封顶」等特殊规则的请人工复核。</div>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="mini-btn" id="arb-close">关闭</button>' +
+          '<button class="mini-btn primary" id="arb-copy"><svg class=ico><use href=#i-copy></use></svg> 复制请求清单</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    modal.querySelector(".modal-mask").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#arb-close").addEventListener("click", function () { modal.remove(); });
+
+    function collect() {
+      var rows = [];
+      var total = 0;
+      modal.querySelectorAll(".arb-item").forEach(function (item) {
+        var idx = parseInt(item.getAttribute("data-i"), 10);
+        var it = ARBITRATION_ITEMS[idx];
+        var on = item.querySelector("input[type=checkbox]").checked;
+        var params = {};
+        item.querySelectorAll(".arb-in").forEach(function (inp) { params[inp.getAttribute("data-k")] = inp.value; });
+        var filled = Object.keys(params).some(function (k) { return parseFloat(params[k]) > 0; });
+        if (!on || !filled) return;
+        var amt = it.calc(params);
+        total += amt;
+        rows.push({ name: it.name, amount: amt, formula: it.formula(params), law: it.law });
+      });
+      return { rows: rows, total: round2(total) };
+    }
+    function refresh() {
+      var c = collect();
+      modal.querySelectorAll(".arb-item").forEach(function (item) {
+        var idx = parseInt(item.getAttribute("data-i"), 10);
+        var it = ARBITRATION_ITEMS[idx];
+        var on = item.querySelector("input[type=checkbox]").checked;
+        var params = {};
+        item.querySelectorAll(".arb-in").forEach(function (inp) { params[inp.getAttribute("data-k")] = inp.value; });
+        var filled = Object.keys(params).some(function (k) { return parseFloat(params[k]) > 0; });
+        item.querySelector(".arb-sum").textContent = on && filled ? "小计：" + fmt(it.calc(params)) + " 元　｜　计算式：" + it.formula(params) : "";
+      });
+      return c;
+    }
+    modal.addEventListener("input", refresh);
+    modal.addEventListener("change", refresh);
+    refresh();
+
+    modal.querySelector("#arb-copy").addEventListener("click", function () {
+      var c = collect();
+      var text = "劳动仲裁请求清单\n生成日期：" + new Date().toLocaleDateString("zh-CN") + "\n";
+      c.rows.forEach(function (r, i) {
+        text += "\n" + (i + 1) + ". " + r.name + "\n   金额：" + fmt(r.amount) + " 元\n   计算式：" + r.formula + "\n   依据：" + r.law + "\n";
+      });
+      text += "\n合计请求金额：人民币 " + fmt(c.total) + " 元\n\n说明：以上为规则化试算（以官方最新口径为准），具体金额以仲裁委/法院认定为准；另有社平工资 3 倍封顶等特殊规则请人工复核。";
+      modal.querySelector("#arb-copy").innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已复制";
+      setTimeout(function () { var b = document.getElementById("arb-copy"); if (b) b.innerHTML = "<svg class=ico><use href=#i-copy></use></svg> 复制请求清单"; }, 1600);
+      if (navigator.clipboard) navigator.clipboard.writeText(text);
+      else {
+        var ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); } catch (e) {} ta.remove();
+      }
+    });
+  }
+
+  /* ============ 维权材料包（zip，仅网页端；移动端请逐项导出） ============ */
+  function openPack() {
+    var repHtml = (els.answer && els.answer.textContent.trim()) ? els.answer.innerHTML : "";
+    var repText = (els.answer && els.answer.textContent.trim()) ? els.answer.textContent.trim() : "";
+    if (!repText) { els.answer.innerHTML = '<div class="tool-warn">还没有可打包的分析结果——请先「开始分析」。</div>'; return; }
+    var old = document.getElementById("pack-modal");
+    if (old) { old.remove(); return; }
+    var modal = document.createElement("div");
+    modal.id = "pack-modal";
+    modal.className = "modal";
+    modal.innerHTML =
+      '<div class="modal-mask"></div>' +
+      '<div class="modal-card" style="max-width:460px;width:92%">' +
+        '<div class="modal-title"><svg class=ico><use href=#i-box></use></svg> 维权材料包</div>' +
+        '<div class="modal-body">' +
+          '<div class="modal-note">将以下材料打包为一个 zip 文件（本机生成，不上传）：</div>' +
+          '<div class="arb-check"><input type="checkbox" id="pk-report" checked> <b>分析意见书</b>（Word 文档）</div>' +
+          '<div class="arb-check"><input type="checkbox" id="pk-evidence" checked> <b>证据准备清单</b>（文本）</div>' +
+          '<div class="arb-check"><input type="checkbox" id="pk-timeline" checked> <b>案件时间线</b>（文本）</div>' +
+          '<div class="dim" style="font-size:12px;margin-top:6px">提示：zip 内的 Word 文档可用 Word/WPS 打开，执行打印或另存为 PDF。</div>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="mini-btn" id="pk-cancel">取消</button>' +
+          '<button class="mini-btn primary" id="pk-go"><svg class=ico><use href=#i-downtray></use></svg> 打包下载</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    modal.querySelector(".modal-mask").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#pk-cancel").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#pk-go").addEventListener("click", function () {
+      var files = [];
+      var t = new Date();
+      var pad = function (n) { return ("0" + n).slice(-2); };
+      var ds = t.getFullYear() + pad(t.getMonth() + 1) + pad(t.getDate());
+      if (modal.querySelector("#pk-report").checked) {
+        var clean = els.answer.cloneNode(true);
+        clean.querySelectorAll("button, svg, .ai-cursor").forEach(function (x) { x.remove(); });
+        files.push({ name: "分析意见书-" + ds + ".doc", content: buildDocHtml(clean.innerHTML, repText) });
+      }
+      if (modal.querySelector("#pk-evidence").checked) files.push({ name: "证据准备清单-" + ds + ".txt", content: evidenceText() });
+      if (modal.querySelector("#pk-timeline").checked) files.push({ name: "案件时间线-" + ds + ".txt", content: timelineText() });
+      modal.remove();
+      if (window.PACK && window.PACK.download) window.PACK.download("维权材料包-" + ds + ".zip", files);
+    });
+  }
+  function buildDocHtml(repHtml, repText) {
+    var t = new Date();
+    var pad = function (n) { return ("0" + n).slice(-2); };
+    var dateStr = t.getFullYear() + "-" + pad(t.getMonth() + 1) + "-" + pad(t.getDate());
+    return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN"><head><meta charset="utf-8"><title>案件分析参考意见书</title>' +
+      '<style>body{font-family:"Microsoft YaHei",SimSun,sans-serif;font-size:12pt;line-height:1.8;color:#111;margin:24pt}h2{font-size:16pt;text-align:center}.doc-meta{text-align:center;color:#555;font-size:10pt;border-bottom:1pt solid #999;padding-bottom:6pt}.doc-foot{margin-top:16pt;border-top:1pt solid #999;padding-top:6pt;color:#777;font-size:9.5pt}</style></head><body>' +
+      '<h2>案件分析参考意见书</h2><div class="doc-meta">法律咨询助手 · ' + dateStr + " · " + (mode === "ai" ? "AI 可核验分析" : "规则引擎报告") + '</div>' +
+      repHtml +
+      '<div class="doc-foot">免责声明：本报告由「法律咨询助手」生成，仅供参考，不构成法律意见；具体案件请咨询执业律师。</div></body></html>';
+  }
+  function evidenceText() {
+    var lines = ["证据准备清单", "生成日期：" + new Date().toLocaleDateString("zh-CN"), ""];
+    var rep = lastReport && lastReport.evidence ? lastReport.evidence : (window.ANALYSIS && lastRun ? [] : []);
+    (rep || []).forEach(function (x, i) { lines.push("☐ " + (i + 1) + ". " + x); });
+    lines.push("", "提示：电子证据保留原始载体；重要证据建议公证或可信时间戳存证。");
+    return lines.join("\n");
+  }
+  function timelineText() {
+    var lines = ["案件时间线", "生成日期：" + new Date().toLocaleDateString("zh-CN"), ""];
+    var rep = lastReport && lastReport.procedure ? lastReport.procedure : (lastRunReportProcedure || []);
+    (rep || []).forEach(function (p) {
+      lines.push("◆ " + p.stage);
+      (p.detail || []).forEach(function (x) { lines.push("   - " + x); });
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+
   /* ============ Agent 视图工作流 ============ */
   var els = {};
   var mode = "report";  /* "report" = 规则引擎报告（离线） | "ai" = AI 可核验分析 */
   var lastRun = null;   /* {q, ctxText, fullTexts, messages} 供严格模式重生成 */
   var runToken = 0;     /* 运行令牌：停止/新运行使其失效，旧异步链全部静默退出 */
+  var lastReport = null; /* 最近一次规则报告 {evidence, procedure} 供材料包使用 */
 
   /* 停止按钮显隐 */
   function setStopBtn(on) {
@@ -464,12 +661,22 @@ window.AGENT = (function () {
     /* ── 模式一：规则引擎报告（离线、确定性、天然可核验） ── */
     if (mode === "report") {
       var rep = window.ANALYSIS.run(q);
+      lastReport = { evidence: rep.evidence, procedure: rep.procedure, domain: rep.domain };
       stepState(0, "done", rep.domainName + " · " + (rep.focus.length ? rep.focus.map(function (s) { return s.replace(/^\S+\s/, ""); }).join("、") : "综合咨询") + " · " + rep.laws.length + " 条法条 + " + rep.cases.length + " 个案例");
       stepState(1, "done", "结构化报告已生成（要素提取/定性/法条/案例/程序建议/证据清单）");
       stepState(2, "skip", "规则报告内容全部来自内置知识库，天然可核验");
       els.answer.innerHTML = "";
       window.ANALYSIS.render(rep, els.answer);
       appendCopyButton(els.answer, reportToText(rep));
+      /* 劳动领域：追加仲裁请求清单生成器入口 */
+      if (rep.domain === "labor") {
+        var arbBtn = document.createElement("button");
+        arbBtn.className = "mini-btn primary";
+        arbBtn.style.margin = "10px 4px";
+        arbBtn.innerHTML = "<svg class=ico><use href=#i-list></use></svg> 生成仲裁请求清单";
+        arbBtn.addEventListener("click", openArbitrationList);
+        els.answer.appendChild(arbBtn);
+      }
       setStopBtn(false);
       return;
     }
@@ -722,6 +929,7 @@ window.AGENT = (function () {
         '<div class="modal-body">' +
           '<button class="exp-opt" id="exp-word"><b>Word 文档（.doc）</b><span>可编辑；在 Word/WPS 中打开后可直接打印或「另存为 PDF」</span></button>' +
           '<button class="exp-opt" id="exp-pdf"><b>PDF（经系统打印对话框）</b><span>正文已裁剪为意见书版式；在打印机一栏选择「另存为 PDF / Microsoft Print to PDF」即可得到 PDF 文件</span></button>' +
+          (window.PACK && window.PACK.download ? '<button class="exp-opt" id="exp-pack"><b>维权材料包（zip）</b><span>意见书 + 证据准备清单 + 案件时间线打包为一个 zip 文件（本机生成，不上传）</span></button>' : "") +
         '</div>' +
         '<div class="modal-foot"><button class="mini-btn" id="exp-cancel">取消</button></div>' +
       '</div>';
@@ -730,6 +938,8 @@ window.AGENT = (function () {
     modal.querySelector("#exp-cancel").addEventListener("click", function () { modal.remove(); });
     modal.querySelector("#exp-word").addEventListener("click", function () { modal.remove(); exportDoc(); });
     modal.querySelector("#exp-pdf").addEventListener("click", function () { modal.remove(); printAgentReport(); });
+    var packOpt = modal.querySelector("#exp-pack");
+    if (packOpt) packOpt.addEventListener("click", function () { modal.remove(); openPack(); });
   }
 
   /* PDF：干净排版（print-mode 仅显示意见书正文与核验报告）经系统打印——用户选「另存为 PDF」得到真 PDF 文件 */

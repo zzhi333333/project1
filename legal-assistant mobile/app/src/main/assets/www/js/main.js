@@ -692,7 +692,50 @@
       text += "☐ " + (i + 1) + ". " + x + "\n";
     });
     text += "\n提示：电子证据保留原始载体，书面证据保留原件或核对无误的复印件；证据清单随起诉/仲裁材料一并提交。";
-    document.getElementById("doc-list").innerHTML = "";
+    /* 证据三性自检（真实性/合法性/关联性）：交互式勾选 + 按证据类型的取证提示 */
+    var EV_TIPS = [
+      [/聊天|微信|短信|通话记录/, "保留原始载体（手机原件），勿只截图；关键页面录屏并加时间戳"],
+      [/录音|录像/, "保留原始音频/视频文件；取得方式须合法（双方对话可录，窃听私密空间不可）"],
+      [/转账|流水|工资条|银行/, "银行柜台打印并盖章的版本效力高于手机截图"],
+      [/合同|欠条|借条|收据/, "保留原件；复印件须与原件核对无误"],
+      [/照片|视频/, "保留原图（含拍摄时间信息）"],
+      [/证人/, "证人原则上需要出庭作证"],
+      [/裁决书|判决书|仲裁/, "已生效文书可直接作为证据使用"]
+    ];
+    var checks = {};
+    try { checks = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}")[entry.scenarioId] || {}; } catch (e) {}
+    var listHtml = evList.map(function (x, i) {
+      var tip = "";
+      EV_TIPS.forEach(function (t) { if (!tip && t[0].test(x)) tip = t[1]; });
+      var st = checks[i] || {};
+      return '<div class="ev-check-row" data-i="' + i + '">' +
+        '<div class="ev-check-name">' + (i + 1) + ". " + x + '</div>' +
+        '<div class="ev-tri">' +
+          ["真实性", "合法性", "关联性"].map(function (k) {
+            return '<label class="ev-tri-item"><input type="checkbox" data-k="' + k + '" ' + (st[k] ? "checked" : "") + '> ' + k + '</label>';
+          }).join("") +
+        '</div>' +
+        (tip ? '<div class="ev-tip"><svg class=ico><use href=#i-warn></use></svg> ' + tip + '</div>' : "") +
+        '</div>';
+    }).join("");
+    document.getElementById("doc-list").innerHTML =
+      '<div class="dim" style="font-size:12px;margin-bottom:8px">逐项自检证据「三性」并勾选——三项不满足的证据需要补强：</div>' + listHtml +
+      '<div style="margin:8px 0"><button class="mini-btn" id="ev-save-checks">保存勾选状态</button> <span id="ev-saved-tip" class="dim" style="font-size:11.5px"></span></div>';
+    document.getElementById("doc-list").querySelectorAll(".ev-tri input").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var i = cb.closest(".ev-check-row").getAttribute("data-i");
+        checks[i] = checks[i] || {};
+        checks[i][cb.getAttribute("data-k")] = cb.checked;
+      });
+    });
+    document.getElementById("ev-save-checks").addEventListener("click", function () {
+      try {
+        var all = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}");
+        all[entry.scenarioId] = checks;
+        localStorage.setItem("legal-ev-checks", JSON.stringify(all));
+        document.getElementById("ev-saved-tip").textContent = "已保存到本机";
+      } catch (e) { /* 忽略 */ }
+    });
     document.getElementById("doc-text").value = text;
     document.getElementById("doc-modal").classList.remove("hidden");
   }
