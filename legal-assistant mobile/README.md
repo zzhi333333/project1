@@ -2,9 +2,19 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `2.0`（versionCode 14）
+- 包名：`com.zz333.legalassistant`，版本 `2.1`（versionCode 15）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v2.0.apk`（约 470KB）
+- 产物：`dist/legal-assistant-mobile-v2.1.apk`（约 480KB）
+
+## 🆕 v2.1 更新（跟随网页版）
+
+| 功能 | 说明 |
+|---|---|
+| 🔗 OFAC 网址修正 | 制裁清单查询改为官方正确网址 sanctionssearch.ofac.treas.gov（已核验） |
+| 💬 消息气泡优化 | 用户气泡改浅靛蓝底深字（复制选区高亮可见）；双击消息气泡全选文字 |
+| 🤔 推荐追问 | AI 回答完成后追加「可以继续问我」chips：按领域推荐 4 个后续问题，点击直接续问 |
+| ⏹ 深度分析停止按钮 | AI 分析过程中可随时停止（中断生成，后续阶段静默退出） |
+| 📄 导出 Word 意见书 | 真文档下载（.doc，Word/WPS 直接打开，含案情摘述/分析/核验报告/免责声明），走系统保存器；原打印方案保留为「打印/存 PDF」 |
 
 ## 🆕 v2.0 更新（跟随网页版）
 
@@ -75,7 +85,7 @@ v1.4.1：顶栏去掉覆盖范围描述（小屏与图标重叠）。历史版�
 
 ## 📲 安装到手机
 
-1. 把 `dist/legal-assistant-mobile-v2.0.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
+1. 把 `dist/legal-assistant-mobile-v2.1.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
 2. 在手机上点开 APK，系统会提示「未知来源应用」——允许本来源安装即可；**已装旧版可直接覆盖升级**（同一签名）
 3. 打开「法律咨询助手」App，右上角 🤖 配置 AI 模型（推荐智谱 glm-4-flash，官方免费）
 
