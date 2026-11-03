@@ -276,6 +276,8 @@ window.AI = (function () {
     div.querySelectorAll(".ai-stop").forEach(function (x) { x.remove(); });
     setText(div, text);
   }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
   function copyText(t) {
     if (navigator.clipboard) return navigator.clipboard.writeText(t);
     var ta = document.createElement("textarea");
