@@ -189,6 +189,8 @@ window.AI = (function () {
     if (c.cases.length) s += "\n【参考案例】\n" + c.cases.map(function (x) {
       return "· " + (x.no ? x.no + " " : "") + x.title + "：" + (x.gist || x.ruling || "");
     }).join("\n");
+    /* 用户技能：启用的技能追加专项分析框架（位于核验约束之后，免责声明由代码级追加） */
+    if (window.SKILLS && window.SKILLS.promptBlock) s += window.SKILLS.promptBlock();
     return s;
   }
 

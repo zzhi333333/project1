@@ -261,6 +261,10 @@ window.DOCTPL = (function () {
     var out = T.filter(function (t) { return t.scenarios.indexOf(sid) > -1; });
     /* 兜底：至少给一份通用仲裁申请书/起诉状 */
     if (!out.length) out = T.filter(function (t) { return t.id === "arb-labor" || t.id === "complaint-company"; });
+    /* 技能模板：启用技能的自定义文书始终追加在列表末尾 */
+    if (window.SKILLS && window.SKILLS.templatesFor) {
+      window.SKILLS.templatesFor().forEach(function (t) { if (out.indexOf(t) === -1) out.push(t); });
+    }
     return out;
   }
 

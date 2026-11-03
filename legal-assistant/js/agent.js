@@ -806,7 +806,7 @@ window.AGENT = (function () {
         ctxForGen += "\n【资料区·官方全文摘录：《" + fullTexts[k].title + "》（可引用其中条文）】\n" + String(fullTexts[k].text).slice(0, 6000);
       });
       var messages = [
-        { role: "system", content: AGENT_PROMPT + (window.AI && window.AI.langPrompt ? window.AI.langPrompt() : "") },
+        { role: "system", content: AGENT_PROMPT + (window.SKILLS && window.SKILLS.promptBlock ? window.SKILLS.promptBlock() : "") + (window.AI && window.AI.langPrompt ? window.AI.langPrompt() : "") },
         { role: "user", content: "请依据资料区分析以下问题：\n" + ctxForGen }
       ];
       lastRun = { q: q, ctxText: ctxText + Object.keys(fullTexts).map(function (k) { return fullTexts[k].text; }).join(""), fullTexts: fullTexts, messages: messages };

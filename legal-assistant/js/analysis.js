@@ -437,6 +437,12 @@ window.ANALYSIS = (function () {
     /* 证据清单 */
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-box></use></svg> 证据准备清单</div><ul class="report-list">';
     r.evidence.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
+    /* 技能补充清单（启用的技能按领域追加） */
+    if (window.SKILLS && window.SKILLS.checklistsFor) {
+      window.SKILLS.checklistsFor(r.domain).forEach(function (cl) {
+        html += '<li><b>【' + esc(cl.skill) + '·' + esc(cl.name) + '】</b>' + esc(cl.items.join("；")) + '</li>';
+      });
+    }
     html += '</ul></div>';
 
     /* 风险提示 */
