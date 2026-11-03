@@ -88,14 +88,18 @@
   /* ---------- ④ 键盘弹出兜底 ---------- */
   var input = document.getElementById("consult-input");
   if (input) {
-    /* auto-grow：随内容自动长高（CSS 上限约 6 行），清空/发送后重置 */
+    /* auto-grow：随内容自动长高（CSS 上限约 6 行），清空/发送后重置；
+       微信式发送按钮：有内容才出现，清空后隐藏 */
+    var sendBtn = document.getElementById("consult-send");
     var grow = function () {
       input.style.height = "auto";
       input.style.height = Math.min(input.scrollHeight, 132) + "px";
+      if (sendBtn) sendBtn.classList.toggle("hidden", input.value.length === 0);
     };
     input.addEventListener("input", grow);
     input.addEventListener("input", function () { input.dataset.base = input.value; });
     window.addEventListener("resize", grow);
+    grow();
   }
   if (input) {
     input.addEventListener("focus", function () {
