@@ -34,8 +34,8 @@ window.DomainRegistry.registerDomain({
       article: "法规级 · 美国财政部主管", title: "经济制裁与 SDN 清单",
       tags: ["OFAC","SDN","制裁","冻结"],
       text: "美国财政部海外资产控制办公室（OFAC）实施经济制裁：针对国家/地区的全面或行业制裁计划，以及特别指定国民清单（SDN List）——被列者的美国资产被冻结、美国人与其交易被禁止。重要规则：「50% 规则」——被一个或多个 SDN 合计持股 50% 以上的实体即使未列名也自动受限。违反制裁可面临民事罚款（严格责任）乃至刑事追诉。许可：可申请 OFAC 特定许可（specific license）。",
-      note: "官方查询：sanctionssearch.ofac.treasury.gov。制裁计划随外交政策频繁调整，以 OFAC 最新公告为准。",
-      url: "https://sanctionssearch.ofac.treasury.gov/" },
+      note: "官方查询：sanctionssearch.ofac.treas.gov。制裁计划随外交政策频繁调整，以 OFAC 最新公告为准。",
+      url: "https://sanctionssearch.ofac.treas.gov/" },
     { id: "us-301", domain: "trade",
       law: "美国《1974年贸易法》第301条", lawShort: "301条款",
       article: "法规级 · USTR 主管", title: "301调查与加征关税",
@@ -136,7 +136,7 @@ window.DomainRegistry.registerDomain({
       article: "领域级说明", title: "本领域内容的时效性与使用须知",
       tags: ["免责","时效","合规"],
       text: "美欧贸易政策与清单/税率/细则变动极为频繁（制裁包、关税调整、出口管制新规常以月为单位更新）。本工具提供的是制度框架、机构职能与合规路径的要点式指引：① 任何交易与申报决策前，请到条目所附官方链接核对最新文本；② 清单类信息（实体清单/SDN/欧盟制裁清单）请使用官方查询工具逐笔核查；③ 重大交易与争议应聘请涉外律师与合规顾问。本工具内容不构成法律意见。",
-      note: "官方资源总览：bis.doc.gov ｜ sanctionssearch.ofac.treasury.gov ｜ ustr.gov ｜ usitc.gov ｜ ec.europa.eu ｜ eu-sanctions-map.eu" }
+      note: "官方资源总览：bis.doc.gov ｜ sanctionssearch.ofac.treas.gov ｜ ustr.gov ｜ usitc.gov ｜ ec.europa.eu ｜ eu-sanctions-map.eu" }
   ],
 
   /* ================= 合规场景 ================= */
@@ -181,7 +181,7 @@ window.DomainRegistry.registerDomain({
           analysis.push("欧盟制裁直接在全部成员国生效（无需国内立法），资产冻结与交易禁止由成员国执法（刑罚与行政处罚各国不同）。欧盟客户与银行会主动要求合规核查，贸易与结算受影响明显。");
           laws.push("eu-sanctions");
         } else {
-          analysis.push("第一步是精确定位：三个清单的主管机关、法律后果与移除路径完全不同。建议先用官方查询工具核查：实体清单见 bis.doc.gov，SDN 见 sanctionssearch.ofac.treasury.gov，欧盟见 eu-sanctions-map.eu——用公司全称、曾用名与统一社会信用代码交叉检索。");
+          analysis.push("第一步是精确定位：三个清单的主管机关、法律后果与移除路径完全不同。建议先用官方查询工具核查：实体清单见 bis.doc.gov，SDN 见 sanctionssearch.ofac.treas.gov，欧盟见 eu-sanctions-map.eu——用公司全称、曾用名与统一社会信用代码交叉检索。");
         }
         if (a.impact === "bank" || a.impact === "all") {
           analysis.push("金融端受限通常早于并重于贸易端：建议立即与开户行沟通受限原因与银行内部合规政策（很多银行执行比监管更严的「过度合规」标准），评估是否需要切换结算路径与币种，并保留资金往来合法性证据。");

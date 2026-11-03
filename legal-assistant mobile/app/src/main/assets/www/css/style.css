@@ -38,7 +38,8 @@ a { color: var(--primary); text-decoration: none; }
 .hidden { display: none !important; }
 .dim { color: var(--ink-2); }
 mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
-::selection { background: #c7d2fe; }
+::selection { background: #c7d2fe; color: inherit; }
+.msg.user .bubble ::selection, .msg.bot .bubble ::selection { background: #a5b4fc; color: #1e1b4b; }
 
 /* ============ 应用骨架 ============ */
 #app {
@@ -136,10 +137,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   box-shadow: var(--shadow);
   overflow-wrap: break-word; word-break: break-word;
 }
-.msg.user .bubble {
-  background: var(--primary); border-color: var(--primary); color: #fff;
-  border-bottom-right-radius: 6px;
-}
+.msg.user .bubble { background: var(--primary-soft); color: var(--ink); border-color: var(--primary-border); border-bottom-right-radius: 6px; }
 .msg.bot .bubble { border-top-left-radius: 6px; }
 .msg .bubble ul { padding-left: 18px; margin: 4px 0; }
 .msg .bubble li { margin: 2px 0; }
@@ -790,3 +788,14 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .domain-chip .ico, .fav-bar-label .ico, .net-badge .ico, .ai-toggle .ico, .modal-note .ico, .site-footer .ico { width: 14px; height: 14px; vertical-align: -2px; }
 .result-flag .ico, .qc-icon .ico, .group-title .ico { width: 16px; height: 16px; vertical-align: -3px; }
 .qc-icon { display: flex; align-items: center; justify-content: center; }
+
+/* 深度分析：停止按钮 / Word 导出 */
+#agent-stop { color: var(--danger); border-color: var(--danger); }
+#agent-stop:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+
+/* AI 回答后的推荐追问 */
+.followup-row { align-self: stretch; max-width: 100%; }
+.followup-bubble { background: transparent; border: none; padding: 0; }
+.fu-title { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.fu-title .ico { width: 14px; height: 14px; }
+.fu-btn { font-size: 13px; }

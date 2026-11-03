@@ -235,6 +235,37 @@ window.AI = (function () {
     return s;
   }
 
+  /* ---------------- 推荐追问（AI 回答完成后追加，帮不知道下一步问什么的用户） ---------------- */
+  var DOMAIN_FOLLOWS = {
+    labor: ["我的经济补偿 N/N+1/2N 具体怎么算？", "劳动仲裁的流程、时效和费用是怎样的？"],
+    company: ["作为股东我该怎么维权、要准备哪些证据？", "这种情况可以去市场监管局投诉吗？"],
+    patent: ["我该怎么固定对方侵权的证据？", "专利维权的大概周期和费用是多少？"],
+    trade: ["我们该怎么自查是否触碰清单红线？", "遇到调查/制裁第一时间该做什么？"],
+    jiashi: ["这种情况我该怎么收集证据、保护自己？", "走诉讼的话大概多久、抚养费/财产怎么分？"],
+    biaozhu: ["侵权证据该怎么固定（公证/时间戳）？", "向平台投诉或起诉的具体流程？"],
+    minfa: ["诉讼时效还剩多久、怎么中断？", "我需要准备哪些证据、去哪个法院起诉？"],
+    minsusong: ["立案需要哪些材料、费用多少？", "败诉方不履行判决该怎么办？"]
+  };
+  var GENERIC_FOLLOWS = ["我还需要准备哪些证据？", "走法律程序的时间和费用大概多少？"];
+
+  function appendFollowUps(div, domainId) {
+    var qs = (DOMAIN_FOLLOWS[domainId] || []).slice(0, 2).concat(GENERIC_FOLLOWS).slice(0, 4);
+    var wrap = document.createElement("div");
+    wrap.className = "msg bot followup-row";
+    wrap.innerHTML = '<div class="bubble followup-bubble"><div class="fu-title"><svg class=ico><use href=#i-q></use></svg> 可以继续问我</div>' +
+      '<div class="chips">' + qs.map(function (q) {
+        return '<button class="rel-link fu-btn" data-q="' + esc(q) + '">' + esc(q) + '</button>';
+      }).join("") + '</div></div>';
+    wrap.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".fu-btn") : null;
+      if (!b) return;
+      wrap.remove();
+      aiConsult(b.getAttribute("data-q"));
+    });
+    var chatBox = document.getElementById("chat-box");
+    if (chatBox) { chatBox.appendChild(wrap); chatBox.scrollTop = chatBox.scrollHeight; }
+  }
+
   /* ---------------- 集成①：AI 对话模式 ---------------- */
   function streamBubble(box) {
     var div = document.createElement("div");
@@ -293,6 +324,7 @@ window.AI = (function () {
       .concat(aiHistory)
       .concat([{ role: "user", content: text }]);
     var full = "";
+    var dId = (window.ANALYSIS.matchContext(text) || {}).domain;
     aiChat(messages, function (delta) {
       full += delta;
       setText(div, full);
@@ -304,6 +336,7 @@ window.AI = (function () {
       addCopyButton(div, full);
       aiHistory.push({ role: "user", content: text }, { role: "assistant", content: full });
       if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
+      appendFollowUps(div, dId);
     }).catch(function (e) {
       var msg = (e && e.message || String(e));
       if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }

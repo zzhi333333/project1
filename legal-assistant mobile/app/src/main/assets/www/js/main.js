@@ -26,6 +26,16 @@
 
   function scrollDown() { box.scrollTop = box.scrollHeight; }
 
+  /* 双击消息气泡全选文字，方便复制（按钮/链接等交互元素不受影响） */
+  box.addEventListener("dblclick", function (e) {
+    var bubble = e.target.closest ? e.target.closest(".bubble") : null;
+    if (!bubble || e.target.closest("button, a, input, .q-options")) return;
+    var range = document.createRange();
+    range.selectNodeContents(bubble);
+    var sel = window.getSelection && window.getSelection();
+    if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+  });
+
   function recordMsg(entry) {
     if (window.CHATHISTORY) window.CHATHISTORY.record(entry);
   }

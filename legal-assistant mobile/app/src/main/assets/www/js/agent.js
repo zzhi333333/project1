@@ -284,6 +284,31 @@ window.AGENT = (function () {
   var els = {};
   var mode = "report";  /* "report" = 规则引擎报告（离线） | "ai" = AI 可核验分析 */
   var lastRun = null;   /* {q, ctxText, fullTexts, messages} 供严格模式重生成 */
+  var runToken = 0;     /* 运行令牌：停止/新运行使其失效，旧异步链全部静默退出 */
+
+  /* 停止按钮显隐 */
+  function setStopBtn(on) {
+    var b = document.getElementById("agent-stop");
+    if (b) b.classList.toggle("hidden", !on);
+  }
+  /* 停止当前分析：令牌失效（中断后续阶段）+ 中断正在进行的 AI 生成 */
+  function stopAgent() {
+    runToken++;
+    if (window.AI && window.AI.stopCurrent) window.AI.stopCurrent();
+    var b = document.getElementById("agent-stop");
+    if (b) b.classList.add("hidden");
+    /* 把仍在运行中的步骤标记为已停止（abort 后 catch 里不会再走常规错误展示） */
+    if (els.steps) {
+      els.steps.querySelectorAll(".agent-step.run").forEach(function (el) {
+        el.className = "agent-step warn";
+        var n = el.querySelector(".st-note");
+        if (n) n.textContent = "已停止";
+      });
+    }
+    if (els.answer && !els.answer.querySelector(".tool-warn")) {
+      els.answer.innerHTML += '<div class="tool-warn">已按您的要求停止本次分析。</div>';
+    }
+  }
 
   function setMode(m) {
     mode = m;
@@ -312,6 +337,8 @@ window.AGENT = (function () {
     els.panel.innerHTML = "";
     els.steps.classList.remove("hidden");
     [0, 1, 2].forEach(function (i) { stepState(i, "run", ""); });
+    var myToken = ++runToken;
+    setStopBtn(true);
 
     /* ── 模式一：规则引擎报告（离线、确定性、天然可核验） ── */
     if (mode === "report") {
@@ -322,6 +349,7 @@ window.AGENT = (function () {
       els.answer.innerHTML = "";
       window.ANALYSIS.render(rep, els.answer);
       appendCopyButton(els.answer, reportToText(rep));
+      setStopBtn(false);
       return;
     }
 
@@ -361,6 +389,7 @@ window.AGENT = (function () {
     /* 步骤②：约束生成 */
     var ctxText = buildContextBlock(q, c);
     onlinePromise.then(function () {
+      if (myToken !== runToken) return null;   /* 已被停止/新运行取代 */
       els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div>';
       var span = els.answer.querySelector(".ai-text");
       var ctxForGen = ctxText;
@@ -379,13 +408,16 @@ window.AGENT = (function () {
         span.textContent = full;
         els.answer.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }).then(function () {
+        if (myToken !== runToken) return null;
         stepState(1, "done", "生成完毕");
         return { text: full || "（模型未返回内容）" };
       });
     }).then(function (gen) {
+      if (myToken !== runToken) return;   /* 已被停止/新运行取代 */
       /* 步骤③：核验 */
       if (!gen || !gen.text) {
         stepState(2, "skip", "无内容可核验");
+        setStopBtn(false);
         return;
       }
       stepState(2, "run", "正在逐条核验引用与数字断言…");
@@ -397,8 +429,18 @@ window.AGENT = (function () {
       els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
       renderPanel(v, gen.text);
       appendCopyButton(els.answer, gen.text);
+      setStopBtn(false);
     }).catch(function (e) {
+      if (myToken !== runToken) return;   /* 停止触发的 abort 不当错误展示 */
+      if (/abort/i.test(String(e && e.message || e))) {
+        stepState(1, "warn", "已停止生成");
+        stepState(2, "skip", "");
+        els.answer.innerHTML += '<div class="tool-warn">已按您的要求停止本次分析。</div>';
+        setStopBtn(false);
+        return;
+      }
       els.answer.innerHTML += '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + esc(e && e.message || e) + "</div>";
+      setStopBtn(false);
     });
   }
 
@@ -444,20 +486,32 @@ window.AGENT = (function () {
     ]);
     els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div>';
     var span = els.answer.querySelector(".ai-text");
+    var myToken = ++runToken;
+    setStopBtn(true);
     stepState(1, "run", "严格模式重新生成…");
     stepState(2, "run", "");
     var full = "";
     window.AI.aiChat(messages, function (d) { full += d; span.textContent = full; })
       .then(function () {
+        if (myToken !== runToken) return;
         stepState(1, "done", "严格模式生成完毕");
         var v2 = verifyText(full, lastRun.ctxText, lastRun.fullTexts);
         stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
         renderPanel(v2, full);
         appendCopyButton(els.answer, full);
+        setStopBtn(false);
       })
       .catch(function (e) {
+        if (myToken !== runToken) return;
+        if (/abort/i.test(String(e && e.message || e))) {
+          stepState(1, "warn", "已停止生成"); stepState(2, "skip", "");
+          els.answer.innerHTML += '<div class="tool-warn">已按您的要求停止本次分析。</div>';
+          setStopBtn(false);
+          return;
+        }
         els.answer.innerHTML += '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + esc(e && e.message || e) + "</div>";
+        setStopBtn(false);
       });
   }
 
@@ -466,6 +520,67 @@ window.AGENT = (function () {
     setMode(m === "ai" ? "ai" : "report");
     els.input.value = text;
     runAgent();
+  }
+
+  /* ============ 导出 Word 意见书（.doc · HTML 格式，Word/WPS 直接打开） ============ */
+  function exportDoc() {
+    if (!els.answer || !els.answer.textContent.trim()) {
+      els.answer.innerHTML = '<div class="tool-warn">还没有可导出的分析结果——请先「开始分析」。</div>';
+      return;
+    }
+    var clone = els.answer.cloneNode(true);
+    clone.querySelectorAll("button, .ai-cursor, .ai-stop, svg").forEach(function (x) { x.remove(); });
+    var panelHtml = "";
+    if (els.panel && els.panel.textContent.trim()) {
+      var pc = els.panel.cloneNode(true);
+      pc.querySelectorAll("button, svg").forEach(function (x) { x.remove(); });
+      panelHtml = pc.innerHTML;
+    }
+    var t = new Date();
+    var pad = function (n) { return ("0" + n).slice(-2); };
+    var dateStr = t.getFullYear() + "-" + pad(t.getMonth() + 1) + "-" + pad(t.getDate());
+    var title = "案件分析参考意见书";
+    var html =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN"><head><meta charset="utf-8"><title>' + title + '</title>' +
+      '<style>' +
+      'body{font-family:"Microsoft YaHei","PingFang SC",SimSun,sans-serif;font-size:12pt;line-height:1.8;color:#111;margin:24pt}' +
+      'h2{font-size:16pt;text-align:center;margin:6pt 0 2pt}' +
+      '.doc-meta{text-align:center;color:#555;font-size:10pt;border-bottom:1pt solid #999;padding-bottom:6pt;margin-bottom:10pt}' +
+      '.doc-q{background:#f2f4f8;border-left:3pt solid #4f46e5;padding:6pt 10pt;margin:10pt 0;font-size:11pt}' +
+      '.report-sec{margin:10pt 0}.report-sec-title{font-weight:bold;font-size:13pt;border-left:3pt solid #4f46e5;padding-left:6pt;margin:14pt 0 6pt}' +
+      '.fact-chip{border:1pt solid #bbb;padding:1pt 6pt;margin:2pt;font-size:10.5pt}' +
+      '.verify-panel{border:1pt solid #999;padding:8pt;margin-top:12pt;font-size:10.5pt}' +
+      '.vp-line{margin:3pt 0}.law-note{color:#555;font-size:10.5pt;margin:2pt 0}' +
+      '.doc-foot{margin-top:16pt;border-top:1pt solid #999;padding-top:6pt;color:#777;font-size:9.5pt}' +
+      'mark{background:#fff3c7}' +
+      '</style></head><body>' +
+      '<h2>' + title + '</h2>' +
+      '<div class="doc-meta">法律咨询助手 · ' + dateStr + ' · ' + (mode === "ai" ? "AI 可核验分析（引用经程序核验）" : "规则引擎报告（内置知识库）") + '</div>' +
+      '<div class="doc-q"><b>案情摘述：</b>' + esc(els.input.value.trim().slice(0, 500)) + '</div>' +
+      clone.innerHTML +
+      panelHtml +
+      '<div class="doc-foot">免责声明：本报告由「法律咨询助手」基于公开法律信息生成，仅供参考，不构成法律意见或代理服务；具体案件请咨询执业律师。</div>' +
+      '</body></html>';
+    var fname = "法律分析意见书-" + dateStr + ".doc";
+    /* 移动版：走原生 exportFile（系统保存选择器）；网页版：Blob 下载 */
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) {
+      window.BRIDGE.exportFile(fname, html).then(
+        function () { if (window.BRIDGE.toast) window.BRIDGE.toast("已导出 " + fname); },
+        function (e) {
+          var m = String(e && e.error || e || "");
+          if (/cancel/i.test(m)) return;   /* 用户取消，不打扰 */
+          els.answer.innerHTML += '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> 导出失败：' + esc(m) + '</div>';
+        }
+      );
+      return;
+    }
+    var blob = new Blob(["\ufeff" + html], { type: "application/msword" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
   }
 
   /* ============ 供 ai.js 挂载的轻量核验 ============ */
@@ -494,6 +609,10 @@ window.AGENT = (function () {
     };
     if (!els.run) return;
     els.run.addEventListener("click", runAgent);
+    var stopBtn = document.getElementById("agent-stop");
+    if (stopBtn) stopBtn.addEventListener("click", stopAgent);
+    var docBtn = document.getElementById("agent-doc");
+    if (docBtn) docBtn.addEventListener("click", exportDoc);
     els.input.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runAgent();
     });
