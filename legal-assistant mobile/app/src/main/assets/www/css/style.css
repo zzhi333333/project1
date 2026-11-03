@@ -230,6 +230,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   outline: none;
 }
 #consult-input:focus { border-color: var(--primary); background: var(--card); box-shadow: 0 0 0 3px var(--primary-soft); }
+/* 多行输入：随内容自动长高（上限约 6 行），超出滚动 */
+#consult-input { resize: none; overflow-y: auto; min-height: 44px; max-height: 132px; height: 44px; line-height: 1.5; transition: height .12s ease; }
 .send-btn {
   flex: 0 0 auto; padding: 10px 16px; border-radius: 12px;
   background: var(--primary); color: #fff; font-size: 15px; font-weight: 600;

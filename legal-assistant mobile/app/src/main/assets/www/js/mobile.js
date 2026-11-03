@@ -88,6 +88,16 @@
   /* ---------- ④ 键盘弹出兜底 ---------- */
   var input = document.getElementById("consult-input");
   if (input) {
+    /* auto-grow：随内容自动长高（CSS 上限约 6 行），清空/发送后重置 */
+    var grow = function () {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 132) + "px";
+    };
+    input.addEventListener("input", grow);
+    input.addEventListener("input", function () { input.dataset.base = input.value; });
+    window.addEventListener("resize", grow);
+  }
+  if (input) {
     input.addEventListener("focus", function () {
       setTimeout(function () {
         var box = document.getElementById("chat-box");
@@ -120,6 +130,16 @@
       var listening = false;
       window.__brSpeech = function (text) {
         var input = document.getElementById("consult-input");
+  if (input) {
+    /* auto-grow：随内容自动长高（CSS 上限约 6 行），清空/发送后重置 */
+    var grow = function () {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 132) + "px";
+    };
+    input.addEventListener("input", grow);
+    input.addEventListener("input", function () { input.dataset.base = input.value; });
+    window.addEventListener("resize", grow);
+  }
         if (input && text) input.value = text;
       };
       window.__brSpeechEnd = function (err, msg) {

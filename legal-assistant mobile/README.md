@@ -2,9 +2,17 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `2.4`（versionCode 18）
+- 包名：`com.zz333.legalassistant`，版本 `2.5`（versionCode 19）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v2.4.apk`（约 480KB）
+- 产物：`dist/legal-assistant-mobile-v2.5.apk`（约 480KB）
+
+## 🆕 v2.5 更新（体验优化）
+
+| 优化 | 说明 |
+|---|---|
+| ⌨️ 多行输入框 | 咨询输入框升级为多行 textarea：**随内容自动长高**（上限约 6 行，超出滚动），方便完整描述案情时间线 |
+| 🔢 字数上限 | 2000 字符（约 1400 中文字）——足够完整案情描述；更长的案情请用「深度分析」粘贴框 |
+| ↵ Enter 语义 | 移动端 Enter = 换行（多行描述），发送用「发送」按钮——符合移动端惯例 |
 
 ## 🆕 v2.4 更新（问题修复）
 

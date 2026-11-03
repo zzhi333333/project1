@@ -310,13 +310,7 @@
     window.CONSULT.start(input.value);
     input.value = "";
     delete input.dataset.base;
-  });
-  input.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      window.CONSULT.start(input.value);
-      input.value = "";
-      delete input.dataset.base;
-    }
+    input.dispatchEvent(new Event("input"));
   });
 
   /* ---------- 快捷场景卡片（带领域筛选） ---------- */

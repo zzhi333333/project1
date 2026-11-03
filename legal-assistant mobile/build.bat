@@ -13,7 +13,7 @@ set "APP=%ROOT%app\src\main"
 set "OUT=%ROOT%build"
 set "DIST=%ROOT%dist"
 set "KS=%ROOT%tools\debug.keystore"
-set "VERSION_NAME=2.4"
+set "VERSION_NAME=2.5"
 
 if "%JAVA_HOME%"=="" (
   for /d %%D in ("C:\Users\zz333\android\jdk-*") do set "JAVA_HOME=%%D"
