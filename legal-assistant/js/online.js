@@ -194,6 +194,31 @@ window.ONLINE = (function () {
     return html;
   }
 
+  /* ---------- 官方查询直达（真实官网界面；需登录站点进入官方登录页） ---------- */
+  var OFFICIAL_SOURCES = [
+    { name: "中国裁判文书网", url: "https://wenshu.court.gov.cn/", icon: "i-cases",
+      desc: "全国法院公开裁判文书总量最大来源；2020 年起查看文书全文需登录", login: true },
+    { name: "人民法院案例库", url: "https://rmfyalk.court.gov.cn/", icon: "i-shield",
+      desc: "最高人民法院建设的权威参考案例库（入库案例经最高法审核）；需注册登录", login: true },
+    { name: "多元解纷案例库", url: "https://dyjfalk.court.gov.cn/", icon: "i-link",
+      desc: "调解、仲裁等多元解纷典型案例；需登录", login: true },
+    { name: "未成年人权益保护案事例库", url: "https://rmfyalk.court.gov.cn/view/list-juvenile.html", icon: "i-star",
+      desc: "未成年人权益保护案事例专栏；需登录", login: true }
+  ];
+  function renderOfficialSources() {
+    var box = document.getElementById("official-sources");
+    if (!box) return;
+    box.innerHTML = OFFICIAL_SOURCES.map(function (s) {
+      return '<div class="official-src-card">' +
+        '<div class="os-head"><svg class=ico><use href=#' + s.icon + '></use></svg> <b>' + esc(s.name) + '</b>' +
+        '<span class="os-login">' + (s.login ? "需登录" : "公开") + '</span></div>' +
+        '<div class="os-desc">' + esc(s.desc) + '</div>' +
+        '<div class="os-actions"><a class="mini-btn primary" target="_blank" rel="noopener" href="' + esc(s.url) + '">打开官方界面 ↗</a></div>' +
+        '</div>';
+    }).join("") +
+    '<div class="dim" style="font-size:12.5px;margin-top:8px">说明：官方站点（含文书网）均需在官方界面注册/登录后检索，本页无法代为登录；上方"在线检索"为公开网页结果的快速定位，全文请登录官方站点查看。</div>';
+  }
+
   function renderCaseResults(r) {
     var box = document.getElementById("case-results");
     var siteName = r.site === "court" ? "最高人民法院官网（指导性案例·裁判文书）" : "中国裁判文书网";
@@ -202,11 +227,20 @@ window.ONLINE = (function () {
       return;
     }
     var items = r.results || [];
+    /* 登录提示条：wenshu 全文需登录；提供官方真实界面入口 */
+    /* 官方站需登录：给出关键词 + 官方真实界面入口，登录后站内检索即见结果 */
+    var loginTip = '<div class="login-tip"><svg class=ico><use href=#i-lock></use></svg> <span>官方站需<b>登录</b>后检索全文。为您准备的关键词：<b>「' + esc(r.q) + '」</b>——打开官方界面登录后粘贴检索即可：</span>' +
+      (r.site !== "court"
+        ? '<a class="mini-btn primary" target="_blank" rel="noopener" href="https://wenshu.court.gov.cn/">裁判文书网 ↗</a>' +
+          '<a class="mini-btn" target="_blank" rel="noopener" href="https://rmfyalk.court.gov.cn/">案例库 ↗</a>'
+        : '<a class="mini-btn primary" target="_blank" rel="noopener" href="https://www.court.gov.cn/">最高人民法院官网 ↗</a>') +
+      '</div>';
     if (!items.length) {
-      box.innerHTML = '<div class="empty">未通过公开搜索定位到「' + esc(r.q) + '」相关文书。可简化关键词后重试，或直接到 <a href="https://wenshu.court.gov.cn" target="_blank" rel="noopener">中国裁判文书网</a> 检索（部分文书需登录）。</div>';
+      box.innerHTML = loginTip + '<div class="empty">未通过公开搜索定位到「' + esc(r.q) + '」相关文书。可简化关键词后重试，或点上方官方入口登录后到站内检索。</div>';
       return;
     }
-    var html = '<div class="flk-meta">经公开搜索引擎定位 · ' + esc(siteName) + ' 相关结果（点击标题打开原文）</div>';
+    var html = loginTip +
+      '<div class="flk-meta">公开网页定位 · ' + esc(siteName) + ' 相关结果（点击标题打开原文；文书网全文需登录）</div>';
     items.forEach(function (it) {
       html +=
         '<div class="case-web-item">' +
@@ -293,6 +327,7 @@ window.ONLINE = (function () {
       }
       caseBtn.addEventListener("click", doCase);
       caseInput.addEventListener("keydown", function (e) { if (e.key === "Enter") doCase(); });
+      renderOfficialSources();
       renderGuiding("");
     });
   }

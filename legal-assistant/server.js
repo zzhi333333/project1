@@ -21,6 +21,7 @@ var https = require("https");
 var fs = require("fs");
 var path = require("path");
 var zlib = require("zlib");
+var urlmod = require("url");
 
 var PORT = parseInt(process.env.PORT || "8080", 10);
 var ROOT = __dirname;
@@ -281,18 +282,22 @@ function bingSearch(query, cb) {
 }
 
 function caseSearch(q, site, cb) {
-  var siteFilter = site === "court" ? "site:www.court.gov.cn" : "site:wenshu.court.gov.cn";
-  var extra = site === "court" ? "指导案例" : "";
-  bingSearch(siteFilter + " " + q + " " + extra, function (err, list) {
+  var isCourt = site === "court";
+  /* 必应对无 cookie 请求经常忽略 site: 算符（实测全部返回站外结果），
+     因此不用 site:，直接通用检索 + 官方域白名单过滤 */
+  var query = isCourt ? q + " 指导性案例 最高人民法院" : q + " 裁判文书 判决书";
+  /* 文书网需登录，其公开可见内容主要在最高法公报/官网/chinacourt——同为官方域 */
+  var officialOk = isCourt
+    ? /(^|\.)court\.gov\.cn$/i
+    : /(^|\.)court\.gov\.cn$|(^|\.)chinacourt\.org$/i;
+  bingSearch(query, function (err, list) {
     if (err) return cb(err);
-    /* 文书网无结果时，用第二策略：去掉 site: 限定补充检索 */
-    if (!list.length) {
-      bingSearch(q + " 裁判文书 " + (site === "court" ? "指导性案例" : ""), function (e2, l2) {
-        cb(null, (l2 || []).filter(function (x) { return /court\.gov\.cn|chinacourt|zhongcai|wenshu/i.test(x.url); }));
-      });
-      return;
-    }
-    cb(null, list);
+    var filtered = (list || []).filter(function (x) {
+      var h = (urlmod.parse(x.url).hostname || "").toLowerCase();
+      if (isCourt && /(^|\.)wenshu\.court\.gov\.cn$/i.test(h)) return false;  /* court 页签排除文书网子域 */
+      return officialOk.test(h);
+    });
+    cb(null, filtered);
   });
 }
 

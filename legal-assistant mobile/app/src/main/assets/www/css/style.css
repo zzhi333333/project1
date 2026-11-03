@@ -799,3 +799,15 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .fu-title { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
 .fu-title .ico { width: 14px; height: 14px; }
 .fu-btn { font-size: 13px; }
+
+/* 案例页：官方查询直达卡 + 登录提示条 */
+.official-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.official-src-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 15px; }
+.os-head { display: flex; align-items: center; gap: 7px; font-size: 14.5px; color: var(--ink); }
+.os-head .ico { width: 16px; height: 16px; color: var(--primary); }
+.os-login { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--danger-soft); color: var(--warn); flex: none; }
+.os-desc { font-size: 12.5px; color: var(--ink-2); margin: 6px 0 9px; line-height: 1.55; }
+.os-actions .mini-btn { font-size: 12.5px; }
+.login-tip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--danger-soft); border: 1px solid var(--warn); border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; font-size: 13px; color: var(--ink); }
+.login-tip .ico { width: 15px; height: 15px; color: var(--warn); flex: none; }
+.login-tip .mini-btn { font-size: 12px; }
