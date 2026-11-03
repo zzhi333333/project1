@@ -704,6 +704,52 @@ window.AGENT = (function () {
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
   }
 
+  /* ============ 导出格式选择：Word（直接下载）/ PDF（干净排版经系统打印「另存为 PDF」） ============ */
+  function exportChoose() {
+    if (!els.answer || !els.answer.textContent.trim()) {
+      els.answer.innerHTML = '<div class="tool-warn">还没有可导出的分析结果——请先「开始分析」。</div>';
+      return;
+    }
+    var old = document.getElementById("export-choose-modal");
+    if (old) { old.remove(); return; }
+    var modal = document.createElement("div");
+    modal.id = "export-choose-modal";
+    modal.className = "modal";
+    modal.innerHTML =
+      '<div class="modal-mask"></div>' +
+      '<div class="modal-card" style="max-width:480px;width:92%">' +
+        '<div class="modal-title"><svg class=ico><use href=#i-file></use></svg> 导出分析结果</div>' +
+        '<div class="modal-body">' +
+          '<button class="exp-opt" id="exp-word"><b>Word 文档（.doc）</b><span>可编辑；在 Word/WPS 中打开后可直接打印或「另存为 PDF」</span></button>' +
+          '<button class="exp-opt" id="exp-pdf"><b>PDF（经系统打印对话框）</b><span>正文已裁剪为意见书版式；在打印机一栏选择「另存为 PDF / Microsoft Print to PDF」即可得到 PDF 文件</span></button>' +
+        '</div>' +
+        '<div class="modal-foot"><button class="mini-btn" id="exp-cancel">取消</button></div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    modal.querySelector(".modal-mask").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#exp-cancel").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#exp-word").addEventListener("click", function () { modal.remove(); exportDoc(); });
+    modal.querySelector("#exp-pdf").addEventListener("click", function () { modal.remove(); printAgentReport(); });
+  }
+
+  /* PDF：干净排版（print-mode 仅显示意见书正文与核验报告）经系统打印——用户选「另存为 PDF」得到真 PDF 文件 */
+  function printAgentReport() {
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.printDoc) {
+      window.BRIDGE.printDoc("法律咨询意见书");   /* 原生 PrintManager（可存 PDF） */
+      return;
+    }
+    var wrap = document.createElement("div");
+    wrap.className = "print-target";
+    var cloneA = els.answer.cloneNode(true);
+    cloneA.querySelectorAll("button, .ai-cursor").forEach(function (x) { x.remove(); });
+    wrap.appendChild(cloneA);
+    if (els.panel && els.panel.textContent.trim()) wrap.appendChild(els.panel.cloneNode(true));
+    document.body.appendChild(wrap);
+    if (window.printEl) window.printEl(wrap);
+    else window.print();
+    setTimeout(function () { wrap.remove(); }, 2000);
+  }
+
   /* ============ 供 ai.js 挂载的轻量核验 ============ */
   function attachVerification(bubbleDiv, answerText, ctxText) {
     if (!answerText) return;
@@ -743,8 +789,8 @@ window.AGENT = (function () {
     var btnA = document.getElementById("agent-mode-ai");
     if (btnR) btnR.addEventListener("click", function () { setMode("report"); });
     if (btnA) btnA.addEventListener("click", function () { setMode("ai"); });
-    var printBtn = document.getElementById("agent-print");
-    if (printBtn) printBtn.addEventListener("click", function () { window.print(); });
+    var exportBtn = document.getElementById("agent-export");
+    if (exportBtn) exportBtn.addEventListener("click", exportChoose);
     var ex = document.getElementById("agent-examples");
     [
       "公司口头把我辞退了没有赔偿，我能主张2N吗？程序怎么走？",
