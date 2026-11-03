@@ -167,6 +167,15 @@
     var start = new Date(date + "T00:00:00");
     if (isNaN(start)) { out.innerHTML = '<div class="tool-warn">日期格式有误。</div>'; return; }
     var deadline = new Date(start.getTime() + days * 86400000);
+    /* 节假日顺延（民诉法 85 条：届满日是节假日的顺延至其后第一日；limitation.js 提供官方放假表） */
+    var postponedNote = "";
+    if (window.LIMITATION && window.LIMITATION.postponeIfRest) {
+      var pp = window.LIMITATION.postponeIfRest(deadline);
+      if (pp.postponed) {
+        deadline = pp.date;
+        postponedNote = '<br><span style="color:var(--primary)">⏱ 届满日为法定节假日/休息日，已按《民事诉讼法》第85条顺延至 ' + window.LIMITATION.ymd(deadline) + '（以最新国务院放假通知为准）</span>';
+      }
+    }
     var today = new Date(); today.setHours(0, 0, 0, 0);
     var left = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
     var status, cls;
@@ -175,7 +184,7 @@
     else { status = "剩余 " + left + " 天"; cls = "calc-head"; }
     function fmt(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
     out.innerHTML = '<div class="' + cls + '" style="border-radius:8px;padding:10px 13px;font-size:14.5px">⏳ ' + status + '</div>' +
-      '<div class="calc-detail">起算日：' + fmt(start) + '　→　时效届满：' + fmt(deadline) + '（' + days + ' 天）<br>' +
+      '<div class="calc-detail">起算日：' + fmt(start) + '　→　时效届满：' + fmt(deadline) + '（' + days + ' 天）' + postponedNote + '<br>' +
       '临近届满（30 天内）务必启动相应程序，或留存时效中断证据（书面催告、对方付款或承认等）。</div>' +
       '<div class="calc-note">说明：时效可因主张权利、对方同意履行、起诉等而中断重新起算；部分情形有特殊规则（如劳动报酬在职期间不受 1 年限制）。本工具按通用规则估算，仅供参考。</div>' +
       '<button id="dl-to-cal" class="ghost-btn" style="margin-top:10px"><svg class=ico><use href=#i-calendar></use></svg> 加入合规日历</button>';
@@ -450,7 +459,7 @@
   /* =========================================================
    * 工具卡通用能力：分类筛选 / 排序 / 收藏置顶 / 一键复制 / 法条跳转
    * ========================================================= */
-  var TOOL_ORDER = ["sv", "ot", "al", "ln", "dj", "fy", "pt", "ip", "cf", "dl", "cal"];
+  var TOOL_ORDER = ["sv", "ot", "al", "ln", "dj", "fy", "pt", "ip", "cf", "dl", "sx", "cal"];
   var FAV_KEY = "legal-fav-tools";
 
   function getToolFavs() {

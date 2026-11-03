@@ -80,10 +80,13 @@ sandbox.window = sandbox;
 sandbox.window.Notification = undefined;
 vm.createContext(sandbox);
 
-/* ---------------- 载入 tools.js ---------------- */
-const toolsPath = path.join(root, "js", "tools.js");
-vm.runInContext(fs.readFileSync(toolsPath, "utf8"), sandbox, { filename: "js/tools.js" });
+/* ---------------- 载入 limitation.js + tools.js ---------------- */
+vm.runInContext(fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"), sandbox, { filename: "js/limitation.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "tools.js"), "utf8"), sandbox, { filename: "js/tools.js" });
 const TOOLS = sandbox.window.TOOLS;
+const LIMITATION = sandbox.window.LIMITATION;
+if (!TOOLS || !TOOLS.init) { console.error("❌ tools.js 未暴露 window.TOOLS，无法测试"); process.exit(1); }
+if (!LIMITATION || !LIMITATION.postponeIfRest) { console.error("❌ limitation.js 未就绪，时效顺延无法测试"); process.exit(1); }
 if (!TOOLS || !TOOLS.init) { console.error("❌ tools.js 未暴露 window.TOOLS，无法测试"); process.exit(1); }
 TOOLS.init();
 
@@ -186,7 +189,7 @@ T("专利期限：发明 2020-06-15 申请 → 保护期至 2040年6月15日", f
   expectContains(h, "2023年6月15日");                 // 3年实审截止
 });
 
-/* ---------- 5. 时效倒计时 ---------- */
+/* ---------- 5. 时效倒计时（含节假日顺延） ---------- */
 T("时效倒计时：2026-01-01 + 365 天 → 届满 2027-01-01", function () {
   feed({ "dl-date": "2026-01-01", "dl-type": "365" });
   runCalc("dl-calc");
@@ -196,6 +199,27 @@ T("时效倒计时：自定义天数缺失 → 校验提示", function () {
   feed({ "dl-date": "2026-01-01", "dl-type": "custom", "dl-days": "" });
   runCalc("dl-calc");
   expectWarn(out("dl-result"));
+});
+T("时效顺延：届满日为周六（2026-03-07）→ 顺延至周一 2026-03-09", function () {
+  feed({ "dl-date": "2026-01-01", "dl-type": "custom", "dl-days": "65" });
+  runCalc("dl-calc");
+  const h = out("dl-result");
+  expectContains(h, "顺延");
+  expectContains(h, "2026-03-09");
+});
+T("时效顺延：届满日落入 2025 国庆假期（2025-10-01）→ 顺延至 2025-10-09", function () {
+  feed({ "dl-date": "2025-06-01", "dl-type": "custom", "dl-days": "122" });
+  runCalc("dl-calc");
+  const h = out("dl-result");
+  expectContains(h, "顺延");
+  expectContains(h, "2025-10-09");
+});
+T("时效顺延：调休补班日（2025-09-28 周日上班）不算休息日", function () {
+  feed({ "dl-date": "2025-06-01", "dl-type": "custom", "dl-days": "119" });   // +119 = 2025-09-28
+  runCalc("dl-calc");
+  const h = out("dl-result");
+  if (h.indexOf("顺延") > -1) throw new Error("2025-09-28 为调休上班日，不应顺延\n      实际输出：" + h.slice(0, 200));
+  expectContains(h, "2025-09-28");
 });
 
 /* ---------- 6. 民间借贷利息 ---------- */

@@ -288,8 +288,8 @@
         <div id="al-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card" data-tool="ln" data-cat="civil">
-        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-ln"/></svg></span><span>民间借贷利息计算器</span></div>
+      <div class="tool-card" data-tool="pt" data-cat="ip">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-pt"/></svg></span><span>专利关键期限计算器</span></div>
         <div class="tool-form">
           <label>专利类型
             <select id="pt-type">
@@ -304,8 +304,8 @@
         <div id="pt-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card" data-tool="dj" data-cat="civil">
-        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-dj"/></svg></span><span>违约金与定金计算器</span></div>
+      <div class="tool-card" data-tool="dl" data-cat="proc">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-dl"/></svg></span><span>时效倒计时</span></div>
         <div class="tool-form">
           <label>事件日期（如离职日、知道权利被侵害之日）<input id="dl-date" type="date"></label>
           <label>时效类型
@@ -315,6 +315,8 @@
               <option value="60">行政复议 / 决议撤销 —— 60日</option>
               <option value="180">行政诉讼 —— 6个月</option>
               <option value="90">回购诉讼（公司法） —— 90日</option>
+              <option value="15">判决上诉 —— 15日</option>
+              <option value="730">申请强制执行 —— 2年</option>
               <option value="custom">自定义天数…</option>
             </select>
           </label>
@@ -324,8 +326,8 @@
         <div id="dl-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card" data-tool="fy" data-cat="civil">
-        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-fy"/></svg></span><span>抚养费计算器</span></div>
+      <div class="tool-card" data-tool="ln" data-cat="civil">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-ln"/></svg></span><span>民间借贷利息计算器</span></div>
         <div class="tool-form">
           <label>借款本金（元，按实际到手金额）<input id="ln-principal" type="number" min="0" placeholder="如 100000"></label>
           <label>约定年利率（%）<input id="ln-rate" type="number" min="0" step="0.1" placeholder="如 15"></label>
@@ -337,8 +339,8 @@
         <div id="ln-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card" data-tool="pt" data-cat="ip">
-        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-pt"/></svg></span><span>专利关键期限计算器</span></div>
+      <div class="tool-card" data-tool="cf" data-cat="proc">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-cf"/></svg></span><span>诉讼费用计算器</span></div>
         <div class="tool-form">
           <label>诉讼标的额（元）<input id="cf-amount" type="number" min="0" placeholder="如 100000"></label>
           <label>审理程序
@@ -353,8 +355,8 @@
         <div id="cf-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card" data-tool="ip" data-cat="ip">
-        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-ip"/></svg></span><span>知产侵权赔偿计算器（商标 / 著作权）</span></div>
+      <div class="tool-card" data-tool="fy" data-cat="civil">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-fy"/></svg></span><span>抚养费计算器</span></div>
         <div class="tool-form">
           <label>不直接抚养方月总收入（元）<input id="fy-income" type="number" min="0" placeholder="如 10000"></label>
           <label>子女数量
@@ -375,8 +377,8 @@
         <div id="fy-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card" data-tool="cf" data-cat="proc">
-        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-cf"/></svg></span><span>诉讼费用计算器</span></div>
+      <div class="tool-card" data-tool="dj" data-cat="civil">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-dj"/></svg></span><span>违约金与定金计算器</span></div>
         <div class="tool-form">
           <label>主合同金额（元）<input id="dj-amount" type="number" min="0" placeholder="如 100000"></label>
           <label>约定定金数额（元，未约定可不填）<input id="dj-deposit" type="number" min="0" placeholder="如 20000"></label>
@@ -393,8 +395,8 @@
         <div id="dj-result" class="tool-result"></div>
       </div>
 
-      <div class="tool-card" data-tool="dl" data-cat="proc">
-        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-dl"/></svg></span><span>时效倒计时</span></div>
+      <div class="tool-card" data-tool="ip" data-cat="ip">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-ip"/></svg></span><span>知产侵权赔偿计算器（商标 / 著作权）</span></div>
         <div class="tool-form">
           <label>权利类型
             <select id="ip-type">
@@ -417,6 +419,15 @@
           <button id="ip-calc" class="calc-btn">计算</button>
         </div>
         <div id="ip-result" class="tool-result"></div>
+      </div>
+
+      <div class="tool-card" data-tool="sx" data-cat="util">
+        <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-dl"/></svg></span><span>时效规则中心</span></div>
+        <div class="tool-form">
+          <div class="dim" style="font-size:13px;line-height:1.7">21 类常用时效 / 期间规则集中速查：民事 3 年 · 劳动仲裁 1 年 · 上诉 15 日 · 申请执行 2 年 · 行政复议 60 日 · 商标无效 5 年……含<b>起算点、中断/中止事由与法条依据</b>，并可一键按该时效填入倒计时。</div>
+          <button id="sx-center-btn" class="calc-btn"><svg class=ico><use href=#i-book-open></use></svg> 打开时效规则中心</button>
+        </div>
+        <div class="tool-result dim" style="font-size:12.5px">⚠️ 时效涉及失权后果，个案起算与中断认定请咨询执业律师；规则以现行法律及司法解释为准。</div>
       </div>
 
       <div class="tool-card" data-tool="cal" data-cat="util">
@@ -563,6 +574,35 @@
 </div>
 
 <!-- 首次使用引导 -->
+<!-- 时效规则中心 -->
+<div id="sx-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card" style="width:min(760px, calc(100vw - 32px))">
+    <div class="modal-title"><svg class="ico"><use href="#i-t-dl"/></svg> 时效规则中心</div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <input id="sx-search" type="text" placeholder="搜索时效 / 起算点 / 法条…" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+      </div>
+      <div id="sx-cats" class="chips" style="margin-bottom:10px">
+        <button class="filter-chip active" data-cat="all">全部</button>
+        <button class="filter-chip" data-cat="civil">民事</button>
+        <button class="filter-chip" data-cat="labor">劳动</button>
+        <button class="filter-chip" data-cat="proc">民诉程序</button>
+        <button class="filter-chip" data-cat="admin">行政</button>
+        <button class="filter-chip" data-cat="ip">知产</button>
+        <button class="filter-chip" data-cat="company">公司</button>
+      </div>
+      <div id="sx-list" style="max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+      <div class="modal-note" style="margin-top:10px">
+        <b>时效中断</b>（重新起算）：向对方主张权利 / 对方同意履行 / 提起诉讼或仲裁。<b>时效中止</b>（最后6个月内因不可抗力等暂停）：自障碍消除之日起满 6 个月届满。
+        期间<b>届满日遇法定节假日的，顺延至节假日后的第一日</b>（《民事诉讼法》第85条；本工具倒计时已按官方放假安排自动顺延，最新安排以国务院通知为准）。
+        个案起算与中断认定请咨询执业律师。
+      </div>
+    </div>
+    <div class="modal-foot"><button id="sx-close">关闭</button></div>
+  </div>
+</div>
+
 <div id="guide-modal" class="modal hidden">
   <div class="modal-mask"></div>
   <div class="modal-card" style="width:min(520px, calc(100vw - 32px))">
@@ -601,6 +641,7 @@
 <script src="js/consult.js"></script>
 <script src="js/analysis.js"></script>
 <script src="js/search.js"></script>
+<script src="js/limitation.js"></script>
 <script src="js/tools.js"></script>
 <script src="js/online.js"></script>
 <script src="js/ai.js"></script>

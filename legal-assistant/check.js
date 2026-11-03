@@ -63,6 +63,26 @@ if (navViews.length && navViews.every(function (v) { return html.indexOf('id="vi
 if (html.indexOf("免责声明") !== -1) ok("页脚免责声明保留");
 else bad("index.html 缺少免责声明！");
 
+/* 工具卡标题 ↔ 表单对齐（曾发生 7 张卡标题与表单整体错位：dj 卡里是倒计时表单等。
+   data-tool="X" 的卡片必须包含 id="X-calc" 与 id="X-result"（cal 卡除外） */
+{
+  const cardRe = /<div class="tool-card" data-tool="([a-z]+)"[^>]*>([\s\S]*?)(?=<div class="tool-card" data-tool=|<\/div>\s*<\/section>)/g;
+  let cm, cardBad = 0, cardTotal = 0;
+  while ((cm = cardRe.exec(html)) !== null) {
+    const tid = cm[1];
+    if (tid === "cal" || tid === "sx") continue;   /* 非计算器卡：合规日历 / 时效规则中心 */
+    cardTotal++;
+    if (html.slice(cm.index, cm.index + cm[0].length).indexOf('id="' + tid + '-calc"') === -1) {
+      bad("工具卡错位：data-tool=\"" + tid + "\" 卡内找不到 " + tid + "-calc 按钮（标题与表单不匹配）");
+      cardBad++;
+    } else if (html.slice(cm.index, cm.index + cm[0].length).indexOf('id="' + tid + '-result"') === -1) {
+      bad("工具卡错位：data-tool=\"" + tid + "\" 卡内找不到 " + tid + "-result 容器");
+      cardBad++;
+    }
+  }
+  if (!cardBad && cardTotal) ok("工具卡标题与表单对齐（" + cardTotal + " 张含计算器的卡）");
+}
+
 /* ---------- 2. 模拟 window 加载全部 js ---------- */
 head("加载 js（模拟 window，顺序同 index.html）");
 const window = {};
