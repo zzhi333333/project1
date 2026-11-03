@@ -782,6 +782,7 @@
   window.LAWSEARCH.init();
   window.TOOLS.init();
   window.ONLINE.init();
+  if (window.CASEIMPORT) window.CASEIMPORT.init();
   window.AI.init();
   window.AGENT.init();
   window.CONTRACT.init();

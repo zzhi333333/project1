@@ -767,3 +767,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .login-tip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--danger-soft); border: 1px solid var(--warn); border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; font-size: 13px; color: var(--ink); }
 .login-tip .ico { width: 15px; height: 15px; color: var(--warn); flex: none; }
 .login-tip .mini-btn { font-size: 12px; }
+
+/* 案例导入（官方站粘贴） */
+.ci-card .ci-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.ci-raw { white-space: pre-wrap; word-break: break-word; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 12.5px; line-height: 1.7; color: var(--ink); margin-top: 8px; font-family: inherit; }
+.ci-preview { margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }
