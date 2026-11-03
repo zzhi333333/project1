@@ -262,6 +262,25 @@ window.AI = (function () {
       wrap.remove();
       aiConsult(b.getAttribute("data-q"));
     });
+    /* 领域相关计算器直达（与结果卡共用映射） */
+    if (window.TOOLS && window.TOOLS.toolChipsForDomain && domainId) {
+      var toolChips = window.TOOLS.toolChipsForDomain(domainId);
+      if (toolChips) {
+        var trow = document.createElement("div");
+        trow.className = "msg bot followup-row";
+        trow.innerHTML = '<div class="bubble followup-bubble"><div class="fu-title"><svg class=ico><use href=#i-tools></use></svg> 相关计算器</div>' + toolChips + '</div>';
+        trow.addEventListener("click", function (e) {
+          var tb = e.target.closest ? e.target.closest(".tool-jump-btn") : null;
+          if (!tb) return;
+          trow.remove();
+          if (window.TOOLS.jumpTo) window.TOOLS.jumpTo(tb.getAttribute("data-tool"));
+        });
+        (function waitForBox() {
+          var cb = document.getElementById("chat-box");
+          if (cb) { cb.appendChild(trow); cb.scrollTop = cb.scrollHeight; }
+        })();
+      }
+    }
     var chatBox = document.getElementById("chat-box");
     if (chatBox) { chatBox.appendChild(wrap); chatBox.scrollTop = chatBox.scrollHeight; }
   }

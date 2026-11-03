@@ -278,6 +278,127 @@ window.AGENT = (function () {
       }
     });
     container.appendChild(cp);
+    /* 存入报告库（本机 localStorage，可回顾/再次导出） */
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "mini-btn";
+    saveBtn.style.margin = "10px 4px";
+    saveBtn.innerHTML = "<svg class=ico><use href=#i-save></use></svg> 存入报告库";
+    saveBtn.addEventListener("click", function () {
+      var saved = saveReport({
+        q: els.input ? els.input.value.trim().slice(0, 300) : "",
+        mode: mode === "ai" ? "AI 可核验分析" : "规则引擎报告",
+        html: container.querySelector(".bubble, .report-card") ? (container.querySelector(".bubble") || container).innerHTML : container.innerHTML,
+        text: text.slice(0, 8000),
+        verify: els.panel ? (els.panel.textContent || "").replace(/\s+/g, " ").trim().slice(0, 200) : ""
+      });
+      saveBtn.innerHTML = saved
+        ? "<svg class=ico><use href=#i-checkc></use></svg> 已存入报告库"
+        : "<svg class=ico><use href=#i-warn></use></svg> 存储空间不足";
+      setTimeout(function () { saveBtn.innerHTML = "<svg class=ico><use href=#i-save></use></svg> 存入报告库"; }, 1800);
+    });
+    container.appendChild(saveBtn);
+  }
+
+  /* ============ 报告存档（本机 localStorage，上限 30 份） ============ */
+  var REPORT_KEY = "legal-agent-reports";
+  function loadReports() {
+    try { return JSON.parse(localStorage.getItem(REPORT_KEY) || "[]"); } catch (e) { return []; }
+  }
+  function saveReports(list) {
+    try { localStorage.setItem(REPORT_KEY, JSON.stringify(list.slice(0, 30))); return true; }
+    catch (e) { /* 配额溢出：删最旧再试一次 */
+      try { localStorage.setItem(REPORT_KEY, JSON.stringify(list.slice(0, 10))); return true; } catch (e2) { return false; }
+    }
+  }
+  function saveReport(entry) {
+    var list = loadReports();
+    list.unshift({ id: "r-" + Date.now(), date: new Date().toISOString(), q: entry.q, mode: entry.mode, html: entry.html, text: entry.text, verify: entry.verify });
+    return saveReports(list);
+  }
+  function openReportArchive() {
+    var old = document.getElementById("report-archive-modal");
+    if (old) { old.remove(); return; }
+    var list = loadReports();
+    var modal = document.createElement("div");
+    modal.id = "report-archive-modal";
+    modal.className = "modal";
+    var rows = list.length ? list.map(function (r, i) {
+      var d = new Date(r.date);
+      var ts = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2) + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+      return '<div class="ci-card" data-i="' + i + '">' +
+        '<div class="case-title">' + esc(r.q.slice(0, 60) || "未命名案情") + '</div>' +
+        '<div class="dim" style="font-size:11.5px">' + ts + " · " + esc(r.mode) + (r.verify ? " · " + esc(r.verify.slice(0, 60)) : "") + '</div>' +
+        '<div class="ci-actions">' +
+          '<button class="mini-btn primary rep-view">查看</button>' +
+          '<button class="mini-btn rep-export">导出 Word</button>' +
+          '<button class="mini-btn rep-del" style="color:var(--danger)">删除</button>' +
+        '</div>' +
+        '</div>';
+    }).join("") : '<div class="empty dim">还没有存档的报告——分析完成后点「存入报告库」保存到本机。</div>';
+    modal.innerHTML =
+      '<div class="modal-mask"></div>' +
+      '<div class="modal-card" style="max-width:640px;width:92%">' +
+        '<div class="modal-title"><svg class=ico><use href=#i-save></use></svg> 报告存档（本机）</div>' +
+        '<div class="modal-body" style="max-height:64vh;overflow-y:auto" id="rep-list">' + rows + '</div>' +
+        '<div class="modal-foot"><button class="mini-btn" id="rep-close">关闭</button></div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    modal.querySelector(".modal-mask").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#rep-close").addEventListener("click", function () { modal.remove(); });
+    modal.querySelectorAll(".ci-card").forEach(function (card) {
+      var r = list[parseInt(card.getAttribute("data-i"), 10)];
+      card.querySelector(".rep-view").addEventListener("click", function () {
+        var body = modal.querySelector("#rep-list");
+        body.innerHTML =
+          '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+            '<button class="mini-btn" id="rep-back">← 返回列表</button>' +
+            '<button class="mini-btn primary" id="rep-export2">导出 Word</button>' +
+          '</div>' +
+          '<div class="dim" style="font-size:12px;margin-bottom:8px">' + esc(r.q.slice(0, 100)) + '</div>' +
+          '<div class="bubble" style="flex:1">' + r.html + '</div>';
+        body.querySelector("#rep-back").addEventListener("click", function () { modal.remove(); openReportArchive(); });
+        body.querySelector("#rep-export2").addEventListener("click", function () { exportReportHtml(r); });
+      });
+      card.querySelector(".rep-export").addEventListener("click", function () { exportReportHtml(r); });
+      card.querySelector(".rep-del").addEventListener("click", function () {
+        saveReports(loadReports().filter(function (x) { return x.id !== r.id; }));
+        modal.remove();
+        openReportArchive();
+      });
+    });
+  }
+  /* 存档报告 → Word 文档下载（与 exportDoc 同格式，来源为存档内容） */
+  function exportReportHtml(r) {
+    var t = new Date(r.date);
+    var pad = function (n) { return ("0" + n).slice(-2); };
+    var dateStr = t.getFullYear() + "-" + pad(t.getMonth() + 1) + "-" + pad(t.getDate());
+    var html =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN"><head><meta charset="utf-8"><title>案件分析参考意见书</title>' +
+      '<style>body{font-family:"Microsoft YaHei","PingFang SC",SimSun,sans-serif;font-size:12pt;line-height:1.8;color:#111;margin:24pt}' +
+      'h2{font-size:16pt;text-align:center;margin:6pt 0 2pt}' +
+      '.doc-meta{text-align:center;color:#555;font-size:10pt;border-bottom:1pt solid #999;padding-bottom:6pt;margin-bottom:10pt}' +
+      '.doc-foot{margin-top:16pt;border-top:1pt solid #999;padding-top:6pt;color:#777;font-size:9.5pt}' +
+      '.verify-panel{border:1pt solid #999;padding:8pt;font-size:10.5pt}' +
+      '</style></head><body>' +
+      '<h2>案件分析参考意见书</h2>' +
+      '<div class="doc-meta">法律咨询助手 · ' + dateStr + " · " + esc(r.mode) + '</div>' +
+      '<div style="border-left:3pt solid #4f46e5;padding:6pt 10pt;margin:10pt 0"><b>案情摘述：</b>' + esc(r.q) + '</div>' +
+      (r.html || "") +
+      (r.verify ? '<div class="verify-panel">' + esc(r.verify) + '</div>' : "") +
+      '<div class="doc-foot">免责声明：本报告由「法律咨询助手」基于公开法律信息生成，仅供参考，不构成法律意见或代理服务；具体案件请咨询执业律师。</div>' +
+      '</body></html>';
+    var fname = "法律分析意见书-" + dateStr + "-" + pad(t.getHours()) + pad(t.getMinutes()) + ".doc";
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) {
+      window.BRIDGE.exportFile(fname, html).then(function () { if (window.BRIDGE.toast) window.BRIDGE.toast("已导出 " + fname); }, function () {});
+      return;
+    }
+    var blob = new Blob(["\ufeff" + html], { type: "application/msword" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
   }
 
   /* ============ Agent 视图工作流 ============ */
@@ -613,6 +734,8 @@ window.AGENT = (function () {
     if (stopBtn) stopBtn.addEventListener("click", stopAgent);
     var docBtn = document.getElementById("agent-doc");
     if (docBtn) docBtn.addEventListener("click", exportDoc);
+    var archBtn = document.getElementById("agent-archive");
+    if (archBtn) archBtn.addEventListener("click", openReportArchive);
     els.input.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runAgent();
     });

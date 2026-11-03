@@ -547,6 +547,136 @@
     } else fallback();
   }
 
+  /* =========================================================
+   * 场景/领域 → 计算器映射 + 跳转定位（供结果卡 / AI 回答调用）
+   * ========================================================= */
+  var TOOL_META = {
+    sv: { label: "补偿金试算", name: "经济补偿金计算器" },
+    ot: { label: "加班费试算", name: "加班费计算器" },
+    al: { label: "年休假折算", name: "年休假折算器" },
+    dl: { label: "时效倒计时", name: "时效倒计时" },
+    ln: { label: "利息试算", name: "民间借贷利息计算器" },
+    dj: { label: "违约金/定金试算", name: "违约金与定金计算器" },
+    fy: { label: "抚养费试算", name: "抚养费计算器" },
+    ip: { label: "赔偿试算", name: "知产侵权赔偿计算器" },
+    cf: { label: "诉讼费试算", name: "诉讼费用计算器" },
+    pt: { label: "专利期限计算", name: "专利关键期限计算器" }
+  };
+  var TOOL_FOR_SCENARIO = {
+    "labor-dismiss": "sv", "labor-wage": "sv", "labor-social": "sv",
+    "labor-overtime": "ot", "labor-leave": "al", "labor-injury": "dl",
+    "mf-loan": "ln", "mf-contract": "dj", "js-fuyangfei": "fy",
+    "bq-shangbiao": "ip", "bq-weiquan": "ip",
+    "mss-sue": "cf", "mss-baoquan": "cf", "patent-apply": "pt"
+  };
+  var TOOLS_FOR_DOMAIN = {
+    labor: ["sv", "ot", "al", "dl"], minfa: ["ln", "dj"], minsusong: ["cf", "dl"],
+    jiashi: ["fy"], biaozhu: ["ip"], patent: ["pt"], company: [], trade: []
+  };
+  /* 年休假场景：答案枚举值 → 折算器工作年限预填 */
+  var TENURE_MAP = { lt1y: 0.5, y1to10: 5, y10to20: 12, gt20y: 21 };
+
+  /* 跳转到指定计算器：切视图 → 全部分类 → 排序 → 滚动 + 高亮 → 可选预填 */
+  function jumpTo(toolId, prefill) {
+    var tab = document.querySelector('.nav-tab[data-view="tools"]');
+    if (tab) tab.click();
+    var allChip = document.querySelector('#tool-filter .filter-chip[data-cat="all"]');
+    if (allChip && !allChip.classList.contains("active")) allChip.click();
+    if (applyToolOrder) applyToolOrder();
+    var card = document.querySelector('.tool-card[data-tool="' + toolId + '"]');
+    if (!card) return;
+    if (prefill) {
+      for (var k in prefill) {
+        var el = document.getElementById(k);
+        if (el) el.value = prefill[k];
+      }
+    }
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.classList.remove("tool-flash");
+    void card.offsetWidth;
+    card.classList.add("tool-flash");
+    setTimeout(function () { card.classList.remove("tool-flash"); }, 2400);
+  }
+  /* 场景 → 结果卡按钮 HTML（无映射返回 ""） */
+  function toolBtnForScenario(scenarioId, rid) {
+    var t = TOOL_FOR_SCENARIO[scenarioId];
+    if (!t || !TOOL_META[t]) return "";
+    return '<button class="mini-btn tool-jump-btn" data-tool="' + t + '"' + (rid != null ? ' data-rid="' + rid + '"' : "") + '><svg class=ico><use href=#i-tools></use></svg> ' + TOOL_META[t].label + '</button>';
+  }
+  /* 领域 → AI 回答末尾的相关计算器 chips HTML（无工具领域返回 ""） */
+  function toolChipsForDomain(domainId) {
+    var ids = TOOLS_FOR_DOMAIN[domainId] || [];
+    if (!ids.length) return "";
+    return '<div class="chips" style="margin-top:6px">' + ids.map(function (t) {
+      return '<button class="rel-link tool-jump-btn" data-tool="' + t + '">' +
+        '<svg class=ico><use href=#i-tools></use></svg> ' + (TOOL_META[t] ? TOOL_META[t].label : t) + '</button>';
+    }).join("") + '</div>';
+  }
+
+  /* =========================================================
+   * 计算历史（每工具留 3 条，全局上限 60；本机 localStorage）
+   * ========================================================= */
+  var HIST_KEY = "legal-calc-history";
+  function histLoad() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); } catch (e) { return []; }
+  }
+  function histSave(list) {
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0, 60))); } catch (e) { /* 静默 */ }
+  }
+  function histRecord(toolId, name, inputs, outText) {
+    if (!outText) return;
+    var list = histLoad().filter(function (x) { return !(x.tool === toolId && x.inputsJson === JSON.stringify(inputs)); });
+    list.unshift({ tool: toolId, name: name, inputs: inputs, inputsJson: JSON.stringify(inputs), out: String(outText).slice(0, 160), time: new Date().toISOString() });
+    var perTool = {};
+    list = list.filter(function (x) { perTool[x.tool] = (perTool[x.tool] || 0) + 1; return perTool[x.tool] <= 3; });
+    histSave(list);
+  }
+  /* 历史弹窗 */
+  function openHistory() {
+    var old = document.getElementById("calc-history-modal");
+    if (old) { old.remove(); return; }
+    var list = histLoad();
+    var modal = document.createElement("div");
+    modal.id = "calc-history-modal";
+    modal.className = "modal";
+    var rows = list.length ? list.map(function (x, i) {
+      var d = new Date(x.time);
+      var ts = (d.getMonth() + 1) + "-" + d.getDate() + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+      var inputsText = Object.keys(x.inputs || {}).filter(function (k) { return x.inputs[k] !== "" && x.inputs[k] != null; })
+        .map(function (k) { return k + "=" + x.inputs[k]; }).join("  ");
+      return '<div class="ci-card hist-row" data-i="' + i + '">' +
+        '<div class="case-title">' + esc(x.name) + ' <span class="dim" style="font-size:11.5px;font-weight:400">' + ts + '</span></div>' +
+        (inputsText ? '<div class="dim" style="font-size:12px">' + esc(inputsText) + '</div>' : "") +
+        '<div class="dim" style="font-size:12px">' + esc(x.out.slice(0, 90)) + '</div>' +
+        '<div class="ci-actions">' +
+          '<button class="mini-btn primary hist-refill">重新填充</button>' +
+          '<button class="mini-btn hist-del" style="color:var(--danger)">删除</button>' +
+        '</div></div>';
+    }).join("") : '<div class="empty dim">还没有计算记录——每次计算会自动保存最近输入，方便回看与重新填充。</div>';
+    modal.innerHTML =
+      '<div class="modal-mask"></div>' +
+      '<div class="modal-card" style="max-width:620px;width:92%">' +
+        '<div class="modal-title"><svg class=ico><use href=#i-calendar></use></svg> 计算历史</div>' +
+        '<div class="modal-body" style="max-height:60vh;overflow-y:auto">' + rows + '</div>' +
+        '<div class="modal-foot"><button class="mini-btn" id="hist-close">关闭</button></div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    modal.querySelector(".modal-mask").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#hist-close").addEventListener("click", function () { modal.remove(); });
+    modal.querySelectorAll(".hist-row").forEach(function (row) {
+      var item = list[parseInt(row.getAttribute("data-i"), 10)];
+      row.querySelector(".hist-refill").addEventListener("click", function () {
+        jumpTo(item.tool, item.inputs);
+        modal.remove();
+      });
+      row.querySelector(".hist-del").addEventListener("click", function () {
+        histSave(histLoad().filter(function (x) { return x !== item; }));
+        modal.remove();
+        openHistory();
+      });
+    });
+  }
+
   /* 结果 HTML 里的法条引用 → 可点击跳转法条检索（如《商标法》第 63 条 / 民法典第 586 条） */
   var LAW_RE = /(《?[\u4e00-\u9fa5]{2,12}法》?|《?民法典》?)\s*(第\s*[0-9]+\s*条)/g;
   function lawLinks(html) {
@@ -568,12 +698,26 @@
     if (input && btn) { input.value = q; btn.click(); }
   });
 
-  /* 包装计算按钮：计算 → 法条链接化 → 注入「复制结果」按钮 */
+  /* 包装计算按钮：计算 → 历史记录 → 法条链接化 → 注入「复制结果」按钮 */
   function bindCalc(btnId, outId, fn, name) {
     var btn = $(btnId), out = $(outId);
     if (!btn || !out) return;
+    var toolId = btnId.replace("-calc", "");
     btn.addEventListener("click", function () {
       fn();
+      /* 计算历史：抓该卡片的输入快照（排除空值），成功输出才记录 */
+      var card = btn.closest(".tool-card");
+      var inputs = {};
+      if (card) {
+        card.querySelectorAll("input, select").forEach(function (el) {
+          if (el.type === "checkbox") return;
+          if (el.value !== "" && el.value != null) inputs[el.id] = el.value;
+        });
+      }
+      var hasResult = out.querySelector(".calc-detail, .calc-head");
+      if (hasResult && !out.querySelector(".tool-warn")) {
+        histRecord(toolId, name, inputs, out.textContent.replace(/\s+/g, " ").trim());
+      }
       var old = out.querySelector(".calc-copy");
       if (old) old.remove();
       out.innerHTML = lawLinks(out.innerHTML);
@@ -650,6 +794,16 @@
       calRender();
       calNotifyCheck();
       setTimeout(calNotifyCheck, 3000);   /* 页面加载稳定后再查一次 */
-    }
+
+      /* 计算历史入口按钮（工具页分类筛选行） */
+      var histBtn = document.getElementById("calc-history-btn");
+      if (histBtn) histBtn.addEventListener("click", openHistory);
+    },
+    /* 供结果卡 / AI 回答调用的跳转与映射 */
+    jumpTo: jumpTo,
+    toolBtnForScenario: toolBtnForScenario,
+    toolChipsForDomain: toolChipsForDomain,
+    TOOL_META: TOOL_META,
+    TENURE_MAP: TENURE_MAP
   };
 })();

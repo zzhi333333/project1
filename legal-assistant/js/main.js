@@ -126,6 +126,7 @@
           '<button class="mini-btn primary deep-btn" data-deep="' + rid + '"><svg class=ico><use href=#i-agent></use></svg> 转深度核验分析</button>' +
           '<button class="mini-btn doc-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-file></use></svg> 生成文书</button>' +
           '<button class="mini-btn ev-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-contract></use></svg> 证据清单</button>' +
+          (window.TOOLS ? window.TOOLS.toolBtnForScenario(scenario.id, rid) : "") +
           '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助"><svg class=ico><use href=#i-tup></use></svg></button>' +
           '<button class="mini-btn fb-bad" data-rid="' + rid + '" title="需改进"><svg class=ico><use href=#i-tdn></use></svg></button>' +
           '<button class="mini-btn print-card-btn" data-rid="' + rid + '" title="打印此分析"><svg class=ico><use href=#i-print></use></svg></button>' +
@@ -184,6 +185,17 @@
       qs.map(function (q) {
         return '<button class="rel-link qf-btn" data-rid="' + rid + '" data-q="' + esc(q) + '">' + esc(q) + '</button>';
       }).join("") + '</div></div>';
+  }
+
+  /* 场景答案 → 计算器预填参数（answers 为选项枚举值，按场景映射为具体数值） */
+  function scenarioPrefill(entry) {
+    if (!entry || !window.TOOLS || !window.TOOLS.TENURE_MAP) return null;
+    var a = entry.answers || {};
+    var pre = {};
+    if (entry.scenarioId === "labor-leave" && a.tenure && window.TOOLS.TENURE_MAP[a.tenure] != null) {
+      pre["al-years"] = window.TOOLS.TENURE_MAP[a.tenure];
+    }
+    return Object.keys(pre).length ? pre : null;
   }
 
   function bindRelLinks(div) {
@@ -383,6 +395,8 @@
       var rid = window.AI_RESULTS.length;
       window.AI_RESULTS.push({ name: m.data.name, domain: m.data.domain, r: m.data.r, answers: m.data.answers || {}, scenarioId: m.data.scenarioId, transcript: m.data.transcript || [] });
       var btn = div.querySelector(".result-ai-btn");
+      var tbtn = div.querySelector(".tool-jump-btn");
+      if (tbtn) tbtn.setAttribute("data-rid", rid);
       if (btn) btn.setAttribute("data-rid", rid);
       div.querySelectorAll(".law-chip").forEach(bindLawChip);
       bindRelLinks(div);
@@ -705,6 +719,20 @@
       } else {
         UI.appendBot("继续追问需要先配置 AI 模型：点右上角「AI 模型」设置后即可使用；也可以直接在输入框描述这个问题。", null);
       }
+      return;
+    }
+    /* 结果卡 / AI 回答 → 计算器直达（定位 + 高亮 + 场景化预填） */
+    var toolBtn = e.target.closest ? e.target.closest(".tool-jump-btn") : null;
+    if (toolBtn) {
+      var tId = toolBtn.getAttribute("data-tool");
+      var prefill = null;
+      var ctxBtn = toolBtn.closest(".bubble");
+      var ridAttr = toolBtn.getAttribute("data-rid");
+      if (ridAttr != null) {
+        var entry = (window.AI_RESULTS || [])[parseInt(ridAttr, 10)];
+        if (entry) prefill = scenarioPrefill(entry);
+      }
+      if (window.TOOLS && window.TOOLS.jumpTo) window.TOOLS.jumpTo(tId, prefill);
       return;
     }
     var deepBtn = e.target.closest ? e.target.closest(".deep-btn") : null;
