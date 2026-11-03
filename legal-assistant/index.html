@@ -507,6 +507,14 @@
       <label>回答随机性 temperature（<span id="ai-temp-val">0.5</span>）
         <input id="ai-temp" type="range" min="0" max="1" step="0.1" value="0.5">
       </label>
+      <label>输出语言（对话与深度分析）
+        <select id="ai-lang">
+          <option value="auto">自动（跟随提问语言）</option>
+          <option value="zh">简体中文</option>
+          <option value="en">English（法条名保留中文+英译）</option>
+          <option value="bi">中英对照（Bilingual）</option>
+        </select>
+      </label>
       <div class="modal-note"><svg class="ico"><use href="#i-lock"/></svg> API Key 仅保存在本机浏览器（localStorage），请求经<b>本地代理服务</b>转发，不会经过任何第三方服务器。推荐智谱 <b>glm-4-flash</b>（官方免费）；百度千帆注意区分：<b>Token 计划个人版</b>的 Key（套餐订阅）请选「Token 计划个人版」专属端点（模型如 glm-5.3-flash、deepseek-v4.1-flash），<b>通用付费 Key</b> 才选「通用 OpenAI 兼容 v2」（ernie 系列）；已装 Ollama 的可选本地模型，无需联网与密钥。跨域受限时请运行 <code>node server.js</code>。</div>
       <div id="ai-status" class="ai-status"></div>
       <div class="modal-section-title"><svg class="ico"><use href="#i-save"/></svg> 数据备份</div>

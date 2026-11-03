@@ -23,7 +23,7 @@ window.AI = (function () {
     custom:   { name: "自定义（OpenAI 兼容接口）", baseUrl: "", model: "" }
   };
 
-  var DEFAULTS = { provider: "glm", baseUrl: PROVIDERS.glm.baseUrl, model: PROVIDERS.glm.model, apiKey: "", temperature: 0.5 };
+  var DEFAULTS = { provider: "glm", baseUrl: PROVIDERS.glm.baseUrl, model: PROVIDERS.glm.model, apiKey: "", temperature: 0.5, lang: "auto" };
   var S = load();
   var aiHistory = [];          /* 多轮对话记忆（最近若干轮） */
   var _proxyBase = null;       /* null=未探测, false=不可用, ""=同源, "http://127.0.0.1:8080" */
@@ -304,6 +304,15 @@ window.AI = (function () {
     var box = document.getElementById("chat-box");
     box.scrollTop = box.scrollHeight;
   }
+  /* 输出语言指令（设置：auto 跟随提问 / zh / en / bi 中英对照） */
+  function langPrompt() {
+    var lang = (S && S.lang) || "auto";
+    if (lang === "zh") return "\n【输出语言】用简体中文回答。";
+    if (lang === "en") return "\n【Output language】Respond in English. Keep Chinese statute names in Chinese with an English gloss on first mention, e.g. 《劳动合同法》第47条 (Labor Contract Law, Art. 47); cite Chinese law only from the provided context.";
+    if (lang === "bi") return "\n【Output language】Bilingual output: each section first in 简体中文, then an English translation under a line beginning with 'EN:'. Keep statute names in Chinese with an English gloss on first mention.";
+    return "\n【输出语言】与用户提问相同的语言回答：用户用英文提问则用英文回答（中国法条名保留中文原名并括注英译，引用仅限所给资料）；用户用中文则用中文。";
+  }
+
   function finishBubble(div, text) {
     var cursor = div.querySelector(".ai-cursor");
     if (cursor) cursor.remove();
@@ -339,6 +348,7 @@ window.AI = (function () {
     var ctx = buildContext(text);
     var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
       (window.INTAKE && window.INTAKE.isActive() ? window.INTAKE.promptBlock() : "") +
+      (window.INTAKE && window.INTAKE.isActive() ? "" : langPrompt()) +
       "\n【追问规则】若用户描述的关键事实明显不足（未说明时间、金额、合同状态、双方关系等核心要素），" +
       "请先合并提出最多两个关键追问，等用户补充后再给完整分析；若信息已足够，直接分析，不要为追问而追问。" }]
       .concat(aiHistory)
@@ -517,6 +527,11 @@ window.AI = (function () {
       aiConsult(t);
     });
 
+    var langSel = document.getElementById("ai-lang");
+    if (langSel) {
+      langSel.value = S.lang || "auto";
+      langSel.addEventListener("change", function () { S.lang = langSel.value; save(); });
+    }
     var modeCb = document.getElementById("ai-mode");
     if (modeCb) {
       modeCb.addEventListener("change", syncToggleLabel);
@@ -613,7 +628,7 @@ window.AI = (function () {
 
   return {
     init: init, aiChat: aiChat, openModal: openModal,
-    resetHistory: resetHistory, stopCurrent: stopCurrent,
+    resetHistory: resetHistory, stopCurrent: stopCurrent, langPrompt: langPrompt,
     aiFollowUp: aiFollowUp,
     exportData: exportData, importData: importData,
     settings: function () { return S; },
