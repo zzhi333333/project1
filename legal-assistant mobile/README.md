@@ -2,9 +2,20 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `2.6`（versionCode 20）
+- 包名：`com.zz333.legalassistant`，版本 `2.6`（versionCode 20）；**v2.7（versionCode 21）已同步待出包**：改 `build.bat` 内 `VERSION_NAME=2.7`、`AndroidManifest.xml` versionCode/Name 后构建
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v2.6.apk`（约 480KB）
+- 产物：`dist/legal-assistant-mobile-v2.6.apk`（约 480KB）；v2.7 出包后替换
+
+## 🆕 v2.7 更新（跟随网页版，**待出包**）
+
+| 修复 / 新增 | 说明 |
+|---|---|
+| 🐛 民诉域内容恢复 | `minsusong.js` 此前为空文件导致移动端民事诉讼法域整体缺失——已随网页版同步恢复（11 法条 + 场景 + FAQ） |
+| 🐛 深度咨询恢复 | `intake.js` 此前缺失（index.html 引用 404）导致深度咨询入口静默失效——已恢复 |
+| 🐛 工具卡标题错位修复 | 七张计算器卡标题与表单整体错位（如违约金卡里是倒计时表单）——已对齐 |
+| ⏳ 时效规则中心 | 21 类时效/期间规则速查（起算点/中断中止/法条依据），一键填入倒计时；倒计时**自动节假日顺延**（民诉法 85 条） |
+| 📚 争点分析扩容 | 深度分析律师实务层新增公司法 7 场景 IRAC 争点 + 对方抗辩预案（2023 修订《公司法》） |
+| 🧹 语音代码清理 | 移除误插 `__brSpeech` 的 auto-grow 死代码块 |
 
 ## 🆕 v2.6 更新（输入区微信式优化）
 
