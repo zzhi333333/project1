@@ -40,6 +40,7 @@ window.DomainRegistry.registerDomain({
 4. **重构前 grep 调用点**：曾有 lawChips 被删导致结果卡静默消失
 5. **build.bat 管道构建崩坏**：脚本含中文 + 中途 `chcp 65001`，双击运行正常；从无控制台环境跑（Git Bash `cmd //c`、CI/计划任务）会在 chcp 处按错误字节偏移重解析，中文行被拆坏——脚本化构建需做 ASCII 化临时副本（echo 全英文、去掉 chcp，用完删）。另 javac `@argfile` 会吞引号内路径的反斜杠（已修：sources.txt 写正斜杠，`!P:\=/!`）
 6. **移动版 js 不是网页版逐字节副本**：main.js 等含 `window.BRIDGE` 原生桥分支等移动特有代码——同步移动版 js 一律先 diff 再增量 patch（Edit 精准插入），**禁止整文件 cp 覆盖**；复制后 `git diff | grep "^-"` 确认删除行均为预期
+7. **双端一致性必须机器校验**：`node sync-www.js`（check.js 第 8 节已集成）——同源清单 = 网页版 js 全集减去 5 个分支文件（ai/analysis/consult/main/online），**新增 js 默认视为同源**，漂移即失败（曾出现 esc 单端漏改报错、minsusong.js 移动端空文件、intake.js 移动版整体缺失）；`node sync-www.js --fix` 用网页版覆盖同源文件；同步后移动版需重新出包
 
 ## 移动版（Android APK，`legal-assistant mobile/` 目录名含空格）
 
@@ -53,4 +54,5 @@ window.DomainRegistry.registerDomain({
 
 - 对话历史/AI设置/日历存浏览器 localStorage；设置弹窗有 JSON 导出/导入
 - 每次改动：`git add -A && commit && push origin main`（网络波动多试几次）
+- 提交前两跑：`node check.js`（结构+内容+双端一致性）、`node test.js`（10 计算器 22 项法律数值断言：2N 封顶/LPR 四倍/诉讼费累进/定金 20% 等——计算器是法律软件最不容出错的纯规则部分）
 - 免责声明必须保留（页脚+各结果卡一行版）

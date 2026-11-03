@@ -179,6 +179,20 @@ head("内容统计");
 console.log("  领域 " + domainIds.length + " 个：" + domainIds.map(function (id) { return id + "(" + (lawDomainCount[id] || 0) + "条法条)"; }).join(" · "));
 console.log("  法条 " + laws.length + " ｜ 场景 " + scs.length + " ｜ FAQ " + faqs.length + " ｜ 典型案例 " + cases.length + " ｜ 指导案例精读 " + guid.length);
 
+/* ---------- 8. 双端一致性（网页版 → 移动版 www） ---------- */
+head("双端一致性");
+try {
+  const sync = require("./sync-www.js");
+  const sr = sync.checkSync();
+  ok("同源文件两端一致 " + sr.same.length + " 个");
+  if (sr.branch.length) ok("分支文件（允许不同）：" + sr.branch.join(", "));
+  sr.drift.forEach(function (d) {
+    bad("双端漂移：" + d.file + "（" + (d.reason === "missing" ? "移动版缺失" : d.reason === "empty" ? "移动版为空文件" : "内容不一致") + "）；运行 node sync-www.js --fix 同步");
+  });
+} catch (e) {
+  warn("双端一致性检查未执行：" + e.message + "（移动版目录不存在时忽略）");
+}
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(failures === 0

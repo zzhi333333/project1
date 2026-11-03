@@ -134,17 +134,10 @@
       var listening = false;
       window.__brSpeech = function (text) {
         var input = document.getElementById("consult-input");
-  if (input) {
-    /* auto-grow：随内容自动长高（CSS 上限约 6 行），清空/发送后重置 */
-    var grow = function () {
-      input.style.height = "auto";
-      input.style.height = Math.min(input.scrollHeight, 132) + "px";
-    };
-    input.addEventListener("input", grow);
-    input.addEventListener("input", function () { input.dataset.base = input.value; });
-    window.addEventListener("resize", grow);
-  }
-        if (input && text) input.value = text;
+        if (input && text) {
+          input.value = text;
+          input.dispatchEvent(new Event("input"));   /* 同步 auto-grow 与发送键显隐 */
+        }
       };
       window.__brSpeechEnd = function (err, msg) {
         listening = false;
