@@ -222,7 +222,12 @@ window.AGENT = (function () {
     "3. 涉及期限（多少日/月/年）、比例（百分之X）、金额、机关名称的表述，只能来自【资料区】或用户案情原文；资料区没有的数字一律不得出现，也不得换算编造。\n" +
     "4. 严禁编造案例名称、案号、政策文件名、统计数据。\n" +
     "5. 对不确定的事实，明确标注「需核实」。\n" +
-    "6. 回答结构：结论 → 分析（引用法条）→ 行动建议 → 时效提醒 → 末尾注明「以上仅供参考，不构成法律意见」。\n" +
+    "6. 回答结构（律师意见书式）：\n" +
+    "  ① 假设与限制：说明本分析基于用户陈述的事实为真；列出尚未核实、可能影响结论的事项清单。\n" +
+    "  ② 结论（先给直接结论）。\n" +
+    "  ③ 争点式分析：将案件拆解为 2–4 个关键法律争点，每个争点按「争点问题 → 法律规则（引用资料区法条）→ 适用到本案事实 → 小结」展开。\n" +
+    "  ④ 对方抗辩预案：给出对方可能的 2–3 个抗辩及我方应对与所需反驳证据（若用户为被主张方则给出我方抗辩思路）。\n" +
+    "  ⑤ 行动建议 → 时效提醒 → 末尾注明「以上仅供参考，不构成法律意见」。\n" +
     "你的回答将被程序逐条核验引用与数字，未核实内容会被标注并要求重新生成，请确保每一句法律断言都有资料区依据。";
 
   function buildContextBlock(q, c) {
@@ -399,6 +404,29 @@ window.AGENT = (function () {
     document.body.appendChild(a);
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  }
+
+  /* ============ 案件评估矩阵（信息完备度 · 定性版，非胜诉率） ============ */
+  function buildAssessment(rep) {
+    var items = [];
+    var amounts = (rep.facts && rep.facts.amounts) ? rep.facts.amounts.length : 0;
+    var dates = (rep.facts && rep.facts.dates) ? rep.facts.dates.length : 0;
+    items.push({ k: "事实线索", v: (amounts > 0 ? "金额线索 " + amounts + " 项" : "未识别到金额") + "；" + (dates > 0 ? "时间线索 " + dates + " 项" : "未识别到时间"), level: (amounts + dates) >= 2 ? "较充分" : (amounts + dates === 1 ? "偏少" : "不足") });
+    /* 证据三性自检（如做过） */
+    var checks = null;
+    try { checks = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}")[rep.scenarios && rep.scenarios[0] ? rep.scenarios[0].id : ""] || null; } catch (e) {}
+    if (checks) {
+      var total = 0, ok = 0;
+      for (var k in checks) { total++; if (checks[k]["真实性"]) ok++; }
+      items.push({ k: "证据自检", v: "已确认真实性 " + ok + "/" + total + " 项", level: total === 0 ? "未开始" : (ok === total && total > 0 ? "较充分" : "有断点") });
+    } else {
+      items.push({ k: "证据自检", v: "尚未做证据三性自检——建议在咨询结果卡的「证据清单」中完成", level: "未开始" });
+    }
+    if (rep.deadline) items.push({ k: "时效提示", v: rep.deadline, level: /尽快|立即|1年|15日|60日|30日/.test(rep.deadline) ? "注意期限" : "常规" });
+    return items.map(function (x) {
+      var color = x.level === "较充分" ? "var(--ok)" : (x.level === "不足" || x.level === "注意期限" ? "var(--warn)" : "var(--ink-2)");
+      return '<div class="assess-item"><div class="assess-k">' + esc(x.k) + '</div><div class="assess-v">' + esc(x.v) + '</div><div class="assess-l" style="color:' + color + '">' + esc(x.level) + '</div></div>';
+    }).join("");
   }
 
   /* ============ 劳动仲裁请求清单生成器（数字组合器） ============ */
@@ -667,6 +695,59 @@ window.AGENT = (function () {
       stepState(2, "skip", "规则报告内容全部来自内置知识库，天然可核验");
       els.answer.innerHTML = "";
       window.ANALYSIS.render(rep, els.answer);
+      /* 律师实务深度层：争点分析（IRAC）+ 对方抗辩预案 + 行动路径对比（有数据的领域） */
+      var sid = (rep.scenarios && rep.scenarios[0]) ? rep.scenarios[0].id : null;
+      var ins = (window.INSIGHTS && sid) ? window.INSIGHTS.get(sid) : null;
+      if (ins) {
+        var insDiv = document.createElement("div");
+        var ih = '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-agent></use></svg> 争点分析（律师思路）</div>';
+        ins.issues.forEach(function (it, i) {
+          ih += '<div class="irac-block"><div class="irac-q">' + (i + 1) + ". " + esc(it.q) + '</div>' +
+            '<div class="irac-line"><b>规则</b>' + esc(it.rule) + '</div>' +
+            '<div class="irac-line"><b>适用</b>' + esc(it.apply) + '</div>' +
+            '<div class="irac-line irac-concl"><b>小结</b>' + esc(it.concl) + '</div></div>';
+        });
+        ih += '<div class="calc-note">争点为该类案件的常见分析框架，具体结论取决于在案证据与事实。</div></div>';
+        ih += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-shield></use></svg> 对方抗辩预案（Red Team）</div>';
+        ins.defenses.forEach(function (df) {
+          ih += '<div class="defense-block"><div class="irac-q"><svg class=ico><use href=#i-warn></use></svg> 对方可能主张：' + esc(df.d) + '</div>' +
+            '<div class="irac-line"><b>应对</b>' + esc(df.counter) + '</div>' +
+            '<div class="irac-line irac-concl"><b>需准备的证据</b>' + esc(df.ev) + '</div></div>';
+        });
+        ih += '<div class="calc-note">预判对方抗辩并提前固定反驳证据，是庭审攻防的核心功课。</div></div>';
+        insDiv.innerHTML = ih;
+        els.answer.appendChild(insDiv);
+      }
+      /* 行动路径对比（有数据的领域） */
+      var paths = (window.INSIGHTS && window.INSIGHTS.pathsFor) ? window.INSIGHTS.pathsFor(rep.domain) : null;
+      if (paths) {
+        var pDiv = document.createElement("div");
+        var ph = '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-list></use></svg> 行动路径对比（怎么选）</div>';
+        ph += '<div class="path-table"><div class="path-tr path-th"><div>路径</div><div>成本</div><div>周期</div><div>门槛</div><div>优势</div><div>短板</div><div>适合</div></div>';
+        paths.forEach(function (p) {
+          ph += '<div class="path-tr"><div><b>' + esc(p.name) + '</b></div><div>' + esc(p.cost) + '</div><div>' + esc(p.time) + '</div><div>' + esc(p.gate) + '</div><div>' + esc(p.pros) + '</div><div>' + esc(p.cons) + '</div><div>' + esc(p.fit) + '</div></div>';
+        });
+        ph += '</div><div class="calc-note">路径可以组合使用（如先投诉施压再仲裁）；对比为一般情形概括，个案请结合证据与预算判断。</div></div>';
+        pDiv.innerHTML = ph;
+        els.answer.appendChild(pDiv);
+      }
+      /* 案件评估矩阵（信息完备度定性版，非胜诉率） */
+      var assess = buildAssessment(rep);
+      if (assess) {
+        var aDiv = document.createElement("div");
+        aDiv.innerHTML = '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-checkc></use></svg> 案件评估（信息完备度 · 定性参考）</div>' +
+          '<div class="assess-grid">' + assess + '</div>' +
+          '<div class="calc-note">本评估仅反映「信息与证据的完备程度」，不代表案件结果；任何结果预测均不可靠，请以执业律师意见为准。</div></div>';
+        els.answer.appendChild(aDiv);
+      }
+      /* 白话术语卡入口 */
+      if (window.GLOSSARY) {
+        var gWrap = document.createElement("div");
+        gWrap.style.margin = "6px 4px 12px";
+        gWrap.innerHTML = window.GLOSSARY.btnHtml() + '<span class="dim" style="font-size:11.5px;margin-left:8px">报告中的 N / 2N / 除斥期间 / 一裁终局……点开可查白话解释</span>';
+        els.answer.appendChild(gWrap);
+        window.GLOSSARY.bind(els.answer);
+      }
       appendCopyButton(els.answer, reportToText(rep));
       /* 劳动领域：追加仲裁请求清单生成器入口 */
       if (rep.domain === "labor") {

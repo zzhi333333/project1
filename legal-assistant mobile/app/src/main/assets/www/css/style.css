@@ -873,3 +873,27 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .arb-params { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 7px; }
 .arb-params label { font-size: 11.5px; color: var(--ink-2); display: flex; flex-direction: column; gap: 3px; }
 .arb-params input { border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; width: 150px; background: var(--card); color: var(--ink); }
+
+/* 律师实务深度层：争点分析 / 抗辩预案 / 路径对比 / 评估矩阵 / 术语卡 */
+.irac-block { border-left: 3px solid var(--primary); padding: 6px 0 6px 12px; margin: 10px 0; }
+.irac-q { font-weight: 700; font-size: 13.5px; color: var(--ink); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+.irac-q .ico { width: 14px; height: 14px; color: var(--warn); }
+.irac-line { font-size: 13px; color: var(--ink-2); margin: 4px 0; line-height: 1.65; }
+.irac-line b { color: var(--primary); margin-right: 6px; font-size: 12px; border: 1px solid var(--primary-border); border-radius: 4px; padding: 0 5px; background: var(--primary-soft); }
+.irac-concl { color: var(--ink); }
+.defense-block { border-left: 3px solid var(--warn); padding: 6px 0 6px 12px; margin: 10px 0; }
+.path-table { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12.5px; }
+.path-tr { display: grid; grid-template-columns: 1.1fr 0.8fr 1fr 1.2fr 1.3fr 1.3fr 1.2fr; }
+.path-tr > div { padding: 7px 9px; border-bottom: 1px solid var(--line); color: var(--ink-2); line-height: 1.5; }
+.path-tr > div:first-child { color: var(--ink); }
+.path-th { background: var(--primary-soft); color: var(--primary) !important; font-weight: 600; }
+.path-tr:last-child > div { border-bottom: none; }
+.assess-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 8px 0; }
+.assess-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--card); }
+.assess-k { font-size: 11.5px; color: var(--ink-2); margin-bottom: 4px; }
+.assess-v { font-size: 12.5px; color: var(--ink); line-height: 1.55; margin-bottom: 5px; }
+.assess-l { font-size: 12.5px; font-weight: 700; }
+.gl-row { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.gl-row:last-child { border-bottom: none; }
+.gl-row b { display: block; font-size: 13.5px; color: var(--primary); margin-bottom: 3px; }
+.gl-row span { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; display: block; }
