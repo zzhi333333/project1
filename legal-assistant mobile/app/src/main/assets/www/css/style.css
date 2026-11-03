@@ -282,7 +282,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   display: flex; align-items: center; justify-content: center;
 }
 .session-menu {
-  position: absolute; right: 6px; top: calc(50% + 18px); z-index: 5;
+  position: fixed; z-index: 1200;   /* body 顶层浮层，left/top 由 JS 按触发按钮定位 */
   min-width: 132px; background: var(--card); border: 1px solid var(--line);
   border-radius: 12px; box-shadow: 0 8px 30px rgba(15, 23, 42, .16);
   overflow: hidden; display: flex; flex-direction: column;

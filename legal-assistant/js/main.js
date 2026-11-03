@@ -403,13 +403,18 @@
 
   var sessionView = "main";   /* "main" = 历史 | "archived" = 归档 */
 
+  var menuOpenerBtn = null;   /* 记录当前浮层菜单的触发按钮，用于 ⋯ 点击的开/关切换 */
   function closeSessionMenus() {
     document.querySelectorAll(".session-menu").forEach(function (m) { m.remove(); });
+    menuOpenerBtn = null;
   }
   document.addEventListener("click", function (e) {
     if (e.target.closest && e.target.closest(".session-more")) return;
     closeSessionMenus();
   });
+  /* 浮层菜单跟随按钮定位，滚动/缩放时直接收起，避免漂移错位 */
+  window.addEventListener("scroll", closeSessionMenus, true);
+  window.addEventListener("resize", closeSessionMenus);
 
   function refreshChatFromCurrent() {
     box.innerHTML = "";
@@ -443,7 +448,7 @@
     actions.push({ label: "<svg class=ico><use href=#i-trash></use></svg> 删除", danger: true, act: null });   /* 删除走两段确认 */
     actions.forEach(function (a) {
       var b = document.createElement("button");
-      b.textContent = a.label;
+      b.innerHTML = a.label;   /* label 为本函数内写死的静态串，含 svg 图标，须走 innerHTML */
       if (a.danger) b.classList.add("danger");
       b.addEventListener("click", function (ev) {
         ev.stopPropagation();
@@ -469,7 +474,16 @@
       });
       menu.appendChild(b);
     });
-    moreBtn.parentElement.appendChild(menu);
+    /* 挂到 body 顶层浮层：脱离 .session-list 滚动容器，避免被裁剪、无需滚动即可见 */
+    document.body.appendChild(menu);
+    var r = moreBtn.getBoundingClientRect();
+    var mw = menu.offsetWidth, mh = menu.offsetHeight;
+    var left = Math.min(Math.max(4, r.right - mw), window.innerWidth - mw - 4);
+    var top = r.bottom + 4;
+    if (top + mh > window.innerHeight - 4) top = Math.max(4, r.top - mh - 4);   /* 下方放不下则上弹 */
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+    menuOpenerBtn = moreBtn;
   }
 
   window.renderSessionList = function () {
@@ -500,7 +514,7 @@
       var more = div.querySelector(".session-more");
       more.addEventListener("click", function (e) {
         e.stopPropagation();
-        if (more.parentElement.querySelector(".session-menu")) { closeSessionMenus(); return; }
+        if (menuOpenerBtn === more) { closeSessionMenus(); return; }   /* 菜单在 body 浮层，按触发按钮判断开关 */
         openSessionMenu(more, s);
       });
       listEl.appendChild(div);

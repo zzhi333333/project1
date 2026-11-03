@@ -14,8 +14,8 @@ OUT="$ROOT/build"
 DIST="$ROOT/dist"
 KS="$ROOT/tools/debug.keystore"
 KS_PASS="pass:legal123"
-VERSION_NAME="1.6"
-VERSION_CODE="3"
+VERSION_NAME="2.2"
+VERSION_CODE="16"
 
 # ---------- 工具链定位 ----------
 JDK="${JAVA_HOME:-}"

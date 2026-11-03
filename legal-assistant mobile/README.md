@@ -2,9 +2,15 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `2.1`（versionCode 15）
+- 包名：`com.zz333.legalassistant`，版本 `2.2`（versionCode 16）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v2.1.apk`（约 480KB）
+- 产物：`dist/legal-assistant-mobile-v2.2.apk`（约 480KB）
+
+## 🆕 v2.2 更新（跟随网页版）
+
+| 功能 | 说明 |
+|---|---|
+| 🗂️ 会话「⋯」菜单修复 | 修复菜单项显示 `<svg>…` 原始代码的问题（图标由 textContent 改 innerHTML 渲染）；菜单改为挂到页面的独立浮动层，不再被对话列表滚动区裁剪，点开即见「归档 / 删除」 |
 
 ## 🆕 v2.1 更新（跟随网页版）
 
