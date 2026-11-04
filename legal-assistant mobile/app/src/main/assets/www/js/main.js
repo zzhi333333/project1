@@ -112,6 +112,12 @@
       '<div class="result-card">' +
         '<div class="result-flag" style="border-color:' + d.color + '">' + window.DomainRegistry.iconSvg(scenario.domain) + ' ' + d.name + ' · 初步分析意见</div>' +
         '<div class="result-title">' + esc(r.headline) + '</div>' +
+        /* 结论前提：结论所依据的已确认事实逐条回显（可复核） */
+        ((transcript || []).length ? '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-checkc></use></svg> 结论前提（基于你确认的事实）</span>' +
+          '<ul style="margin:4px 0 0;padding-left:18px">' + transcript.map(function (t) {
+            return '<li>' + esc(t.q) + ' → <b>' + esc(t.a) + '</b></li>';
+          }).join("") + '</ul>' +
+          '<div class="dim" style="font-size:11.5px;margin-top:4px">以上事实以你的选择为准；如有出入请重答或改用「深度分析」描述完整案情。</div></div>' : '') +
         '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-pin></use></svg> 结论概要</span>' + esc(r.summary) + '</div>' +
         '<div class="result-section"><span class="sec-label"><svg class=ico><use href=#i-search></use></svg> 具体分析</span>' +
           '<ul>' + r.analysis.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>' +

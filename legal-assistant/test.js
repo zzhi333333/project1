@@ -94,13 +94,17 @@ vm.createContext(sandbox);
 
 /* ---------------- 载入 registry + data + limitation + skill + tools + agent ---------------- */
 vm.runInContext(fs.readFileSync(path.join(root, "js", "registry.js"), "utf8"), sandbox, { filename: "js/registry.js" });
-["js/data/laws.js", "js/data/laws-extra.js"].forEach(function (f) {
+["js/data/laws.js", "js/data/laws-extra.js", "js/data/scenarios.js",
+ "js/domains/minfa.js", "js/domains/jiashi.js", "js/domains/minsusong.js",
+ "js/domains/biaozhu.js", "js/domains/patent-intl.js", "js/domains/trade.js"].forEach(function (f) {
   vm.runInContext(fs.readFileSync(path.join(root, f), "utf8"), sandbox, { filename: f });
 });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"), sandbox, { filename: "js/limitation.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "skill.js"), "utf8"), sandbox, { filename: "js/skill.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "tools.js"), "utf8"), sandbox, { filename: "js/tools.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "agent.js"), "utf8"), sandbox, { filename: "js/agent.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "consult.js"), "utf8"), sandbox, { filename: "js/consult.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "analysis.js"), "utf8"), sandbox, { filename: "js/analysis.js" });
 try {
   vm.runInContext(fs.readFileSync(path.join(root, "js", "ai.js"), "utf8"), sandbox, { filename: "js/ai.js" });
 } catch (e) {
@@ -445,6 +449,44 @@ T("核验：报告面板三级汇总文案", function () {
   const v = AGENT.verifyText("根据《劳动合同法》第46条支付经济补偿，补偿按2N计算约20万元。", "第46条…经济补偿…2N…20万", null);
   if (v.totalCitations !== 1) throw new Error("引用解析数异常");
   if (v.flaggedNumbers < 1 && v.numbers.length === 0) throw new Error("数字断言未解析");
+});
+
+/* ---------- 13. 评测集雏形（劳动+民事主线金问题，持续把真实问题加进来） ---------- */
+console.log("━━ 评测集雏形（主线：劳动 + 民事）");
+const RUN = sandbox.window.ANALYSIS.run;
+
+T("评测·劳动：口头辞退维权 → labor 域 + 劳动合同法相关法条", function () {
+  const rep = RUN("公司口头把我辞退了，没有给任何赔偿，我该怎么维权？");
+  if (rep.domain !== "labor") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("劳动合同法") === -1) throw new Error("未命中劳动合同法：" + lawText);
+  if (!(rep.evidence || []).length) throw new Error("证据清单为空");
+});
+T("评测·民事：民间借贷利息 → minfa 域 + 民法典/借贷法条", function () {
+  const rep = RUN("朋友借我5万元一直不还，有借条和转账记录，利息该怎么算？");
+  if (rep.domain !== "minfa") throw new Error("域识别错误：" + rep.domain);
+  if (!(rep.laws || []).length) throw new Error("未命中任何法条");
+});
+T("评测·时效：旧法版本防御——《民法通则》已废止，引用不得被核实", function () {
+  /* 《民法通则》第135条（1年时效）已废止；正确答案应为民法典188条3年。
+     核验管线对废止法律的引用必须 fail，防止旧法版本被标 ✓ */
+  const v = AGENT.verifyText("根据《民法通则》第135条，诉讼时效为一年。", "", null);
+  if (v.citations[0].status === "ok") throw new Error("废止法律的引用不应被核实通过");
+});
+T("评测·新法版本：《民法典》第188条（3年时效）应可定位", function () {
+  const v = AGENT.verifyText("根据《民法典》第188条，诉讼时效期间为三年。", "", null);
+  if (v.citations[0].status !== "ok") throw new Error("现行法引用应可定位：" + v.citations[0].status);
+});
+T("评测·结构：45 个场景全部配有澄清问题（无事实不成结论）", function () {
+  const scs = sandbox.window.DomainRegistry.collect("scenarios");
+  const noQ = scs.filter(s => !s.questions || !s.questions.length);
+  if (noQ.length) throw new Error("以下场景无澄清问题（会绕过事实确认直接出结论）：" + noQ.map(s => s.id).join(", "));
+});
+T("评测·拒答红线：SYSTEM_PROMPT 含追问与条件分支规则", function () {
+  const sp = String(AI.systemPromptText());
+  if (sp.indexOf("先合并追问") === -1) throw new Error("SYSTEM_PROMPT 缺少追问规则");
+  if (sp.indexOf("条件分支") === -1) throw new Error("SYSTEM_PROMPT 缺少条件分支规则");
+  if (sp.indexOf("不要直接给出确定性结论") === -1) throw new Error("SYSTEM_PROMPT 缺少拒答规则");
 });
 
 /* ---------- 结果 ---------- */

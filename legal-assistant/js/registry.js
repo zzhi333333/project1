@@ -47,14 +47,17 @@ window.DomainRegistry = (function () {
   }
 
   /* 领域元信息：window.DOMAINS[id] = {id,name,icon,color,short?} */
+  /* 资料复核标记：metas().reviewedAt = 该领域内置资料最后一次系统性复核的年月。
+     新增/大改某领域内容时应更新对应值（资料更新机制的一部分） */
+  var REVIEWED_AT = "2026-11";
   function metaOf(id) {
     var d = get(id);
-    if (d) return { id: d.id, name: d.name, icon: d.icon, color: d.color, short: d.short || d.name.replace("法", "") };
+    if (d) return { id: d.id, name: d.name, icon: d.icon, color: d.color, short: d.short || d.name.replace("法", ""), reviewedAt: d.reviewedAt || REVIEWED_AT };
     if (LEGACY_META[id]) {
       var m = LEGACY_META[id];
-      return { id: id, name: m.name, icon: m.icon, color: m.color, short: m.short || m.name.replace("法", "") };
+      return { id: id, name: m.name, icon: m.icon, color: m.color, short: m.short || m.name.replace("法", ""), reviewedAt: m.reviewedAt || REVIEWED_AT };
     }
-    return { id: id, name: id, icon: "📁", color: "#6b7280" };
+    return { id: id, name: id, icon: "📁", color: "#6b7280", reviewedAt: REVIEWED_AT };
   }
   var DOMAIN_SVG = {
     labor: "i-d-labor", company: "i-d-company", patent: "i-d-patent", trade: "i-d-trade",

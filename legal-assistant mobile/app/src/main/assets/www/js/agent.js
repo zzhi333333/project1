@@ -78,10 +78,19 @@ window.AGENT = (function () {
     return out;
   }
 
-  /* 本地库核验 */
+  /* 本地库核验（全量：legacy 全局 + 6 个注册域，经 DomainRegistry.collect 聚合） */
+  var ALL_LAWS_CACHE = null;
+  function allLaws() {
+    if (!ALL_LAWS_CACHE) {
+      ALL_LAWS_CACHE = (window.DomainRegistry && window.DomainRegistry.collect)
+        ? window.DomainRegistry.collect("laws")
+        : (window.LAWS || []);
+    }
+    return ALL_LAWS_CACHE;
+  }
   function verifyLocal(cit) {
     var norm = normLaw(cit.law);
-    var matches = window.LAWS.filter(function (l) {
+    var matches = allLaws().filter(function (l) {
       var ls = normLaw(l.lawShort), lf = normLaw(l.law);
       return ls.indexOf(norm) > -1 || norm.indexOf(ls) > -1 || lf.indexOf(norm) > -1 || norm.indexOf(lf) > -1;
     });

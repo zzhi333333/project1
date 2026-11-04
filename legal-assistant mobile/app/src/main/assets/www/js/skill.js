@@ -331,6 +331,13 @@ window.SKILLS = (function () {
   }
 
   /* ---------------- UI ---------------- */
+  /* 复核标记是否过期（>6 个月视为较旧，提示核对） */
+  function isStale(ym) {
+    var m = String(ym || "").match(/^(\d{4})-(\d{1,2})/);
+    if (!m) return false;
+    var d = new Date();
+    return (d.getFullYear() - Number(m[1])) * 12 + (d.getMonth() + 1 - Number(m[2])) > 6;
+  }
   function rowHtml(sk) {
     var on = isEnabled(sk.id);
     var isB = sk.source === "builtin";
@@ -340,6 +347,7 @@ window.SKILLS = (function () {
       '<div class="flk-props">' +
       (sk.keywords && sk.keywords.length ? '<span class="prop">触发词：' + esc(sk.keywords.join(" / ")) + '</span>' : "") +
       '<span class="prop">作者：' + esc(sk.author || "未署名") + '</span>' +
+      (sk.reviewedAt ? '<span class="prop ' + (isStale(sk.reviewedAt) ? "warn" : "") + '">资料复核：' + esc(sk.reviewedAt) + (isStale(sk.reviewedAt) ? "（较旧，请核对最新法规）" : "") + '</span>' : "") +
       (sk.prompt ? "" : '<span class="prop warn">无分析框架（仅清单/模板/术语）</span>') +
       '</div>' +
       '<div class="flk-actions">' +

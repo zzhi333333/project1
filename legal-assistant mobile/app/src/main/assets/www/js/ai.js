@@ -273,7 +273,9 @@ window.AI = (function () {
     "②引用法条写明法律名称与条文号（如《劳动合同法》第47条），优先依据下方提供的匹配资料；" +
     "③给出可执行建议：如何固定证据、走什么程序、注意什么时效；" +
     "④存在地方裁审口径差异或事实不足时明确说明，不要编造；" +
-    "⑤结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
+    "⑤关键事实缺失时的追问与拒答：若案件时间、所在地区、双方身份关系、合同性质、金额等关键事实缺失且直接影响结论，先合并追问（最多两个问题），不要直接给出确定性结论；" +
+    "⑥同一问题存在多种解释或法律路径时，用条件分支表述——「若 A 情形则…；若 B 情形则…」，不要擅自替用户选定事实；" +
+    "⑦结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
     "使用简体中文，条理清晰，适度使用小标题与列表。";
 
   function buildContext(text) {
@@ -736,6 +738,7 @@ window.AI = (function () {
     resetHistory: resetHistory, stopCurrent: stopCurrent, langPrompt: langPrompt,
     aiFollowUp: aiFollowUp,
     exportData: exportData, importData: importData, buildBackup: buildBackup, redactPII: redactPII,
+    systemPromptText: function () { return SYSTEM_PROMPT; },   /* 评测集只读访问 */
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };
