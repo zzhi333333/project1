@@ -421,6 +421,15 @@
             <div class="tool-result dim" style="font-size:12.5px">⚠️ 时效涉及失权后果，个案起算与中断认定请咨询执业律师；规则以现行法律及司法解释为准。</div>
           </div>
 
+          <div class="tool-card" data-tool="ws" data-cat="util">
+            <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-box"/></svg></span><span>案件工作区</span></div>
+            <div class="tool-form">
+              <div class="dim" style="font-size:13px;line-height:1.7">同一案件统一管理：待确认事项、关联报告、期限提醒、案例收藏——激活当前案件后自动归集，可导出 .md 档案。</div>
+              <button id="ws-open-btn" class="calc-btn"><svg class=ico><use href=#i-box></use></svg> 打开案件工作区</button>
+            </div>
+            <div class="tool-result dim" style="font-size:12.5px">🔒 案件数据仅存本机；删除案件仅解除关联，不删底层数据。</div>
+          </div>
+
           <div class="tool-card" data-tool="cal" data-cat="util">
             <div class="tool-title"><span class="tool-ico"><svg class="ico"><use href="#i-t-cal"/></svg></span><span>合规日历</span></div>
             <div class="tool-form">
@@ -653,6 +662,37 @@
   </div>
 </div>
 
+<!-- 案件工作区 -->
+<div id="ws-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card">
+    <div class="modal-title"><svg class="ico"><use href="#i-box"/></svg> 案件工作区</div>
+    <div class="modal-body">
+      <select id="ws-select" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);margin-bottom:8px"></select>
+      <div class="backup-row" style="margin-bottom:8px">
+        <button id="ws-new" class="mini-btn">＋ 新建案件</button>
+        <button id="ws-rename" class="mini-btn">重命名</button>
+        <button id="ws-del" class="mini-btn">删除</button>
+      </div>
+      <div id="ws-body">
+        <div class="modal-section-title">待确认事项</div>
+        <div class="backup-row" style="margin-bottom:8px">
+          <input id="ws-note-input" type="text" maxlength="120" placeholder="如：需确认合同签订日期" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+          <button id="ws-note-add" class="mini-btn">添加</button>
+        </div>
+        <div id="ws-notes" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+        <div class="modal-section-title" style="margin-top:12px">自动归集</div>
+        <div id="ws-links" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div class="modal-note" style="margin-top:10px">归集来源：深度分析「存入报告库」、合规日历添加、案例粘贴导入——当前案件激活时自动关联。</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="ws-export" class="primary"><svg class=ico><use href=#i-save></use></svg> 导出档案 (.md)</button>
+      <button id="ws-close">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 发送前预览 -->
 <div id="send-preview-modal" class="modal hidden">
   <div class="modal-mask"></div>
@@ -762,6 +802,8 @@
 <script src="js/pack.js"></script>
 <script src="js/caseimport.js"></script>
 <script src="js/intake.js"></script>
+<script src="js/store.js"></script>
+<script src="js/workspace.js"></script>
 <script src="js/skill.js"></script>
 <script src="js/templates.js"></script>
 <script src="js/gsearch.js"></script>

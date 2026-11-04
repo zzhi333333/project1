@@ -70,7 +70,7 @@ else bad("index.html 缺少免责声明！");
   let cm, cardBad = 0, cardTotal = 0;
   while ((cm = cardRe.exec(html)) !== null) {
     const tid = cm[1];
-    if (tid === "cal" || tid === "sx") continue;   /* 非计算器卡：合规日历 / 时效规则中心 */
+    if (tid === "cal" || tid === "sx" || tid === "ws") continue;   /* 非计算器卡：合规日历 / 时效规则中心 / 案件工作区 */
     cardTotal++;
     if (html.slice(cm.index, cm.index + cm[0].length).indexOf('id="' + tid + '-calc"') === -1) {
       bad("工具卡错位：data-tool=\"" + tid + "\" 卡内找不到 " + tid + "-calc 按钮（标题与表单不匹配）");

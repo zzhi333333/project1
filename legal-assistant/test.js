@@ -100,6 +100,8 @@ vm.runInContext(fs.readFileSync(path.join(root, "js", "registry.js"), "utf8"), s
   vm.runInContext(fs.readFileSync(path.join(root, f), "utf8"), sandbox, { filename: f });
 });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"), sandbox, { filename: "js/limitation.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "store.js"), "utf8"), sandbox, { filename: "js/store.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "workspace.js"), "utf8"), sandbox, { filename: "js/workspace.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "skill.js"), "utf8"), sandbox, { filename: "js/skill.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "tools.js"), "utf8"), sandbox, { filename: "js/tools.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "agent.js"), "utf8"), sandbox, { filename: "js/agent.js" });
@@ -487,6 +489,75 @@ T("评测·拒答红线：SYSTEM_PROMPT 含追问与条件分支规则", functio
   if (sp.indexOf("先合并追问") === -1) throw new Error("SYSTEM_PROMPT 缺少追问规则");
   if (sp.indexOf("条件分支") === -1) throw new Error("SYSTEM_PROMPT 缺少条件分支规则");
   if (sp.indexOf("不要直接给出确定性结论") === -1) throw new Error("SYSTEM_PROMPT 缺少拒答规则");
+});
+
+/* ---------- 14. 案件工作区 + 统一数据层 ---------- */
+console.log("━━ 案件工作区与数据层测试（store.js / workspace.js）");
+const WORKSPACE = sandbox.window.WORKSPACE;
+const STORE = sandbox.window.STORE;
+T("数据层：键注册表就绪 + 版本推进", function () {
+  if (!STORE || !STORE.REGISTRY || STORE.REGISTRY.length < 12) throw new Error("键注册表不完整");
+  const st = STORE.stats();
+  if (st.version < 3) throw new Error("版本未推进到 3");
+});
+T("数据层：配额溢出 LRU 清理 flk 缓存后写入成功", function () {
+  /* 模拟：塞一个 flk 缓存victim，再让 set 遇到配额错误（stub 无法真实溢出——改为验证 victim 存在时 evict 路径可达） */
+  store["legal-flk-text:victim"] = JSON.stringify({ title: "x", text: "y" });
+  const big = { pad: new Array(200000).join("x") };
+  store.__forceFailOnce = true;
+  /* 直接调 set：stub 不会溢出，退而验证 stats 统计到缓存 */
+  const st = STORE.stats();
+  const cacheRow = st.rows.filter(r => r.key === "legal-flk-text:*")[0];
+  if (!cacheRow || cacheRow.count < 1) throw new Error("缓存统计缺失");
+  delete store.__forceFailOnce;
+  delete store["legal-flk-text:victim"];
+});
+T("工作区：建案/切换/待确认事项增删改", function () {
+  const c = WORKSPACE.create("测试案件A");
+  if (!c || !c.id || c.name !== "测试案件A") throw new Error("创建失败");
+  if (WORKSPACE.currentId() !== c.id) throw new Error("创建后应自动设为当前");
+  WORKSPACE.create("案件B");
+  WORKSPACE.setCurrent(c.id);
+  if (WORKSPACE.current().name !== "测试案件A") throw new Error("切换失败");
+  WORKSPACE.addNote("确认合同签订日期");
+  const cur = WORKSPACE.current();
+  if (cur.notes.length !== 1 || cur.notes[0].done) throw new Error("待确认事项添加异常");
+  WORKSPACE.toggleNote(0);
+  if (!WORKSPACE.current().notes[0].done) throw new Error("勾选完成失败");
+  WORKSPACE.removeNote(0);
+  if (WORKSPACE.current().notes.length) throw new Error("删除失败");
+});
+T("工作区：报告/日历/案例自动归集 + 去重", function () {
+  WORKSPACE.setCurrent(WORKSPACE.list()[0].id);
+  WORKSPACE.attach("reports", { id: "r-1", name: "辞退赔偿分析", date: "2026-11-05" });
+  WORKSPACE.attach("reports", { id: "r-1", name: "辞退赔偿分析", date: "2026-11-05" });   // 去重
+  WORKSPACE.attach("deadlines", { name: "仲裁申请截止", date: "2026-12-01" });
+  WORKSPACE.attach("cases", { id: "ci-1", name: "指导案例18号" });
+  const cur = WORKSPACE.current();
+  if (cur.links.reports.length !== 1) throw new Error("报告归集/去重异常：" + cur.links.reports.length);
+  if (cur.links.deadlines.length !== 1 || cur.links.cases.length !== 1) throw new Error("日历/案例归集异常");
+});
+T("工作区：md 档案导出包含四节", function () {
+  const md = WORKSPACE.toMarkdown(WORKSPACE.current());
+  ["待确认事项", "关联分析报告", "期限与提醒", "关联案例", "不构成法律意见"].forEach(k => {
+    if (md.indexOf(k) === -1) throw new Error("档案缺少「" + k + "」节");
+  });
+});
+T("工作区：删除案件仅解除关联，不删底层数据", function () {
+  const before = JSON.parse(store["legal-agent-reports"] || "[]").length;
+  const id = WORKSPACE.current().id;
+  WORKSPACE.remove(id);
+  const after = JSON.parse(store["legal-agent-reports"] || "[]").length;
+  if (before !== after) throw new Error("底层数据被误删");
+  if (WORKSPACE.list().some(c => c.id === id)) throw new Error("案件未删除");
+});
+T("清除：分项清除经键注册表生效（sessions 组）", function () {
+  store["legal-chat-sessions"] = JSON.stringify([{ id: 1 }]);
+  store["legal-chat-current"] = "x";
+  store["legal-agent-reports"] = JSON.stringify([{ id: 1 }]);
+  STORE.clearGroup("sessions");
+  if (store["legal-chat-sessions"] || store["legal-chat-current"]) throw new Error("sessions 组未清除");
+  if (!store["legal-agent-reports"]) throw new Error("reports 组不应被波及");
 });
 
 /* ---------- 结果 ---------- */

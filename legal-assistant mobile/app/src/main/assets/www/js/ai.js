@@ -634,12 +634,7 @@ window.AI = (function () {
         try { sessionStorage.removeItem("legal-preview-skip"); } catch (e) {}
       });
     }
-    var CLEAR_MAP = {
-      "sessions": ["legal-chat-sessions", "legal-chat-current"],
-      "reports": ["legal-agent-reports"],
-      "cases": ["legal-case-imports"],
-      "evhist": ["legal-ev-checks", "legal-calc-history", "legal-deadlines"]
-    };
+    var CLEAR_GROUPS = { "sessions": 1, "reports": 1, "cases": 1, "evhist": 1 };
     document.querySelectorAll("[data-clear]").forEach(function (b) {
       b.addEventListener("click", function () {
         var which = b.getAttribute("data-clear");
@@ -650,10 +645,19 @@ window.AI = (function () {
           setTimeout(function () { b.dataset.armed = ""; b.textContent = b.getAttribute("data-label") || b.textContent; b.classList.remove("danger"); }, 4000);
           return;
         }
-        var keys = which === "all"
-          ? [].concat(CLEAR_MAP.sessions, CLEAR_MAP.reports, CLEAR_MAP.cases, CLEAR_MAP.evhist)
-          : CLEAR_MAP[which];
-        (keys || []).forEach(function (k) { localStorage.removeItem(k); });
+        if (window.STORE) {
+          if (which === "all") STORE.clearCaseData(); else STORE.clearGroup(which);
+        } else {
+          /* 兜底：store.js 未加载时按旧清单清除 */
+          var LEGACY = {
+            sessions: ["legal-chat-sessions", "legal-chat-current"],
+            reports: ["legal-agent-reports"],
+            cases: ["legal-case-imports"],
+            evhist: ["legal-ev-checks", "legal-calc-history", "legal-deadlines"]
+          };
+          (which === "all" ? [].concat(LEGACY.sessions, LEGACY.reports, LEGACY.cases, LEGACY.evhist) : LEGACY[which] || [])
+            .forEach(function (k) { localStorage.removeItem(k); });
+        }
         setStatus("<svg class=ico><use href=#i-checkc></use></svg> 已清除，页面即将刷新", "ok");
         setTimeout(function () { location.reload(); }, 700);
       });

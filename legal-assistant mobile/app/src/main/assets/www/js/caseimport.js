@@ -121,8 +121,10 @@ window.CASEIMPORT = (function () {
       if (!text.trim()) return;
       var r = parse(text);
       var list = load();
-      list.unshift({ id: "ci-" + Date.now(), savedAt: new Date().toISOString(), title: r.title, caseNo: r.caseNo, court: r.court, date: r.date, parties: r.parties, holding: r.holding, raw: r.raw });
+      var rec = { id: "ci-" + Date.now(), savedAt: new Date().toISOString(), title: r.title, caseNo: r.caseNo, court: r.court, date: r.date, parties: r.parties, holding: r.holding, raw: r.raw };
+      list.unshift(rec);
       save(list.slice(0, 50));
+      if (window.WORKSPACE) window.WORKSPACE.attach("cases", { id: rec.id, name: (rec.title || rec.caseNo || "导入案例").slice(0, 60) });   /* 案件工作区归集 */
       close();
       renderList();
       var box = document.getElementById("case-import-list");

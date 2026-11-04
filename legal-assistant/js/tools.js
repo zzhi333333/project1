@@ -461,7 +461,7 @@
   /* =========================================================
    * 工具卡通用能力：分类筛选 / 排序 / 收藏置顶 / 一键复制 / 法条跳转
    * ========================================================= */
-  var TOOL_ORDER = ["sv", "ot", "al", "ln", "dj", "fy", "pt", "ip", "cf", "dl", "sx", "cal"];
+  var TOOL_ORDER = ["sv", "ot", "al", "ln", "dj", "fy", "pt", "ip", "cf", "dl", "sx", "ws", "cal"];
   var FAV_KEY = "legal-fav-tools";
 
   function getToolFavs() {
@@ -793,6 +793,7 @@
           var list = calLoad();
           list.push({ name: name, date: date });
           calSave(list);
+          if (window.WORKSPACE) window.WORKSPACE.attach("deadlines", { name: name, date: date });   /* 案件工作区归集 */
           $("cal-name").value = "";
           calRender();
           calNotifyCheck();
@@ -833,6 +834,7 @@
       var list = calLoad();
       list.push({ name: String(name).slice(0, 30), date: date });
       calSave(list);
+      if (window.WORKSPACE) window.WORKSPACE.attach("deadlines", { name: String(name).slice(0, 30), date: date });   /* 案件工作区归集 */
       calRender();
       calNotifyCheck();
       return true;

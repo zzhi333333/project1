@@ -369,8 +369,12 @@ window.AGENT = (function () {
   }
   function saveReport(entry) {
     var list = loadReports();
-    list.unshift({ id: "r-" + Date.now(), date: new Date().toISOString(), q: entry.q, mode: entry.mode, html: entry.html, text: entry.text, verify: entry.verify });
-    return saveReports(list);
+    var rec = { id: "r-" + Date.now(), date: new Date().toISOString(), q: entry.q, mode: entry.mode, html: entry.html, text: entry.text, verify: entry.verify };
+    list.unshift(rec);
+    var ok = saveReports(list);
+    /* 案件工作区自动归集（当前案件激活时） */
+    if (ok && window.WORKSPACE) window.WORKSPACE.attach("reports", { id: rec.id, name: String(rec.q || "").slice(0, 60), date: rec.date.slice(0, 10) });
+    return ok;
   }
   function openReportArchive() {
     var old = document.getElementById("report-archive-modal");
