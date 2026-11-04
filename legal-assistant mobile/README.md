@@ -6,7 +6,7 @@
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
 - 产物：`dist/legal-assistant-mobile-v3.0.apk`（约 577KB）
 
-## 🆕 v3.0 更新（跟随网页版——跳过 2.9 直接升大版本）
+## 🆕 v3.0 更新（跟随网页版——跳过 2.9 直接升大版本；App 图标更新重出包 versionCode 24）
 
 | 新增 | 说明 |
 |---|---|
