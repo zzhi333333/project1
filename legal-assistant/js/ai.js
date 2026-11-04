@@ -23,7 +23,7 @@ window.AI = (function () {
     custom:   { name: "自定义（OpenAI 兼容接口）", baseUrl: "", model: "" }
   };
 
-  var DEFAULTS = { provider: "glm", baseUrl: PROVIDERS.glm.baseUrl, model: PROVIDERS.glm.model, apiKey: "", temperature: 0.5, lang: "auto" };
+  var DEFAULTS = { provider: "glm", baseUrl: PROVIDERS.glm.baseUrl, model: PROVIDERS.glm.model, apiKey: "", temperature: 0.5, lang: "auto", redact: true, preview: false };
   var S = load();
   var aiHistory = [];          /* 多轮对话记忆（最近若干轮） */
   var _proxyBase = null;       /* null=未探测, false=不可用, ""=同源, "http://127.0.0.1:8080" */
@@ -94,12 +94,63 @@ window.AI = (function () {
   /* ---------------- 对话主入口 ----------------
      opts 可覆盖当前设置（测试连接时使用，避免污染已保存配置） */
   var activeCtrl = null;
+  /* ---------------- 隐私：PII 脱敏 + 发送前预览 ---------------- */
+  function redactPII(t) {
+    var s = String(t == null ? "" : t);
+    /* 身份证（18 位，含校验位 X） */
+    s = s.replace(/\b\d{6}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/g, "【身份证号已脱敏】");
+    /* 手机号（前后非数字，兼容旧 WebView 不用 lookbehind） */
+    s = s.replace(/(^|[^0-9])(1[3-9]\d{9})(?=[^0-9]|$)/g, "$1【手机号已脱敏】");
+    return s;
+  }
+  function maybePreview(messages) {
+    if (!S.preview) return Promise.resolve(messages);
+    var skip = false;
+    try { skip = sessionStorage.getItem("legal-preview-skip") === "1"; } catch (e) {}
+    if (skip) return Promise.resolve(messages);
+    return new Promise(function (resolve, reject) {
+      var modal = document.getElementById("send-preview-modal");
+      var ta = document.getElementById("send-preview-text");
+      var btnSend = document.getElementById("sp-send");
+      var btnCancel = document.getElementById("sp-cancel");
+      var cbSkip = document.getElementById("sp-skip");
+      if (!modal || !ta || !btnSend || !btnCancel) return resolve(messages);
+      ta.value = messages.map(function (m) {
+        var tag = m.role === "system" ? "系统提示（核验约束规则，不含案情）" : m.role === "user" ? "发送内容（含案情/资料）" : "AI 历史回复";
+        return "──── " + tag + " ────\n" + String(m.content || "").slice(0, 4000);
+      }).join("\n\n");
+      if (cbSkip) cbSkip.checked = false;
+      modal.classList.remove("hidden");
+      function cleanup() {
+        modal.classList.add("hidden");
+        btnSend.removeEventListener("click", onSend);
+        btnCancel.removeEventListener("click", onCancel);
+      }
+      function onSend() {
+        if (cbSkip && cbSkip.checked) { try { sessionStorage.setItem("legal-preview-skip", "1"); } catch (e) {} }
+        cleanup();
+        resolve(messages);
+      }
+      function onCancel() {
+        cleanup();
+        reject(new Error("已取消发送（用户在「发送前预览」中取消）。如不再需要预览，可在 AI 设置 → 隐私中关闭。"));
+      }
+      btnSend.addEventListener("click", onSend);
+      btnCancel.addEventListener("click", onCancel);
+    });
+  }
+
   function aiChat(messages, onDelta, opts) {
     var cfg = Object.assign({}, S, opts || {});
     if (!cfg.baseUrl) return Promise.reject(new Error("未配置接口地址（Base URL），请点击右上角「AI 模型」设置。"));
     if (!cfg.apiKey && cfg.provider !== "ollama") return Promise.reject(new Error("未配置 API Key，请点击右上角「AI 模型」设置。"));
     var temp = parseFloat(cfg.temperature);
     if (isNaN(temp)) temp = 0.5;
+    /* 隐私：发送前脱敏（默认开）+ 发送前预览（默认关，可在设置开启） */
+    messages = messages.map(function (m) {
+      return m.role === "user" && cfg.redact ? Object.assign({}, m, { content: redactPII(m.content) }) : m;
+    });
+    var proceed = maybePreview(messages);
     var ctrl = new AbortController();
     activeCtrl = ctrl;
     var body = {
@@ -114,22 +165,26 @@ window.AI = (function () {
       acc += String(d);
       if (onDelta) onDelta(d);
     }
-    return detectProxy().then(function (pb) {
-      var viaProxy = pb !== false;
-      var p;
-      if (viaProxy) {
-        p = post(pb + "/api/ai/chat", body).catch(function (e1) {
-          return postDirect(cfg, body).catch(function (e2) {
-            throw new Error(friendly(e1, e2));
+    /* 预览确认 → 探测代理 → 发送；取消预览时整个调用拒绝 */
+    return proceed.then(function (finalMessages) {
+      body.messages = finalMessages;
+      return detectProxy().then(function (pb) {
+        var viaProxy = pb !== false;
+        var p;
+        if (viaProxy) {
+          p = post(pb + "/api/ai/chat", body).catch(function (e1) {
+            return postDirect(cfg, body).catch(function (e2) {
+              throw new Error(friendly(e1, e2));
+            });
           });
-        });
-      } else {
-        p = postDirect(cfg, body).catch(function (e2) {
-          throw new Error("无法连接模型接口（直连）：" + (e2 && e2.message || e2) +
-            "。若为浏览器跨域限制，请运行 node server.js / python server.py 后重试。");
-        });
-      }
-      return p.then(function () { return acc; });
+        } else {
+          p = postDirect(cfg, body).catch(function (e2) {
+            throw new Error("无法连接模型接口（直连）：" + (e2 && e2.message || e2) +
+              "。若为浏览器跨域限制，请运行 node server.js / python server.py 后重试。");
+          });
+        }
+        return p.then(function () { return acc; });
+      });
     });
 
     function post(url, b) {
@@ -521,6 +576,45 @@ window.AI = (function () {
       e.target.value = "";
     });
 
+    /* ---------------- 隐私与数据：开关 + 分项清除 ---------------- */
+    var cbRedact = document.getElementById("ai-privacy-redact");
+    if (cbRedact) {
+      cbRedact.checked = S.redact !== false;
+      cbRedact.addEventListener("change", function () { S.redact = cbRedact.checked; save(); });
+    }
+    var cbPreview = document.getElementById("ai-privacy-preview");
+    if (cbPreview) {
+      cbPreview.checked = !!S.preview;
+      cbPreview.addEventListener("change", function () {
+        S.preview = cbPreview.checked; save();
+        try { sessionStorage.removeItem("legal-preview-skip"); } catch (e) {}
+      });
+    }
+    var CLEAR_MAP = {
+      "sessions": ["legal-chat-sessions", "legal-chat-current"],
+      "reports": ["legal-agent-reports"],
+      "cases": ["legal-case-imports"],
+      "evhist": ["legal-ev-checks", "legal-calc-history", "legal-deadlines"]
+    };
+    document.querySelectorAll("[data-clear]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var which = b.getAttribute("data-clear");
+        if (b.dataset.armed !== "1") {
+          b.dataset.armed = "1";
+          b.textContent = "确认清除？";
+          b.classList.add("danger");
+          setTimeout(function () { b.dataset.armed = ""; b.textContent = b.getAttribute("data-label") || b.textContent; b.classList.remove("danger"); }, 4000);
+          return;
+        }
+        var keys = which === "all"
+          ? [].concat(CLEAR_MAP.sessions, CLEAR_MAP.reports, CLEAR_MAP.cases, CLEAR_MAP.evhist)
+          : CLEAR_MAP[which];
+        (keys || []).forEach(function (k) { localStorage.removeItem(k); });
+        setStatus("<svg class=ico><use href=#i-checkc></use></svg> 已清除，页面即将刷新", "ok");
+        setTimeout(function () { location.reload(); }, 700);
+      });
+    });
+
     syncToggleLabel();
   }
 
@@ -537,15 +631,18 @@ window.AI = (function () {
   function stopCurrent() { if (activeCtrl) activeCtrl.abort(); }
 
   /* ---------------- 数据备份：导出 / 导入 ---------------- */
-  function exportData() {
-    var payload = {
-      app: "legal-assistant", version: 1, exportedAt: new Date().toISOString(),
+  function buildBackup() {
+    return {
+      app: "legal-assistant", version: 2, exportedAt: new Date().toISOString(),
       chatSessions: JSON.parse(localStorage.getItem("legal-chat-sessions") || "[]"),
       chatCurrent: localStorage.getItem("legal-chat-current"),
       deadlines: JSON.parse(localStorage.getItem("legal-deadlines") || "[]"),
       feedback: JSON.parse(localStorage.getItem("legal-feedback") || "[]"),
-      aiSettings: S
+      aiSettings: Object.assign({}, S, { apiKey: "" })   /* 隐私：备份默认排除 API Key */
     };
+  }
+  function exportData() {
+    var payload = buildBackup();
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -565,7 +662,12 @@ window.AI = (function () {
         if (d.chatCurrent) localStorage.setItem("legal-chat-current", d.chatCurrent);
         if (d.deadlines) localStorage.setItem("legal-deadlines", JSON.stringify(d.deadlines));
         if (d.feedback) localStorage.setItem("legal-feedback", JSON.stringify(d.feedback));
-        if (d.aiSettings) { S = Object.assign({}, DEFAULTS, d.aiSettings); save(); }
+        if (d.aiSettings) {
+          var keepKey = S.apiKey;   /* 备份不含密钥：导入时保留本机已存的 Key */
+          S = Object.assign({}, DEFAULTS, d.aiSettings);
+          if (!S.apiKey) S.apiKey = keepKey;
+          save();
+        }
         setStatus("<svg class=ico><use href=#i-checkc></use></svg> 导入成功，页面即将刷新", "ok");
         setTimeout(function () { location.reload(); }, 800);
       } catch (e) {
@@ -579,7 +681,7 @@ window.AI = (function () {
     init: init, aiChat: aiChat, openModal: openModal,
     resetHistory: resetHistory, stopCurrent: stopCurrent, langPrompt: langPrompt,
     aiFollowUp: aiFollowUp,
-    exportData: exportData, importData: importData,
+    exportData: exportData, importData: importData, buildBackup: buildBackup, redactPII: redactPII,
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

@@ -534,6 +534,17 @@
         <button id="skill-manage-btn" class="ghost-btn" style="margin-left:auto">管理技能库</button>
       </div>
       <div class="modal-note" style="margin-top:8px">技能 = 自定义 .md 知识包（分析框架/证据清单/文书模板/术语），注入 AI 提示词以强化细分领域能力；核验管线与免责声明不受技能影响。</div>
+      <div class="modal-section-title"><svg class="ico"><use href="#i-lock"/></svg> 隐私与数据</div>
+      <label class="check-line" style="margin:6px 0"><input id="ai-privacy-redact" type="checkbox" checked> 发送前自动脱敏（身份证号 / 手机号替换为占位符）</label>
+      <label class="check-line" style="margin:6px 0"><input id="ai-privacy-preview" type="checkbox"> 每次发送前显示实际发送内容（敏感案情建议开启）</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="ghost-btn" data-label="清除对话历史" data-clear="sessions">清除对话历史</button>
+        <button class="ghost-btn" data-label="清除报告存档" data-clear="reports">清除报告存档</button>
+        <button class="ghost-btn" data-label="清除案例收藏" data-clear="cases">清除案例收藏</button>
+        <button class="ghost-btn" data-label="清除清单/日历/历史" data-clear="evhist">清除清单·日历·计算历史</button>
+        <button class="ghost-btn" data-label="清除全部案件数据" data-clear="all">清除全部案件数据</button>
+      </div>
+      <div class="modal-note" style="margin-top:6px">清除仅影响本机数据且不可恢复；API Key 与技能库不在清除范围（技能库可在技能管理中删除）。</div>
       <div class="modal-section-title"><svg class="ico"><use href="#i-save"/></svg> 数据备份</div>
       <div style="display:flex;gap:10px">
         <button id="data-export" class="ghost-btn">导出备份（对话+设置）</button>
@@ -580,6 +591,22 @@
 </div>
 
 <!-- 首次使用引导 -->
+<!-- 发送前预览 -->
+<div id="send-preview-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card" style="width:min(760px, calc(100vw - 32px))">
+    <div class="modal-title"><svg class="ico"><use href=#i-lock></use></svg> 发送前预览（实际发送给模型的内容）</div>
+    <div class="modal-body">
+      <textarea id="send-preview-text" readonly rows="12" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:12.5px;font-family:monospace"></textarea>
+      <label class="check-line" style="margin-top:8px"><input id="sp-skip" type="checkbox"> 本次会话不再询问（刷新前有效）</label>
+    </div>
+    <div class="modal-foot">
+      <button id="sp-send" class="primary">确认发送</button>
+      <button id="sp-cancel">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- AI 技能库 -->
 <div id="skill-modal" class="modal hidden">
   <div class="modal-mask"></div>

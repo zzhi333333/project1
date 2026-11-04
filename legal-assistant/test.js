@@ -39,7 +39,17 @@ function makeEl(id) {
     },
     addEventListener(type, fn) { (el._handlers[type] = el._handlers[type] || []).push(fn); },
     removeEventListener() {},
-    closest() { return null; },
+    closest(sel) {
+      /* .tool-card 模拟：返回以本按钮前缀分组的同卡输入（供 bindCalc 输入回显/历史快照） */
+      if (sel === ".tool-card" && el.id && el.id.indexOf("-calc") > -1) {
+        const prefix = el.id.replace("-calc", "");
+        const kids = Object.keys(els)
+          .filter(id => id.indexOf(prefix + "-") === 0 && !/-calc$/.test(id) && !/-result$/.test(id) && !/-wrap$/.test(id))
+          .map(id => els[id]);
+        return { querySelectorAll() { return kids; } };
+      }
+      return null;
+    },
     querySelector() { return null; },
     querySelectorAll() { return []; },
     appendChild() {},
@@ -73,23 +83,40 @@ const sandbox = {
   localStorage: {
     getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
     setItem(k, v) { store[k] = String(v); },
-    removeItem(k) { delete store[k]; }
+    removeItem(k) { delete store[k]; },
+    key(i) { return Object.keys(store)[i] || null; },
+    get length() { return Object.keys(store).length; }
   }
 };
 sandbox.window = sandbox;
 sandbox.window.Notification = undefined;
 vm.createContext(sandbox);
 
-/* ---------------- 载入 limitation.js + skill.js + tools.js ---------------- */
+/* ---------------- 载入 registry + data + limitation + skill + tools + agent ---------------- */
+vm.runInContext(fs.readFileSync(path.join(root, "js", "registry.js"), "utf8"), sandbox, { filename: "js/registry.js" });
+["js/data/laws.js", "js/data/laws-extra.js"].forEach(function (f) {
+  vm.runInContext(fs.readFileSync(path.join(root, f), "utf8"), sandbox, { filename: f });
+});
 vm.runInContext(fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"), sandbox, { filename: "js/limitation.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "skill.js"), "utf8"), sandbox, { filename: "js/skill.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "tools.js"), "utf8"), sandbox, { filename: "js/tools.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "agent.js"), "utf8"), sandbox, { filename: "js/agent.js" });
+try {
+  vm.runInContext(fs.readFileSync(path.join(root, "js", "ai.js"), "utf8"), sandbox, { filename: "js/ai.js" });
+} catch (e) {
+  console.error("❌ ai.js 沙箱加载失败：" + e.message + "\n" + String(e.stack || "").split("\n").slice(0, 3).join("\n"));
+  process.exit(1);
+}
 const TOOLS = sandbox.window.TOOLS;
 const LIMITATION = sandbox.window.LIMITATION;
 const SKILLS = sandbox.window.SKILLS;
+const AGENT = sandbox.window.AGENT;
+const AI = sandbox.window.AI;
 if (!TOOLS || !TOOLS.init) { console.error("❌ tools.js 未暴露 window.TOOLS，无法测试"); process.exit(1); }
 if (!LIMITATION || !LIMITATION.postponeIfRest) { console.error("❌ limitation.js 未就绪，时效顺延无法测试"); process.exit(1); }
 if (!SKILLS || !SKILLS.parse) { console.error("❌ skill.js 未暴露 window.SKILLS，技能无法测试"); process.exit(1); }
+if (!AGENT || !AGENT.verifyText) { console.error("❌ agent.js 未暴露 window.AGENT.verifyText，核验无法测试"); process.exit(1); }
+if (!AI || !AI.redactPII) { console.error("❌ ai.js 未就绪（需含 buildBackup/redactPII）"); process.exit(1); }
 TOOLS.init();
 
 /* 触发某计算器：点击 bindCalc 绑定的按钮桩 */
@@ -364,6 +391,60 @@ T("技能：启用后 promptBlock/checklists/templates 生效，停用即收回"
 T("技能：与内置 id 冲突的导入被拒绝", function () {
   const r = SKILLS.importText("---\nid: skill-jiangong\nname: 冒牌\n---\n\n## 分析框架\nx");
   if (r.ok) throw new Error("内置 id 冲突未拒绝");
+});
+
+/* ---------- 12. 核验三级制 + 隐私 + 计算器审计 ---------- */
+console.log("━━ 核验三级制与隐私测试（agent.js / ai.js / tools.js）");
+T("核验：本地命中且官方全文本机缓存比对一致 → 二级「原文已核对」", function () {
+  const entry = sandbox.window.LAWS.find(l => l.law.indexOf("劳动合同法") > -1 && l.article.indexOf("46") > -1);
+  if (!entry) throw new Error("本地库缺 劳动合同法 第46条 测试样本");
+  store["legal-flk-text:test-bbbs"] = JSON.stringify({
+    title: "中华人民共和国劳动合同法(2012修正)",
+    text: "第一条 为了完善劳动合同制度…（中间省略）…" + entry.text + "…第九十八条 本法自2008年1月1日起施行。"
+  });
+  const v = AGENT.verifyText("根据《劳动合同法》第46条，用人单位应当向劳动者支付经济补偿。", "", null);
+  const c = v.citations[0];
+  if (c.status !== "ok") throw new Error("引用未命中本地库：" + c.status);
+  if (c.tier !== 2 || !c.textChecked) throw new Error("应升为二级（原文已核对），实际 tier=" + c.tier);
+  delete store["legal-flk-text:test-bbbs"];
+});
+T("核验：无官方缓存时本地命中 → 一级「来源可定位」", function () {
+  const v = AGENT.verifyText("根据《劳动合同法》第46条，用人单位应当支付经济补偿。", "", null);
+  const c = v.citations[0];
+  if (c.status !== "ok" || c.tier !== 1 || c.textChecked) throw new Error("应为一级 tier=1，实际 tier=" + c.tier);
+});
+T("核验：错误条文号 → law-only 警示（来源定位但条文未定位）", function () {
+  const v = AGENT.verifyText("根据《劳动合同法》第99条，用人单位应当支付经济补偿。", "", null);
+  const c = v.citations[0];
+  if (c.status !== "law-only") throw new Error("错条文号应为 law-only，实际 " + c.status);
+  if (c.articleLocated !== false) throw new Error("articleLocated 应为 false");
+});
+T("隐私：PII 脱敏（身份证/手机号）", function () {
+  const out = AI.redactPII("我叫张三，身份证 110101199003077758，手机 13812345678，请咨询。");
+  if (out.indexOf("110101199003077758") !== -1) throw new Error("身份证未脱敏：" + out);
+  if (out.indexOf("13812345678") !== -1) throw new Error("手机号未脱敏：" + out);
+  if (out.indexOf("【身份证号已脱敏】") === -1 || out.indexOf("【手机号已脱敏】") === -1) throw new Error("脱敏占位符缺失：" + out);
+});
+T("隐私：备份默认排除 API Key", function () {
+  AI.settings().apiKey = "sk-secret-test";
+  const bk = AI.buildBackup();
+  if (bk.aiSettings.apiKey !== "") throw new Error("备份泄露了 API Key");
+  if (AI.settings().apiKey !== "sk-secret-test") throw new Error("本机 Key 不应被清除");
+  AI.settings().apiKey = "";
+});
+T("计算器：输出含可复核审计行（规则版本+输入回显）", function () {
+  feed({ "sv-from": "2020-01-01", "sv-to": "2024-07-01", "sv-salary": "10000", "sv-avg": "", "sv-type": "2N" });
+  runCalc("sv-calc");
+  const h = out("sv-result");
+  if (h.indexOf("calc-audit") === -1) throw new Error("缺少审计行");
+  if (h.indexOf("R2026-11") === -1) throw new Error("缺少规则版本");
+  if (h.indexOf("from=2020-01-01") === -1) throw new Error("缺少输入回显");
+});
+T("核验：报告面板三级汇总文案", function () {
+  /* 用沙箱直接构造验证结果走 renderPanel 的文案逻辑（通过 attachVerification 的 DOM 桩） */
+  const v = AGENT.verifyText("根据《劳动合同法》第46条支付经济补偿，补偿按2N计算约20万元。", "第46条…经济补偿…2N…20万", null);
+  if (v.totalCitations !== 1) throw new Error("引用解析数异常");
+  if (v.flaggedNumbers < 1 && v.numbers.length === 0) throw new Error("数字断言未解析");
 });
 
 /* ---------- 结果 ---------- */

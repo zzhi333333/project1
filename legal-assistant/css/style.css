@@ -282,6 +282,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 
 /* 引用核验徽标（答案内联） */
 .cite-ok { color: var(--ok); border-bottom: 2px solid #6ee7b7; cursor: help; }
+.cite-ok2 { color: var(--ok); border-bottom: 2px double var(--ok); cursor: help; font-weight: 600; }
 .cite-warn {
   color: #b45309; background: var(--card)beb; border-bottom: 2px solid #fcd34d;
   border-radius: 3px; padding: 0 3px; cursor: help;

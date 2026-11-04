@@ -4,6 +4,8 @@
 (function () {
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  /* 规则版本：内置计算规则的最后复核标记（资料复核机制的一部分，改动规则时同步更新） */
+  var RULE_VER = "R2026-11";
   function fmt(n) {
     if (!isFinite(n)) return "—";
     return "¥ " + n.toLocaleString("zh-CN", { maximumFractionDigits: 2 });
@@ -723,13 +725,24 @@
           if (el.value !== "" && el.value != null) inputs[el.id] = el.value;
         });
       }
-      var hasResult = out.querySelector(".calc-detail, .calc-head");
-      if (hasResult && !out.querySelector(".tool-warn")) {
+      var oh = out.innerHTML;
+      var hasResult = oh.indexOf("calc-head") > -1 || oh.indexOf("calc-detail") > -1;
+      var isWarn = oh.indexOf("tool-warn") > -1;
+      if (hasResult && !isWarn) {
         histRecord(toolId, name, inputs, out.textContent.replace(/\s+/g, " ").trim());
       }
       var old = out.querySelector(".calc-copy");
       if (old) old.remove();
       out.innerHTML = lawLinks(out.innerHTML);
+      /* 可复核审计行：规则版本 + 输入回显 + 适用前提（置于 lawLinks 重写之后，避免被覆盖） */
+      if (hasResult && !isWarn) {
+        var echo = Object.keys(inputs).map(function (k) {
+          return k.replace(/^[a-z]{2}-/, "") + "=" + inputs[k];
+        }).join("；");
+        out.innerHTML += '<div class="calc-audit dim" style="margin-top:8px;font-size:11.5px;line-height:1.7;border-top:1px dashed var(--line);padding-top:6px">🧾 可复核：规则版本 ' + RULE_VER +
+          " ｜ 输入回显：" + (echo ? esc(echo) : "（空）") +
+          " ｜ 规则以官方现行法律文本及司法解释为准，输入改变结果随之改变；结果不构成法律意见。</div>";
+      }
       var copyBtn = document.createElement("button");
       copyBtn.className = "ghost-btn calc-copy";
       copyBtn.innerHTML = "<svg class=ico><use href=#i-copy></use></svg> 复制结果";

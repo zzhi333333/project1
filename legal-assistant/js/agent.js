@@ -102,13 +102,33 @@ window.AGENT = (function () {
       var t = fullTexts[key];
       if (!t || !t.text) continue;
       if (key.indexOf(norm) > -1 || norm.indexOf(key) > -1) {
-        if (cit.articleNum == null) return { status: "ok", source: "国家法律法规数据库", law: t.title, text: "" };
+        if (cit.articleNum == null) return { status: "ok", source: "国家法律法规数据库", law: t.title, text: "", tier: 2, textChecked: true, officialTitle: t.title };
         var hitAr = t.text.indexOf("第" + cit.articleNum + "条") > -1;
         var hitCn = t.text.indexOf("第" + num2cn(cit.articleNum) + "条") > -1;
-        if (hitAr || hitCn) return { status: "ok", source: "国家法律法规数据库", law: t.title, text: "" };
+        if (hitAr || hitCn) return { status: "ok", source: "国家法律法规数据库", law: t.title, text: "", tier: 2, textChecked: true, officialTitle: t.title };
       }
     }
     return null;
+  }
+
+  /* 二级核验：本地命中的条文与「flk 官方全文本机缓存」做文本比对（联网取过原文即有缓存） */
+  function checkOfficialText(entry) {
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || k.indexOf("legal-flk-text:") !== 0) continue;
+        var c = JSON.parse(localStorage.getItem(k) || "null");
+        if (!c || !c.title || !c.text) continue;
+        var nt = normLaw(c.title), nl = normLaw(entry.law);
+        if (nt.indexOf(nl) === -1 && nl.indexOf(nt) === -1) continue;
+        /* 官方全文里找该条条文文本（取本地摘要的前 24 字做锚点，规范化空白后比对） */
+        var anchor = entry.text.replace(/\s+/g, "").slice(0, 24);
+        if (anchor && c.text.replace(/\s+/g, "").indexOf(anchor) > -1)
+          return { tier: 2, textChecked: true, officialTitle: c.title };
+        return { tier: 1, textChecked: false, officialTitle: c.title, note: "已获官方全文但未匹配到该条摘要文本（可能为摘要改写），建议点开原文比对" };
+      }
+    } catch (e) { /* localStorage 不可用时按一级处理 */ }
+    return { tier: 1, textChecked: false };
   }
 
   /* 数字断言核验：期限/比例/倍数/金额须在资料区有依据 */
@@ -157,7 +177,7 @@ window.AGENT = (function () {
     return false;
   }
 
-  /* 综合核验：返回 {citations, numbers, allOk, verifiedCount} */
+  /* 综合核验：三级制 —— ①来源可定位(tier1) ②原文已核对(tier2) ③结论支持（数字断言） */
   function verifyText(answerText, ctxText, fullTexts) {
     var cits = parseCitations(answerText);
     var citResults = cits.map(function (c) {
@@ -166,37 +186,60 @@ window.AGENT = (function () {
         var o = verifyOnline(c, fullTexts);
         if (o) v = o;
       }
-      return {
+      var res = {
         cit: c,
         status: v ? v.status : "fail",
         source: v ? v.source : null,
         lawDisplay: v ? v.law : c.law,
-        text: v ? v.text : ""
+        text: v ? v.text : "",
+        tier: 0, textChecked: false, articleLocated: true
       };
+      if (res.status === "ok") {
+        if (v.tier) { res.tier = v.tier; res.textChecked = !!v.textChecked; res.officialTitle = v.officialTitle || ""; }
+        else if (v.entry) {
+          /* 本地命中：尝试与官方全文本机缓存做文本比对升二级 */
+          var t2 = checkOfficialText(v.entry);
+          res.tier = t2.tier; res.textChecked = t2.textChecked; res.officialTitle = t2.officialTitle || ""; res.tierNote = t2.note || "";
+        } else { res.tier = 1; }
+      } else if (res.status === "law-only") {
+        res.tier = 1; res.articleLocated = false;
+      }
+      return res;
     });
     var nums = parseNumberClaims(answerText).map(function (c) {
       return { claim: c, ok: verifyNumberClaim(c, ctxText) };
     });
     var verified = citResults.filter(function (x) { return x.status === "ok"; }).length;
+    var tier2 = citResults.filter(function (x) { return x.tier === 2; }).length;
     return {
       citations: citResults,
       numbers: nums,
       verifiedCount: verified,
+      tier2Count: tier2,
       totalCitations: citResults.length,
       flaggedNumbers: nums.filter(function (x) { return !x.ok; }).length,
       allOk: verified === citResults.length && nums.every(function (x) { return x.ok; })
     };
   }
 
-  /* 答案内联标注：给引用打 ✓/<svg class=ico><use href=#i-warn></use></svg> 徽标 */
+  /* 答案内联标注：三级徽标 —— ✓✓ 原文已核对 / ✓ 来源已定位 / ⚠ 未核实 */
   function annotate(answerText, verification) {
     var html = esc(answerText);
     verification.citations.forEach(function (r) {
-      var badge = r.status === "ok" ? " ✓" : " <svg class=ico><use href=#i-warn></use></svg>";
-      var cls = r.status === "ok" ? "cite-ok" : "cite-warn";
-      var tip = r.status === "ok"
-        ? "已核实：" + esc(r.lawDisplay) + (r.cit.articleNum ? " 第" + r.cit.articleNum + "条" : "") + "（" + esc(r.source) + "）"
-        : "未能核实该引用，请到法条检索页人工确认";
+      var badge, cls, tip;
+      if (r.status === "ok" && r.tier === 2) {
+        badge = " ✓✓"; cls = "cite-ok2";
+        tip = "原文已核对：该条文文本与官方全文（" + esc(r.officialTitle || r.lawDisplay) + "）比对一致";
+      } else if (r.status === "ok") {
+        badge = " ✓"; cls = "cite-ok";
+        tip = "来源已定位：" + esc(r.lawDisplay) + (r.cit.articleNum ? " 第" + r.cit.articleNum + "条" : "") + "（" + esc(r.source) + "）；联网获取官方全文后可升级为「原文已核对」";
+      } else if (r.status === "law-only") {
+        badge = " <svg class=ico><use href=#i-warn></use></svg>"; cls = "cite-warn";
+        tip = "仅定位到该法律，未能定位到该条文号——请核对条文号是否准确";
+      } else {
+        badge = " <svg class=ico><use href=#i-warn></use></svg>"; cls = "cite-warn";
+        tip = "未能核实该引用，请到法条检索页人工确认";
+      }
       var safeRaw = esc(r.cit.raw).replace(/"/g, "&quot;");
       html = html.split(esc(r.cit.raw)).join('<span class="' + cls + '" title="' + tip + '">' + safeRaw + badge + "</span>");
     });
@@ -853,25 +896,46 @@ window.AGENT = (function () {
     });
   }
 
-  /* 核验报告面板 */
+  /* 核验报告面板：三级制（①来源可定位 ②原文已核对 ③结论支持） */
   function renderPanel(v, answerText) {
-    var html = '<div class="verify-panel"><div class="vp-title"><svg class=ico><use href=#i-shield></use></svg> 引用核验报告</div>';
+    var html = '<div class="verify-panel"><div class="vp-title"><svg class=ico><use href=#i-shield></use></svg> 引用核验报告（三级）</div>';
     if (!v.totalCitations && !v.numbers.length) {
       html += '<div class="vp-line dim">回答中未出现法条引用与数字断言。</div>';
+    } else {
+      html += '<div class="vp-line"><b>① 来源可定位：</b>' + v.verifiedCount + " / " + v.totalCitations + " 条引用已在本地知识库或官方来源定位</div>";
+      html += '<div class="vp-line"><b>② 原文已核对：</b>' + v.tier2Count + " / " + v.totalCitations + " 条已与官方全文文本比对" +
+        (v.tier2Count < v.verifiedCount ? "（其余为本地库定位——联网获取官方全文后可升级）" : "") + "</div>";
+      html += '<div class="vp-line"><b>③ 结论支持：</b>数字断言 ' + (v.numbers.length - v.flaggedNumbers) + " / " + v.numbers.length + " 项在资料区有依据" +
+        (v.flaggedNumbers ? "，<b>未核实的数字不得作为决策依据</b>" : "") + "</div>";
+      html += '<div class="vp-line dim" style="margin-top:4px">分级说明：✓✓=原文已核对（与官方全文文本比对）；✓=来源可定位（本地/联网定位到出处，未逐字比对）；⚠=未能核实。结论的语义正确性不在程序核验范围内，请结合案情自行判断。</div>';
     }
     v.citations.forEach(function (r) {
-      var icon = r.status === "ok" ? "<svg class=ico><use href=#i-checkc></use></svg>" : "<svg class=ico><use href=#i-warn></use></svg>";
-      var desc = r.status === "ok"
-        ? "已核实（" + r.source + "）"
-        : "未能核实——本地知识库与联网检索均未找到该条文，请到「法条检索」页人工确认";
-      html += '<div class="vp-line ' + (r.status === "ok" ? "" : "bad") + '">' + icon + " 《" + esc(r.cit.law) + "》" +
+      var icon, desc;
+      if (r.status === "ok" && r.tier === 2) {
+        icon = "<svg class=ico><use href=#i-checkc></use></svg>";
+        desc = "✓✓ 原文已核对（" + esc(r.officialTitle || r.source) + "）——条文文本与官方全文比对一致";
+      } else if (r.status === "ok") {
+        icon = "<svg class=ico><use href=#i-checkc></use></svg>";
+        desc = "✓ 来源已定位（" + r.source + "）" + (r.tierNote ? "；" + esc(r.tierNote) : "；原文未比对");
+      } else if (r.status === "law-only") {
+        icon = "<svg class=ico><use href=#i-warn></use></svg>";
+        desc = "⚠ 仅定位到该法律，未定位到条文号「第" + r.cit.articleNum + "条」——请核对条文号";
+      } else {
+        icon = "<svg class=ico><use href=#i-warn></use></svg>";
+        desc = "⚠ 未能核实——本地知识库与联网检索均未找到该条文，请到「法条检索」页人工确认";
+      }
+      html += '<div class="vp-line ' + (r.status === "ok" && r.tier === 2 ? "" : r.status === "ok" ? "" : "bad") + '">' + icon + " 《" + esc(r.cit.law) + "》" +
         (r.cit.articleNum != null ? "第" + r.cit.articleNum + "条" : "") + " — " + desc + "</div>";
     });
     v.numbers.forEach(function (x) {
       if (x.ok) return;
       html += '<div class="vp-line bad"><svg class=ico><use href=#i-warn></use></svg> 数字断言待核实：「' + esc(x.claim.raw) + "」（上下文：…" + esc(x.claim.snippet) + "…）未在资料区找到依据</div>";
     });
-    var level = v.allOk ? "高（全部引用已核实）" : (v.verifiedCount === v.totalCitations ? "中（引用已核实，" + v.flaggedNumbers + " 项数字待人工确认）" : "中低（" + (v.totalCitations - v.verifiedCount) + " 条引用未核实，请谨慎采纳）");
+    var level = v.allOk && v.tier2Count === v.totalCitations && v.totalCitations > 0
+      ? "高（全部引用已核对官方原文，数字断言有依据）"
+      : v.allOk
+        ? "中高（引用均定位到来源，其中 " + v.tier2Count + " 条已核对原文；" + v.flaggedNumbers + " 项数字待确认）"
+        : (v.verifiedCount === v.totalCitations ? "中（引用可定位，" + v.flaggedNumbers + " 项数字待人工确认）" : "中低（" + (v.totalCitations - v.verifiedCount) + " 条引用未核实，请谨慎采纳）");
     html += '<div class="vp-summary">整体可信度：<b>' + level + "</b></div>";
     if (!v.allOk) {
       html += '<button class="mini-btn primary" id="agent-regen"><svg class=ico><use href=#i-wrench></use></svg> 严格模式重新生成（仅使用已核实资料）</button>';
@@ -1047,7 +1111,8 @@ window.AGENT = (function () {
     var v = verifyText(answerText, ctxText || "", null);
     if (!v.totalCitations && !v.flaggedNumbers) return;   /* 没有可核验内容则不打扰 */
     var html = '<div class="verify-mini' + (v.allOk ? "" : " warn") + '">' +
-      "<svg class=ico><use href=#i-shield></use></svg> 核验：" + v.verifiedCount + "/" + v.totalCitations + " 条引用已核实" +
+      "<svg class=ico><use href=#i-shield></use></svg> 核验：定位 " + v.verifiedCount + "/" + v.totalCitations +
+      " · 核对原文 " + v.tier2Count + "/" + v.totalCitations +
       (v.flaggedNumbers ? "；<svg class=ico><use href=#i-warn></use></svg> " + v.flaggedNumbers + " 项数字待核实" : "") +
       (v.allOk ? "" : "（未核实内容请谨慎采纳，可到「深度分析」页获得完整核验报告）") + "</div>";
     var wrap = document.createElement("div");
