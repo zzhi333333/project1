@@ -833,6 +833,22 @@
   });
   var docClose = document.getElementById("doc-close");
   if (docClose) docClose.addEventListener("click", function () { document.getElementById("doc-modal").classList.add("hidden"); });
+  /* 文书草稿存入案件工作区（当前案件激活时） */
+  var docWsBtn = document.getElementById("doc-save-ws");
+  if (docWsBtn) docWsBtn.addEventListener("click", function () {
+    var ta = document.getElementById("doc-text");
+    var text = (ta.value || "").trim();
+    if (!text) return;
+    if (!window.WORKSPACE || !window.WORKSPACE.current()) {
+      docWsBtn.textContent = "未激活案件（先在工具页打开工作区）";
+      setTimeout(function () { docWsBtn.innerHTML = docWsBtn.getAttribute("data-label") || "存入案件工作区"; }, 2500);
+      return;
+    }
+    var title = (text.split(/\n/)[0] || "文书草稿").replace(/^[#\s]+/, "").slice(0, 40);
+    window.WORKSPACE.attach("docs", { name: title, date: new Date().toISOString().slice(0, 10), draft: text.slice(0, 4000) });
+    docWsBtn.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已存入案件工作区";
+    setTimeout(function () { docWsBtn.innerHTML = docWsBtn.getAttribute("data-label") || "存入案件工作区"; }, 2000);
+  });
   var docCopy = document.getElementById("doc-copy");
   if (docCopy) docCopy.addEventListener("click", function () {
     var ta = document.getElementById("doc-text");

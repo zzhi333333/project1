@@ -98,6 +98,17 @@ window.INTAKE = (function () {
   }
 
   function stop() {
+    /* 引导结束交接：未确认要素 → 案件工作区待确认事项（当前案件激活时），状态重置前执行 */
+    if (active && window.WORKSPACE && window.WORKSPACE.current()) {
+      var miss = missing();
+      var ws = window.WORKSPACE.current();
+      if (miss.length) {
+        miss.forEach(function (e) { window.WORKSPACE.addNote("未确认要素：" + e.label + "——" + e.hint); });
+        if (window.UI && window.UI.appendBot) {
+          window.UI.appendBot("🗂 已把 <b>" + miss.length + "</b> 项未确认要素加入案件工作区「" + esc(ws.name) + "」的待确认事项——补齐后可再次分析。", null);
+        }
+      }
+    }
     active = false;
     state = { found: {}, rounds: 0, firstText: "" };
     var old = document.getElementById("intake-card");

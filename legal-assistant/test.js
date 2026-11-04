@@ -76,7 +76,13 @@ const sandbox = {
     getElementById(id) { if (!els[id]) els[id] = makeEl(id); return els[id]; },
     querySelector() { return null; },
     querySelectorAll() { return []; },
-    createElement(tag) { const e = makeEl("__anon__"); e.tagName = tag; return e; },
+    createElement(tag) {
+      const e = makeEl("__anon__"); e.tagName = tag;
+      /* 创建元素内的 querySelector 也返回桩（renderCard 等会对新建节点绑事件） */
+      e.querySelector = function (s) { const k = "__q_" + s; if (!els[k]) els[k] = makeEl(k); return els[k]; };
+      e.querySelectorAll = function () { return []; };
+      return e;
+    },
     body: makeEl("body")
   },
   navigator: {},
@@ -106,6 +112,7 @@ vm.runInContext(fs.readFileSync(path.join(root, "js", "skill.js"), "utf8"), sand
 vm.runInContext(fs.readFileSync(path.join(root, "js", "tools.js"), "utf8"), sandbox, { filename: "js/tools.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "agent.js"), "utf8"), sandbox, { filename: "js/agent.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "consult.js"), "utf8"), sandbox, { filename: "js/consult.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "intake.js"), "utf8"), sandbox, { filename: "js/intake.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "analysis.js"), "utf8"), sandbox, { filename: "js/analysis.js" });
 try {
   vm.runInContext(fs.readFileSync(path.join(root, "js", "ai.js"), "utf8"), sandbox, { filename: "js/ai.js" });
@@ -558,6 +565,70 @@ T("清除：分项清除经键注册表生效（sessions 组）", function () {
   STORE.clearGroup("sessions");
   if (store["legal-chat-sessions"] || store["legal-chat-current"]) throw new Error("sessions 组未清除");
   if (!store["legal-agent-reports"]) throw new Error("reports 组不应被波及");
+});
+
+T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {
+  AI.settings().apiKey = "sk-v3-test";
+  store["legal-chat-sessions"] = JSON.stringify([{ id: "s1" }]);
+  store["legal-chat-current"] = "s1";
+  store["legal-deadlines"] = JSON.stringify([]);
+  store["legal-case-imports"] = JSON.stringify([]);
+  store["legal-feedback"] = JSON.stringify([]);
+  store["legal-agent-reports"] = JSON.stringify([{ id: "r-x" }]);
+  store["legal-workspaces"] = JSON.stringify({ list: [{ id: "w1", name: "案件", links: {} }], currentId: "w1" });
+  const bk = AI.buildBackup();
+  if (bk.version !== 3) throw new Error("版本应为 3");
+  if (bk.aiSettings.apiKey !== "") throw new Error("密钥泄漏进备份");
+  ["legal-chat-sessions", "legal-chat-current", "legal-agent-reports", "legal-workspaces", "legal-deadlines", "legal-case-imports", "legal-feedback"].forEach(k => {
+    if (!(k in bk.entries)) throw new Error("备份缺少 backup:true 键：" + k);
+  });
+  if ("legal-ai" in bk.entries) throw new Error("AI 设置（含密钥）不应进 entries");
+  if ("legal-skills" in bk.entries) throw new Error("技能库标记 backup:false 不应进 entries");
+  AI.settings().apiKey = "";
+});
+T("备份 v3：restoreBackup 往返恢复 + 保留本机密钥", function () {
+  AI.settings().apiKey = "sk-local-keep";
+  const bk = AI.buildBackup();
+  store["legal-chat-sessions"] = JSON.stringify([{ id: "sentinel-old" }]);
+  const n = AI.restoreBackup(JSON.parse(JSON.stringify(bk)));
+  if (n < 5) throw new Error("恢复键数异常：" + n);
+  const cur = JSON.parse(store["legal-chat-sessions"]);
+  if (!Array.isArray(cur)) throw new Error("恢复后 sessions 非数组");
+  if (AI.settings().apiKey !== "sk-local-keep") throw new Error("本机 Key 被空备份覆盖");
+  AI.settings().apiKey = "";
+});
+T("备份兼容：v2 旧格式（chatSessions 字段）仍可恢复", function () {
+  const old = { app: "legal-assistant", version: 2, chatSessions: [{ id: "old1" }], chatCurrent: "old1", deadlines: [], feedback: [], aiSettings: { model: "m2" } };
+  const n = AI.restoreBackup(old);
+  if (n < 3) throw new Error("v2 恢复键数异常：" + n);
+  const cur = JSON.parse(store["legal-chat-sessions"]);
+  if (cur.length !== 1 || cur[0].id !== "old1") throw new Error("v2 sessions 未恢复");
+});
+T("工作区 v2：intake 未确认要素交接进待确认事项", function () {
+  const c = WORKSPACE.create("要素交接测试");
+  if (WORKSPACE.currentId() !== c.id) throw new Error("当前案件未激活");
+  const IT = sandbox.window.INTAKE;
+  if (!IT || !IT.start || !IT.stop) throw new Error("intake.js 未暴露 start/stop");
+  const bg = sandbox.window.AI.beginGuided;   /* 测试沙箱无 DOM：摘除引导 UI 钩子，只测数据交接 */
+  sandbox.window.AI.beginGuided = null;
+  IT.start("公司拖欠工资3万元");                                  // 命中 amount/parties
+  IT.onUserMessage("2024年3月开始拖欠，有借条和转账记录");            // 命中 timeline/evidence
+  IT.stop();                                                     // 交接：measures/claims 两项进工作区
+  sandbox.window.AI.beginGuided = bg;
+  const cur = WORKSPACE.current();
+  const handoff = (cur.notes || []).filter(n => n.text.indexOf("未确认要素") > -1);
+  if (handoff.length !== 2) throw new Error("应交接 2 项未确认要素，实际 " + handoff.length);
+  if (cur.notes.length !== handoff.length) throw new Error("已确认要素不应进待确认事项");
+  WORKSPACE.remove(c.id);
+});
+T("工作区 v2：文书草稿归集 docs 组", function () {
+  const c = WORKSPACE.create("文书归集测试");
+  WORKSPACE.attach("docs", { name: "催告函", date: "2026-11-05", draft: "致：…" });
+  const cur = WORKSPACE.current();
+  if (!cur.links.docs || cur.links.docs.length !== 1) throw new Error("docs 归集失败");
+  const md = WORKSPACE.toMarkdown(cur);
+  if (md.indexOf("文书草稿") === -1 || md.indexOf("催告函") === -1) throw new Error("档案缺文书草稿节");
+  WORKSPACE.remove(c.id);
 });
 
 /* ---------- 结果 ---------- */

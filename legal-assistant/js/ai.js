@@ -577,6 +577,9 @@ window.AI = (function () {
       if (e.target.files[0]) importData(e.target.files[0]);
       e.target.value = "";
     });
+    /* 反馈清单导出（维护者评测闭环：差评案例人工筛选后进 test.js 金问题） */
+    var fbBtn = document.getElementById("fb-export");
+    if (fbBtn) fbBtn.addEventListener("click", exportFeedback);
 
     /* ---------------- 隐私与数据：开关 + 分项清除 ---------------- */
     var cbRedact = document.getElementById("ai-privacy-redact");
@@ -636,16 +639,31 @@ window.AI = (function () {
   function resetHistory() { aiHistory = []; }
   function stopCurrent() { if (activeCtrl) activeCtrl.abort(); }
 
-  /* ---------------- 数据备份：导出 / 导入 ---------------- */
+  /* ---------------- 数据备份：导出 / 导入 ----------------
+     v3：按 store.js 键注册表导出全部 backup:true 的键（对话/工作区/报告/案例/日历等）；
+     aiSettings 始终排除 API Key。restoreBackup 兼容 v1/v2 旧格式。 */
   function buildBackup() {
-    return {
-      app: "legal-assistant", version: 2, exportedAt: new Date().toISOString(),
-      chatSessions: JSON.parse(localStorage.getItem("legal-chat-sessions") || "[]"),
-      chatCurrent: localStorage.getItem("legal-chat-current"),
-      deadlines: JSON.parse(localStorage.getItem("legal-deadlines") || "[]"),
-      feedback: JSON.parse(localStorage.getItem("legal-feedback") || "[]"),
-      aiSettings: Object.assign({}, S, { apiKey: "" })   /* 隐私：备份默认排除 API Key */
+    var payload = {
+      app: "legal-assistant", version: 3, exportedAt: new Date().toISOString(),
+      aiSettings: Object.assign({}, S, { apiKey: "" }),   /* 隐私：备份默认排除 API Key */
+      entries: {}
     };
+    if (window.STORE) {
+      STORE.REGISTRY.forEach(function (r) {
+        if (!r.backup) return;
+        var v = localStorage.getItem(r.key);
+        if (v == null) return;
+        try { payload.entries[r.key] = JSON.parse(v); } catch (e) { payload.entries[r.key] = v; }
+      });
+    } else {
+      /* 兜底：store.js 未加载时保留 v2 行为 */
+      payload.version = 2;
+      payload.chatSessions = JSON.parse(localStorage.getItem("legal-chat-sessions") || "[]");
+      payload.chatCurrent = localStorage.getItem("legal-chat-current");
+      payload.deadlines = JSON.parse(localStorage.getItem("legal-deadlines") || "[]");
+      payload.feedback = JSON.parse(localStorage.getItem("legal-feedback") || "[]");
+    }
+    return payload;
   }
   function exportData() {
     var payload = buildBackup();
@@ -657,24 +675,67 @@ window.AI = (function () {
     URL.revokeObjectURL(a.href);
     setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出到下载目录", "ok");
   }
+  /* 反馈清单导出（维护者评测闭环）：记录结构 {scene, domain, verdict: like|bad, comment, time}；差评优先，md 便于筛选进金问题 */
+  function exportFeedback() {
+    var fb = [];
+    try { fb = JSON.parse(localStorage.getItem("legal-feedback") || "[]"); } catch (e) { }
+    if (!fb.length) { setStatus("暂无反馈记录", ""); return; }
+    var bad = fb.filter(function (x) { return x.verdict === "bad"; });
+    var lines = ["# 用户反馈清单（维护者评测用）", "", "导出时间：" + new Date().toISOString().slice(0, 10),
+      "总数 " + fb.length + " 条，其中差评 " + bad.length + " 条——请人工筛选后加入 test.js 评测集金问题", "",
+      "## 差评（优先）"];
+    bad.forEach(function (x) {
+      lines.push("- [" + (x.domain || "?") + "] " + x.scene + (x.comment ? "｜备注：" + x.comment : "") + "｜" + (x.time || "").slice(0, 10));
+    });
+    lines.push("", "## 全部反馈");
+    fb.slice().reverse().forEach(function (x) {
+      lines.push("- [" + (x.verdict || "?") + "][" + (x.domain || "?") + "] " + x.scene + (x.comment ? "｜" + x.comment : "") + "｜" + (x.time || "").slice(0, 10));
+    });
+    lines.push("", "（本清单由本机生成；加入评测集时请匿名化处理案情信息。）");
+    var blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "feedback-" + new Date().toISOString().slice(0, 10) + ".md";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus("<svg class=ico><use href=#i-checkc></use></svg> 反馈清单已导出", "ok");
+  }
+
+  /* 恢复：v3（entries 键注册表）与 v1/v2（旧字段）双兼容；返回恢复的键数 */
+  function restoreBackup(d) {
+    var n = 0;
+    if (d.version >= 3 && d.entries) {
+      Object.keys(d.entries).forEach(function (k) {
+        var v = d.entries[k];
+        if (v === undefined) return;
+        try {
+          localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v));
+          n++;
+        } catch (e) { /* 单键失败不阻断 */ }
+      });
+    } else {
+      if (d.chatSessions) { localStorage.setItem("legal-chat-sessions", JSON.stringify(d.chatSessions)); n++; }
+      if (d.chatCurrent) { localStorage.setItem("legal-chat-current", d.chatCurrent); n++; }
+      if (d.deadlines) { localStorage.setItem("legal-deadlines", JSON.stringify(d.deadlines)); n++; }
+      if (d.feedback) { localStorage.setItem("legal-feedback", JSON.stringify(d.feedback)); n++; }
+    }
+    if (d.aiSettings) {
+      var keepKey = S.apiKey;   /* 备份不含密钥：导入时保留本机已存的 Key */
+      S = Object.assign({}, DEFAULTS, d.aiSettings);
+      if (!S.apiKey) S.apiKey = keepKey;
+      save();
+    }
+    return n;
+  }
   function importData(file) {
     var reader = new FileReader();
     reader.onload = function () {
       try {
         var d = JSON.parse(reader.result);
         if (!d || d.app !== "legal-assistant") throw new Error("不是本工具的备份文件");
-        if (!confirm("导入将覆盖当前的对话历史、日历与 AI 设置，是否继续？")) return;
-        if (d.chatSessions) localStorage.setItem("legal-chat-sessions", JSON.stringify(d.chatSessions));
-        if (d.chatCurrent) localStorage.setItem("legal-chat-current", d.chatCurrent);
-        if (d.deadlines) localStorage.setItem("legal-deadlines", JSON.stringify(d.deadlines));
-        if (d.feedback) localStorage.setItem("legal-feedback", JSON.stringify(d.feedback));
-        if (d.aiSettings) {
-          var keepKey = S.apiKey;   /* 备份不含密钥：导入时保留本机已存的 Key */
-          S = Object.assign({}, DEFAULTS, d.aiSettings);
-          if (!S.apiKey) S.apiKey = keepKey;
-          save();
-        }
-        setStatus("<svg class=ico><use href=#i-checkc></use></svg> 导入成功，页面即将刷新", "ok");
+        if (!confirm("导入将覆盖当前的对话历史、案件工作区、报告存档、案例收藏、日历与 AI 设置，是否继续？")) return;
+        var n = restoreBackup(d);
+        setStatus("<svg class=ico><use href=#i-checkc></use></svg> 导入成功（" + n + " 项数据），页面即将刷新", "ok");
         setTimeout(function () { location.reload(); }, 800);
       } catch (e) {
         setStatus("❌ 导入失败：" + (e && e.message || e));
@@ -687,7 +748,7 @@ window.AI = (function () {
     init: init, aiChat: aiChat, openModal: openModal,
     resetHistory: resetHistory, stopCurrent: stopCurrent, langPrompt: langPrompt,
     aiFollowUp: aiFollowUp,
-    exportData: exportData, importData: importData, buildBackup: buildBackup, redactPII: redactPII,
+    exportData: exportData, importData: importData, buildBackup: buildBackup, restoreBackup: restoreBackup, redactPII: redactPII,
     systemPromptText: function () { return SYSTEM_PROMPT; },   /* 评测集只读访问 */
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }

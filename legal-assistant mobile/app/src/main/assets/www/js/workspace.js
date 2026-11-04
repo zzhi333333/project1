@@ -32,7 +32,7 @@ window.WORKSPACE = (function () {
       name: String(name || "未命名案件").slice(0, 40),
       createdAt: new Date().toISOString(),
       notes: [],           /* 待确认事项 [{text, done, at}] */
-      links: { reports: [], deadlines: [], cases: [] }
+      links: { reports: [], deadlines: [], cases: [], docs: [] }
     };
     d.list.unshift(c);
     d.currentId = c.id;
@@ -103,6 +103,9 @@ window.WORKSPACE = (function () {
     s += "\n\n## 期限与提醒\n" + (c.links.deadlines.length
       ? c.links.deadlines.map(function (r) { return "- " + (r.date || "?") + "：" + r.name }).join("\n")
       : "（暂无）");
+    s += "\n\n## 文书草稿\n" + ((c.links.docs || []).length
+      ? c.links.docs.map(function (r) { return "- " + (r.date || "") + "：" + r.name }).join("\n")
+      : "（暂无）");
     s += "\n\n## 关联案例\n" + (c.links.cases.length
       ? c.links.cases.map(function (r) { return "- " + r.name }).join("\n")
       : "（暂无）");
@@ -142,6 +145,7 @@ window.WORKSPACE = (function () {
     };
     $("ws-links").innerHTML =
       sec("关联分析报告", lk.reports, "（激活案件后，深度分析「存入报告库」自动归集）") +
+      sec("文书草稿", lk.docs || [], "（生成文书后点「存入案件工作区」）") +
       sec("期限与提醒", lk.deadlines, "（激活案件后，合规日历添加自动归集）") +
       sec("关联案例", lk.cases, "（激活案件后，案例粘贴导入自动归集）");
   }
