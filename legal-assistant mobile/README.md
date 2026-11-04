@@ -2,9 +2,16 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `2.8`（versionCode 22）
+- 包名：`com.zz333.legalassistant`，版本 `2.8`（versionCode 22）；**v3.0（versionCode 23）待出包**：改 `build.bat` 内 `VERSION_NAME=3.0`、`AndroidManifest.xml` versionCode/Name 后构建
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v2.8.apk`（约 565KB）
+- 产物：`dist/legal-assistant-mobile-v2.8.apk`（约 565KB）；v3.0 出包后替换
+
+## 🆕 v3.0 更新（跟随网页版——**待出包**，跳过 2.9 直接升大版本）
+
+| 新增 | 说明 |
+|---|---|
+| 🏠 房屋租赁领域（第九域） | 主线民事高频补强：押金退还/提前退租与转租/欠租收房/维修责任/买卖不破租赁/没签合同 6 场景 + 14 条法条（民法典租赁章+押金司法实践通说）+ 4 篇 FAQ + 典型案例；随域注册自动进入咨询/检索/分析/快捷筛选 |
+| 🔧 内容量 | 法条 154→168 · 场景 45→51 · FAQ 41→45；评测集新增租赁金问题（域识别/733 条定位/场景自带押金规则） |
 
 ## 🆕 v2.8 更新（跟随网页版——可信度三批次）
 

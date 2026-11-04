@@ -102,7 +102,8 @@ vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(path.join(root, "js", "registry.js"), "utf8"), sandbox, { filename: "js/registry.js" });
 ["js/data/laws.js", "js/data/laws-extra.js", "js/data/scenarios.js",
  "js/domains/minfa.js", "js/domains/jiashi.js", "js/domains/minsusong.js",
- "js/domains/biaozhu.js", "js/domains/patent-intl.js", "js/domains/trade.js"].forEach(function (f) {
+ "js/domains/biaozhu.js", "js/domains/patent-intl.js", "js/domains/trade.js",
+ "js/domains/zulin.js"].forEach(function (f) {
   vm.runInContext(fs.readFileSync(path.join(root, f), "utf8"), sandbox, { filename: f });
 });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"), sandbox, { filename: "js/limitation.js" });
@@ -486,10 +487,25 @@ T("评测·新法版本：《民法典》第188条（3年时效）应可定位",
   const v = AGENT.verifyText("根据《民法典》第188条，诉讼时效期间为三年。", "", null);
   if (v.citations[0].status !== "ok") throw new Error("现行法引用应可定位：" + v.citations[0].status);
 });
-T("评测·结构：45 个场景全部配有澄清问题（无事实不成结论）", function () {
+T("评测·结构：全部场景配有澄清问题（无事实不成结论）", function () {
   const scs = sandbox.window.DomainRegistry.collect("scenarios");
   const noQ = scs.filter(s => !s.questions || !s.questions.length);
   if (noQ.length) throw new Error("以下场景无澄清问题（会绕过事实确认直接出结论）：" + noQ.map(s => s.id).join(", "));
+});
+T("评测·民事主线新增：押金纠纷 → zulin 域 + 733 条定位 + 场景自带押金规则", function () {
+  const rep = RUN("房东不退我押金6000元，说墙面变旧了要扣钱，怎么办？");
+  if (rep.domain !== "zulin") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("第733条") === -1) throw new Error("未命中返还规则条目：" + lawText);
+  if (!(rep.evidence || []).length || !(rep.risks || []).length) throw new Error("报告缺证据清单或风险提示");
+  /* 场景 result 自身的 laws 应含押金规则条目 */
+  const sc = sandbox.window.DomainRegistry.scenarioById("zl-deposit");
+  const r = sc.result({ stage: "ended", damage: "clean", proof: "full" });
+  if (r.laws.indexOf("zl-deposit") === -1) throw new Error("场景 laws 缺 zl-deposit");
+});
+T("评测·租赁：买卖不破租赁引用可定位", function () {
+  const v = AGENT.verifyText("根据《民法典》第725条，买卖不破租赁，新房东须继续履行租约。", "", null);
+  if (v.citations[0].status !== "ok") throw new Error("第725条应可定位：" + v.citations[0].status);
 });
 T("评测·拒答红线：SYSTEM_PROMPT 含追问与条件分支规则", function () {
   const sp = String(AI.systemPromptText());
