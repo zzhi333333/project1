@@ -123,7 +123,7 @@ try {
 }
 const TOOLS = sandbox.window.TOOLS;
 const LIMITATION = sandbox.window.LIMITATION;
-const SKILLS = sandbox.window.SKILLS;
+var SKILLS = sandbox.window.SKILLS;
 const AGENT = sandbox.window.AGENT;
 const AI = sandbox.window.AI;
 if (!TOOLS || !TOOLS.init) { console.error("❌ tools.js 未暴露 window.TOOLS，无法测试"); process.exit(1); }
@@ -551,6 +551,46 @@ T("评测·拒答红线：SYSTEM_PROMPT 含追问与条件分支规则", functio
   if (sp.indexOf("先合并追问") === -1) throw new Error("SYSTEM_PROMPT 缺少追问规则");
   if (sp.indexOf("条件分支") === -1) throw new Error("SYSTEM_PROMPT 缺少条件分支规则");
   if (sp.indexOf("不要直接给出确定性结论") === -1) throw new Error("SYSTEM_PROMPT 缺少拒答规则");
+});
+
+/* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */
+console.log("━━ 技能注入预算测试（fold/预算管理）");
+var SKILLS = sandbox.window.SKILLS;
+T("技能预算·单技能超长截断：>6000 字符的 prompt 注入被截断且不破坏结构", function () {
+  const md = "---\nid: test-long-skill\nname: 超长测试技能\ndomains: [labor]\n---\n\n## 分析框架\n" + "长".repeat(7000);
+  const r = SKILLS.importText(md);
+  if (!r.ok) throw new Error("导入失败：" + r.msg);
+  SKILLS.setEnabled(r.skill.id, true);
+  const block = SKILLS.promptBlock();
+  if (block.indexOf("超长测试技能") === -1) throw new Error("promptBlock 未包含该技能");
+  const bodyStart = block.indexOf("◀ 技能「超长测试技能」：\n");
+  if (bodyStart === -1) throw new Error("注入块格式异常");
+  if (block.length - bodyStart > 6600) throw new Error("单技能注入超限：" + (block.length - bodyStart));
+  if (block.indexOf("已截断") === -1) throw new Error("截断提示缺失");
+  SKILLS.remove(r.skill.id);
+});
+T("技能预算·总预算耗尽：多技能堆叠时后续技能不注入且有提示", function () {
+  for (let i = 0; i < 5; i++) {
+    const md = "---\nid: test-bulk-" + i + "\nname: 批量技能" + i + "\ndomains: [labor]\n---\n\n## 分析框架\n" + "证".repeat(4000);
+    const r = SKILLS.importText(md);
+    if (!r.ok) throw new Error("批量导入失败：" + r.msg);
+    SKILLS.setEnabled(r.skill.id, true);
+  }
+  const block = SKILLS.promptBlock();
+  const injected = (block.match(/◀ 技能「/g) || []).length;
+  if (injected >= 5) throw new Error("总预算未生效：全部 " + injected + " 个技能都被注入");
+  if (block.indexOf("因上下文预算未注入") === -1) throw new Error("缺少未注入提示");
+  for (let i = 0; i < 5; i++) SKILLS.remove("test-bulk-" + i);
+});
+T("技能预算·停用排除：导入默认停用，启用后注入，再停用后排除", function () {
+  const md = "---\nid: test-disabled\nname: 停用测试技能\ndomains: [labor]\n---\n\n## 分析框架\n测试内容。";
+  const r = SKILLS.importText(md);
+  if (!r.ok) throw new Error("导入失败：" + r.msg);
+  SKILLS.setEnabled("test-disabled", true);
+  if (SKILLS.promptBlock().indexOf("停用测试技能") === -1) throw new Error("启用后应被注入");
+  SKILLS.setEnabled("test-disabled", false);
+  if (SKILLS.promptBlock().indexOf("停用测试技能") !== -1) throw new Error("停用后不应被注入");
+  SKILLS.remove("test-disabled");
 });
 
 /* ---------- 14. 案件工作区 + 统一数据层 ---------- */
