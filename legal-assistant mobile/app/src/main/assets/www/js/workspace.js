@@ -277,24 +277,31 @@ window.WORKSPACE = (function () {
   }
 
   function renderBody() {
+    /* 结构保持式刷新：只切换空态/内容态显隐并刷新动态子区，
+       绝不重写 #ws-body（否则会抹掉判决书/证据目录等静态 UI） */
     var c = current();
     var body = $("ws-body");
     if (!body) return;
-    if (!c) { body.innerHTML = '<div class="empty">尚无案件：点上方「＋ 新建案件」创建后，咨询/分析/导入的产出会自动归集到当前案件。</div>'; return; }
+    var empty = $("ws-empty"), content = $("ws-content");
+    if (empty) empty.classList.toggle("hidden", !!c);
+    if (content) content.classList.toggle("hidden", !c);
+    if (!c) return;
     /* 待确认事项 */
     var notes = $("ws-notes");
-    notes.innerHTML = c.notes.length
+    if (notes) notes.innerHTML = c.notes.length
       ? c.notes.map(function (n, i) {
         return '<div class="flk-item" style="padding:6px 10px"><label class="check-line" style="margin:0"><input type="checkbox" data-ws-note="' + i + '"' + (n.done ? " checked" : "") + '> <span style="' + (n.done ? "text-decoration:line-through;opacity:.6" : "") + '">' + esc(n.text) + '</span></label><button class="mini-btn" data-ws-note-del="' + i + '" style="margin-left:auto">删</button></div>';
       }).join("")
       : '<div class="dim" style="font-size:12.5px">暂无待确认事项。</div>';
     /* 自动归集三栏 */
+    var links = $("ws-links");
+    if (!links) return;
     var lk = c.links;
     var sec = function (title, arr, empty) {
       return '<div><b style="font-size:13px">' + title + '（' + arr.length + '）</b><div style="font-size:12.5px;color:var(--ink-2);margin-top:4px">' +
         (arr.length ? arr.map(function (r) { return "· " + esc(r.name) + (r.date ? "（" + esc(r.date) + "）" : ""); }).join("<br>") : empty) + '</div></div>';
     };
-    $("ws-links").innerHTML =
+    links.innerHTML =
       sec("关联分析报告", lk.reports, "（激活案件后，深度分析「存入报告库」自动归集）") +
       sec("文书草稿", lk.docs || [], "（生成文书后点「存入案件工作区」）") +
       sec("期限与提醒", lk.deadlines, "（激活案件后，合规日历添加自动归集）") +

@@ -616,6 +616,8 @@
         <button id="ws-del" class="ghost-btn">删除</button>
       </div>
       <div id="ws-body">
+        <div id="ws-empty" class="empty hidden" style="font-size:13px;padding:14px 4px">尚无案件：点上方「＋ 新建案件」创建后，咨询/分析/导入的产出会自动归集到当前案件。</div>
+        <div id="ws-content" class="hidden">
         <div class="modal-section-title">待确认事项</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <input id="ws-note-input" type="text" maxlength="120" placeholder="如：需确认劳动合同签订日期" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
@@ -643,6 +645,7 @@
           <button id="ws-ev-word" class="ghost-btn hidden"><svg class=ico><use href=#i-file></use></svg> 导出 Word 表格</button>
         </div>
         <div id="ws-ev-out" style="margin-top:8px;overflow-x:auto"></div>
+        </div><!-- /ws-content -->
       </div>
     </div>
     <div class="modal-foot">
