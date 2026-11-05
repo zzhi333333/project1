@@ -179,11 +179,13 @@ window.WORKSPACE = (function () {
     j.future.forEach(function (n) {
       html += '<div class="tl-node"><div class="tl-dot" style="background:var(--danger)"></div><div class="tl-body"><div class="tl-stage">' + esc(n.name) + '</div>' +
         '<div class="tl-sum">' + esc(n.basis) + '</div>' +
-        '<div class="tl-add"><input class="tl-date" type="date" value="' + esc(n.date) + '"><button class="mini-btn tl-cal-add" data-name="' + esc(n.name) + '"><svg class=ico><use href=#i-calendar></use></svg> 加入日历</button></div></div></div>';
+        /* 独立类名 ws-tl-cal-add：analysis.js 对 .tl-cal-add 有文档级委托，
+           复用同类名会让工作区按钮触发 analysis 的 stage=null 垃圾归集 */
+        '<div class="tl-add"><input class="tl-date" type="date" value="' + esc(n.date) + '"><button class="mini-btn ws-tl-cal-add" data-name="' + esc(n.name) + '"><svg class=ico><use href=#i-calendar></use></svg> 加入日历</button></div></div></div>';
     });
     html += '</div><div class="calc-note">期限日期按文书落款日近似推算（法定起算点多为「送达之日」），请按实际送达日调整后再入日历；已加入日历的节点到期前 7 天会提醒。</div>';
     out.innerHTML = html;
-    out.querySelectorAll(".tl-cal-add").forEach(function (b) {
+    out.querySelectorAll(".ws-tl-cal-add").forEach(function (b) {
       b.addEventListener("click", function () {
         var date = b.closest(".tl-add").querySelector(".tl-date").value;
         if (!date) return;
