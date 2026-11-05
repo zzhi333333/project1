@@ -253,12 +253,33 @@ window.SKILLS = (function () {
   function enabledSkills() { return all().filter(function (x) { return isEnabled(x.id); }); }
 
   /* AI 提示块：启用的技能注入 system prompt（位于硬约束之后；免责声明由代码级追加，不可被技能影响） */
+  /* token 预算：单技能注入上限 6000 字符、总预算 16000 字符——超出按加载顺序截断，
+     防止技能堆多后资料区溢出、稀释核验硬约束的执行力 */
+  var PER_SKILL_LIMIT = 6000;
+  var TOTAL_BUDGET = 16000;
+
+  function clip(text, limit) {
+    if (!text || text.length <= limit) return text || "";
+    return text.slice(0, limit) + "\n…（技能内容过长已截断，完整内容请在技能库中查看）";
+  }
+
   function promptBlock() {
     var list = enabledSkills().filter(function (x) { return x.prompt; });
     if (!list.length) return "";
-    return "\n\n【用户加载的专项技能】以下是用户自行加载的领域分析框架，仅作为组织分析的思路与清单，" +
-      "不得据此编造法条、数字或结论；法条引用与数字断言仍须严格遵守既有的核验规则：\n" +
-      list.map(function (x) { return "◀ 技能「" + x.name + "」：\n" + x.prompt; }).join("\n\n");
+    var used = 0;
+    var parts = [];
+    list.forEach(function (x) {
+      var remain = TOTAL_BUDGET - used;
+      if (remain <= 200) return;   /* 预算耗尽：后续技能本轮不注入 */
+      var body = clip(x.prompt, Math.min(PER_SKILL_LIMIT, remain));
+      used += body.length;
+      parts.push("◀ 技能「" + x.name + "」：\n" + body);
+    });
+    if (!parts.length) return "";
+    var head = "\n\n【用户加载的专项技能】以下是用户自行加载的领域分析框架，仅作为组织分析的思路与清单，" +
+      "不得据此编造法条、数字或结论；法条引用与数字断言仍须严格遵守既有的核验规则：\n";
+    var tail = (list.length > parts.length) ? "\n（另有 " + (list.length - parts.length) + " 个技能因上下文预算未注入，可在技能库中查看）" : "";
+    return head + parts.join("\n\n") + tail;
   }
 
   /* 证据清单：skill.domains 为空 = 全领域适用 */
