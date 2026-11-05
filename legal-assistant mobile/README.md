@@ -2,9 +2,15 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.0.1`（versionCode 27）
+- 包名：`com.zz333.legalassistant`，版本 `3.0.2`（versionCode 28）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.0.1.apk`（约 800KB）
+- 产物：`dist/legal-assistant-mobile-v3.0.2.apk`（约 635KB）
+
+## 🆕 v3.0.2 更新（图标安全版）
+
+| 修复 | 说明 |
+|---|---|
+| 🎨 App 图标安全版 | 采用用户提供的图标安全设计版本：獬豸主体缩小居中，四周留足红色余量——任意启动器遮罩（含 MIUI 类激进裁切）下主体完整呈现 |
 
 ## 🆕 v3.0.1 更新（App 图标重制）
 
