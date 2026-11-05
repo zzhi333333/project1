@@ -116,7 +116,10 @@ window.WORKSPACE = (function () {
   /* ---------------- 判决书双时间线（已发生事实 + 程序期限节点） ---------------- */
   var DAYS = 86400000;
   function addDays(dateStr, days) {
-    var d = new Date(dateStr.replace(/年|月/g, "-").replace(/日/g, "").trim() + "T00:00:00");
+    /* 手工拆年月日（不依赖 Date 字符串解析——"2024-8-15" 未补零的 ISO 串在 V8 严格解析下会失败） */
+    var m = String(dateStr).match(/([12]\d{3})[-/年](\d{1,2})(?:[-/月](\d{1,2}))?/);
+    if (!m) return null;
+    var d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3] || "1", 10));
     if (isNaN(d.getTime())) return null;
     d = new Date(d.getTime() + days * DAYS);
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
