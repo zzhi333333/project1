@@ -625,6 +625,24 @@
         <div class="modal-section-title" style="margin-top:12px">自动归集</div>
         <div id="ws-links" style="display:flex;flex-direction:column;gap:10px"></div>
         <div class="modal-note" style="margin-top:10px">归集来源：深度分析「存入报告库」、工具页合规日历添加、案例页粘贴导入——当前案件激活时自动关联。</div>
+        <div class="modal-section-title" style="margin-top:14px">判决书双时间线</div>
+        <textarea id="ws-judg-input" rows="4" placeholder="粘贴判决书/调解书全文或尾部（含判决日期、履行期限），自动提取已发生事实与程序期限节点…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap">
+          <select id="ws-judg-type" style="padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+            <option value="first">一审判决书</option>
+            <option value="second">二审判决书</option>
+            <option value="mediation">调解书</option>
+          </select>
+          <button id="ws-judg-parse" class="ghost-btn">解析生成双时间线</button>
+        </div>
+        <div id="ws-judg-out" style="margin-top:8px"></div>
+        <div class="modal-section-title" style="margin-top:14px">证据目录生成（Word 表格）</div>
+        <textarea id="ws-ev-input" rows="3" placeholder="每行一条证据，如：劳动合同（证明双方权利义务关系）…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <button id="ws-ev-gen" class="ghost-btn">生成证据目录表</button>
+          <button id="ws-ev-word" class="ghost-btn hidden"><svg class=ico><use href=#i-file></use></svg> 导出 Word 表格</button>
+        </div>
+        <div id="ws-ev-out" style="margin-top:8px;overflow-x:auto"></div>
       </div>
     </div>
     <div class="modal-foot">
