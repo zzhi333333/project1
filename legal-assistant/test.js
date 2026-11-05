@@ -507,6 +507,45 @@ T("评测·租赁：买卖不破租赁引用可定位", function () {
   const v = AGENT.verifyText("根据《民法典》第725条，买卖不破租赁，新房东须继续履行租约。", "", null);
   if (v.citations[0].status !== "ok") throw new Error("第725条应可定位：" + v.citations[0].status);
 });
+/* ---------- 评测集扩容：九大领域全覆盖（每域金问题 → 域识别 + 法条命中） ---------- */
+console.log("━━ 评测集扩容（公司法/专利/家事/商标/民诉/贸易）");
+T("评测·公司：小股东分红与知情权 → company 域 + 公司法 57 条", function () {
+  const rep = RUN("公司连续五年盈利从不分红，我是小股东，怎么行使知情权和分红权？");
+  if (rep.domain !== "company") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("第57条") === -1) throw new Error("未命中知情权 57 条：" + lawText);
+  if (!(rep.evidence || []).length) throw new Error("证据清单为空");
+});
+T("评测·专利：实用新型被仿冒 → patent 域 + 专利法 65 条", function () {
+  const rep = RUN("我的实用新型专利被同行仿冒销售，怎么取证维权算赔偿？");
+  if (rep.domain !== "patent") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("第65条") === -1) throw new Error("未命中赔偿 65 条：" + lawText);
+});
+T("评测·家事：人身安全保护令 → jiashi 域 + 反家暴法 23 条", function () {
+  const rep = RUN("遭遇丈夫家庭暴力，想申请人身安全保护令，怎么申请？");
+  if (rep.domain !== "jiashi") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("23") === -1) throw new Error("未命中反家暴法 23 条：" + lawText);
+});
+T("评测·商标：假冒注册商标 → biaozhu 域 + 商标法 57 条", function () {
+  const rep = RUN("我的注册商标被人假冒使用在同类商品上，怎么投诉维权？");
+  if (rep.domain !== "biaozhu") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("57") === -1) throw new Error("未命中商标侵权 57 条：" + lawText);
+});
+T("评测·民诉：起诉管辖与诉讼费 → minsusong 域 + 民诉法 122 条", function () {
+  const rep = RUN("我要起诉对方偿还借款，起诉状怎么写、去哪个法院、诉讼费多少？");
+  if (rep.domain !== "minsusong") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("第122条") === -1) throw new Error("未命中起诉条件 122 条：" + lawText);
+});
+T("评测·贸易：实体清单移除 → trade 域 + EAR 实体清单条目", function () {
+  const rep = RUN("我们公司被列入了美国实体清单，出口被暂停，怎么申请移除？");
+  if (rep.domain !== "trade") throw new Error("域识别错误：" + rep.domain);
+  const lawText = (rep.laws || []).map(l => l.law + l.article).join("|");
+  if (lawText.indexOf("实体清单") === -1) throw new Error("未命中实体清单条目：" + lawText);
+});
 T("评测·拒答红线：SYSTEM_PROMPT 含追问与条件分支规则", function () {
   const sp = String(AI.systemPromptText());
   if (sp.indexOf("先合并追问") === -1) throw new Error("SYSTEM_PROMPT 缺少追问规则");

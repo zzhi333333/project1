@@ -146,6 +146,7 @@
     recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] } });
 
     div.querySelectorAll(".law-chip").forEach(bindLawChip);
+    if (window.REPORTFOLD && div.querySelector(".result-section")) window.REPORTFOLD.applyResult(div.querySelector(".bubble"));
     bindRelLinks(div);
     bindFeedback(div, rid);
     scrollDown();
@@ -400,6 +401,7 @@
       if (tbtn) tbtn.setAttribute("data-rid", rid);
       if (btn) btn.setAttribute("data-rid", rid);
       div.querySelectorAll(".law-chip").forEach(bindLawChip);
+    if (window.REPORTFOLD && div.querySelector(".result-section")) window.REPORTFOLD.applyResult(div.querySelector(".bubble"));
       bindRelLinks(div);
       bindFeedback(div, rid);
     }
@@ -798,6 +800,7 @@
     var pBtn = e.target.closest ? e.target.closest(".print-card-btn") : null;
     if (pBtn) {
       var card = pBtn.closest(".result-card");
+      if (window.REPORTFOLD) window.REPORTFOLD.openAll(card);
       if (card) window.printEl(card);
       return;
     }

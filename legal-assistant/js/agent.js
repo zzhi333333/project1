@@ -796,6 +796,7 @@ window.AGENT = (function () {
           '<div class="calc-note">本评估仅反映「信息与证据的完备程度」，不代表案件结果；任何结果预测均不可靠，请以执业律师意见为准。</div></div>';
         els.answer.appendChild(aDiv);
       }
+      if (window.REPORTFOLD) window.REPORTFOLD.apply(els.answer);
       /* 白话术语卡入口 */
       if (window.GLOSSARY) {
         var gWrap = document.createElement("div");
@@ -1108,6 +1109,7 @@ window.AGENT = (function () {
     }
     var wrap = document.createElement("div");
     wrap.className = "print-target";
+    if (window.REPORTFOLD) window.REPORTFOLD.openAll(els.answer);
     var cloneA = els.answer.cloneNode(true);
     cloneA.querySelectorAll("button, .ai-cursor").forEach(function (x) { x.remove(); });
     wrap.appendChild(cloneA);
