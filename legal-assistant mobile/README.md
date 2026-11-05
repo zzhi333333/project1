@@ -2,9 +2,9 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.1.1`（versionCode 30）
+- 包名：`com.zz333.legalassistant`，版本 `3.1.2`（versionCode 31）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.1.1.apk`（约 655KB）
+- 产物：`dist/legal-assistant-mobile-v3.1.2.apk`（约 655KB）
 
 ## 🆕 v3.1.1 更新（跟随网页版）
 
@@ -191,7 +191,7 @@ v1.4.1：顶栏去掉覆盖范围描述（小屏与图标重叠）。历史版�
 
 ## 📲 安装到手机
 
-1. 把 `dist/legal-assistant-mobile-v3.1.1.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
+1. 把 `dist/legal-assistant-mobile-v3.1.2.apk` 传到手机（微信文件传输助手 / USB / 网盘均可）
 2. 在手机上点开 APK，系统会提示「未知来源应用」——允许本来源安装即可；**已装旧版可直接覆盖升级**（同一签名）
 3. 打开「法律咨询助手」App，右上角 🤖 配置 AI 模型（任选服务商，部分提供免费模型）
 
