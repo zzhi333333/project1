@@ -59,6 +59,38 @@
         document.getElementById("case-tab-builtin").click();
       } });
     });
+    /* 本机数据：报告存档 + 案例收藏（点击直达对应查看界面） */
+    try {
+      var reps = JSON.parse(localStorage.getItem("legal-agent-reports") || "[]");
+      reps.forEach(function (r) {
+        if (hit(r.q, q) || hit(r.text, q)) out.push({ g: "报告存档", label: (r.q || "").slice(0, 50) || "未命名案情", sub: "存档：" + (r.date || "").slice(0, 10) + " · " + String(r.text || "").slice(0, 70), act: function () {
+          close();
+          window.APP.switchView("agent");
+          var arch = document.getElementById("agent-archive");
+          if (arch) arch.click();
+        } });
+      });
+      var imps = JSON.parse(localStorage.getItem("legal-case-imports") || "[]");
+      imps.forEach(function (c) {
+        if (hit(c.title, q) || hit(c.raw, q) || hit(c.caseNo, q)) out.push({ g: "案例收藏", label: c.title, sub: (c.caseNo ? "案号 " + c.caseNo + " · " : "") + String(c.holding || c.raw || "").slice(0, 70), act: function () {
+          close();
+          window.APP.switchView("cases");
+          setTimeout(function () {
+            var card = document.querySelector('#case-import-list .ci-card[data-id="' + c.id + '"]');
+            if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 150);
+        } });
+      });
+      var calcs = JSON.parse(localStorage.getItem("legal-calc-history") || "[]");
+      calcs.forEach(function (x) {
+        if (hit(x.name, q) || hit(x.out, q)) out.push({ g: "计算历史", label: x.name, sub: String(x.out || "").slice(0, 70), act: function () {
+          close();
+          window.APP.switchView("tools");
+          var hb = document.getElementById("calc-history-btn");
+          if (hb) hb.click();
+        } });
+      });
+    } catch (e) { /* 本机数据读取失败不影响公共搜索 */ }
     return out;
   }
 
