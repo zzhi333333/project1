@@ -15,6 +15,7 @@ window.REPORTFOLD = (function () {
   var RESULT_FOLD = ["具体分析", "依据法条", "行动建议"];
 
   var delegated = false;
+  var opened = new WeakSet();   /* 已展开过的折叠块（会话级未读提示） */
   function ensureDelegate() {
     if (delegated) return;
     delegated = true;
@@ -23,7 +24,14 @@ window.REPORTFOLD = (function () {
       var t = e.target.closest ? e.target.closest(".sec-toggle") : null;
       if (t) {
         var sec = t.closest(".sec-fold");
-        if (sec) sec.classList.toggle("sec-open");
+        if (sec) {
+          sec.classList.toggle("sec-open");
+          if (sec.classList.contains("sec-open")) {
+            opened.add(sec);
+            var dot = sec.querySelector(".sec-unread");
+            if (dot) dot.remove();
+          }
+        }
         var arrow = t.querySelector(".sec-arrow");
         if (arrow) arrow.textContent = sec.classList.contains("sec-open") ? "▴ 收起" : "▾ 展开";
         return;
@@ -68,6 +76,22 @@ window.REPORTFOLD = (function () {
       if (shouldFold) {
         wrapBody(sec);
         sec.classList.add("sec-fold");
+        /* 内含量徽标：让用户不看展开也知道区块内有实质内容 */
+        var count = sec.querySelector(".sec-fold-body").querySelectorAll("li, .rep-law, .case-web-item, .proc-step, .tl-node, .path-tr:not(.path-th), .assess-item, .rep-focus-item").length;
+        if (count > 0 && !titleEl.querySelector(".sec-count")) {
+          var cnt = document.createElement("span");
+          cnt.className = "sec-count";
+          cnt.textContent = "×" + count;
+          cnt.title = "内含 " + count + " 项内容";
+          titleEl.appendChild(cnt);
+        }
+        /* 未读小蓝点：展开过即消失（会话级） */
+        if (!opened.has(sec) && !titleEl.querySelector(".sec-unread")) {
+          var dot = document.createElement("span");
+          dot.className = "sec-unread";
+          dot.title = "有未查看的详细内容";
+          titleEl.appendChild(dot);
+        }
         if (!titleEl.querySelector(".sec-arrow")) {
           var arrow = document.createElement("span");
           arrow.className = "sec-arrow";

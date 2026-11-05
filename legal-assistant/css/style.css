@@ -872,3 +872,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .result-fold-body { display: none; }
 .result-fold-body.result-open { display: block; }
 .result-fold-toggle { margin: 2px 0 6px; }
+
+/* 折叠块内含量徽标 + 未读小蓝点 */
+.sec-count { font-size: 11px; color: var(--ink-2); background: var(--soft); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-weight: 400; flex: none; }
+.sec-unread { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: none; display: inline-block; box-shadow: 0 0 0 2px var(--primary-soft); }
+@media print { .sec-count, .sec-unread { display: none !important; } }
