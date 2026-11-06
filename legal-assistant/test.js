@@ -108,6 +108,7 @@ vm.runInContext(fs.readFileSync(path.join(root, "js", "registry.js"), "utf8"), s
 });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"), sandbox, { filename: "js/limitation.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "store.js"), "utf8"), sandbox, { filename: "js/store.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "claims.js"), "utf8"), sandbox, { filename: "js/claims.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "workspace.js"), "utf8"), sandbox, { filename: "js/workspace.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "skill.js"), "utf8"), sandbox, { filename: "js/skill.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "tools.js"), "utf8"), sandbox, { filename: "js/tools.js" });
@@ -724,6 +725,41 @@ T("工作区 v2：文书草稿归集 docs 组", function () {
   const md = WORKSPACE.toMarkdown(cur);
   if (md.indexOf("文书草稿") === -1 || md.indexOf("催告函") === -1) throw new Error("档案缺文书草稿节");
   WORKSPACE.remove(c.id);
+});
+
+/* ---------- 15. 一揽子请求与证据（claims.js） ---------- */
+console.log("━━ 一揽子请求与证据测试（js/claims.js）");
+const CLAIMS = sandbox.window.CLAIMS;
+if (!CLAIMS || !CLAIMS.collectForTest) { console.error("❌ claims.js 未暴露 window.CLAIMS"); process.exit(1); }
+T("请求组合：2N+加班费多请求合计与逐项计算式", function () {
+  const r = CLAIMS.collectForTest({
+    checked: ["severance2n", "overtime"],
+    severance2n: { salary: "10000", years: "5" },
+    overtime: { salary: "10000", wd: "10", we: "0", hd: "0" }
+  });
+  if (r.rows.length !== 2) throw new Error("应为 2 项，实际 " + r.rows.length);
+  const sv = r.rows[0], ot = r.rows[1];
+  if (sv.amount !== 100000) throw new Error("2N 计算异常：" + sv.amount);
+  if (ot.amount !== Math.round(10000 / 21.75 / 8 * 10 * 1.5 * 100) / 100) throw new Error("加班费计算异常：" + ot.amount);
+  if (r.total !== sv.amount + ot.amount) throw new Error("合计异常：" + r.total);
+});
+T("请求组合：二倍工资 11 个月上限", function () {
+  const r = CLAIMS.collectForTest({ checked: ["doublewage"], doublewage: { salary: "9000", months: "24" } });
+  if (r.rows[0].amount !== 9000 * 11) throw new Error("二倍工资应按 11 个月封顶：" + r.rows[0].amount);
+});
+T("请求组合：证据矩阵——每请求项自带所需证据", function () {
+  const r = CLAIMS.collectForTest({ checked: ["severance2n"], severance2n: { salary: "10000", years: "5" } });
+  const ev = r.rows[0].evidence;
+  if (!ev || ev.length < 3) throw new Error("证据建议不足");
+  if (!ev.some(e => e.indexOf("工资流水") > -1)) throw new Error("缺工资流水证据建议");
+  if (!ev.some(e => e.indexOf("辞退") > -1)) throw new Error("缺辞退证据建议");
+});
+T("技能：内置示例含企业用工合规清单（3 个）", function () {
+  const bl = SKILLS.all().filter(x => x.source === "builtin");
+  if (bl.length < 3) throw new Error("内置技能不足 3 个：" + bl.length);
+  const hr = bl.filter(x => x.id === "skill-hr-compliance")[0];
+  if (!hr) throw new Error("缺少 skill-hr-compliance");
+  if (!hr.checklists.length) throw new Error("合规清单技能缺证据清单");
 });
 
 /* ---------- 结果 ---------- */

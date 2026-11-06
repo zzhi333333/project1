@@ -1,6 +1,6 @@
 # ⚖️ 法律咨询助手（Android 移动版）· 功能说明书与模块逻辑手册
 
-> 版本：v3.1.2（versionCode 31）· 对应网页版 v3.1.2 同源功能
+> 版本：v3.2（versionCode 32）· 对应网页版 v3.2 同源功能
 > 本手册面向**使用者**（各功能怎么用）与**维护者**（每个模块的逻辑与协作关系）；安装与构建见 README.md。
 > 免责声明：本工具所有输出均为基于公开法律信息的规则化参考，不构成法律意见或代理服务；具体案件请咨询执业律师。
 
@@ -133,6 +133,7 @@
 | **ai.js** | AI 对话/设置/隐私/备份 | `aiChat` 单一咽喉：脱敏（身份证/手机号）→ 发送前预览 → 原生桥或代理/直连流式；`SYSTEM_PROMPT` 含追问/拒答/条件分支规则；`buildContext` 预匹配资料+技能框架注入；`buildBackup/restoreBackup` v3 格式（键注册表全量、排除密钥、兼容旧版）；`exportFeedback` 反馈清单导出 |
 | **agent.js** | 深度分析工作流 + 核验引擎 | 六步工作流（资料检索→约束生成→逐条核验）；`parseCitations/verifyLocal/verifyOnline` 三级核验（tier1 定位 / tier2 与 flk 缓存原文比对）；`parseNumberClaims` 数字断言核验；`annotate` 内联 ✓✓/✓/⚠ 徽标；`renderPanel` 三级汇总报告；`AGENT_PROMPT` 硬约束（只准引用资料区/数字须有出处）；报告/时间线/归集接线 |
 | **analysis.js** | 规则报告生成与渲染 | `run(q)` 离线生成结构化报告（要素/定性/法条/案例/程序/证据/风险）；`matchContext` 供 AI 侧复用；`render` 渲染报告（含技能补充清单）；案件时间线节点可视化 |
+| **claims.js** | 一揽子请求与证据（v3.2 新增） | 多请求组合试算（8 类请求项勾选+计算式+合计）；证据链矩阵（每请求项所需证据勾选查缺口）；程序流程地图（劳动仲裁/民诉一审节点模板+全部入日历）；和解谈判参考卡（锚点/中间值/底线+让步考量）；配套答辩书与和解协议书模板 |
 | **fold.js** | 渐进披露 | DOM 级折叠：`FOLD_BY_TITLE` 匹配重区块 → 包裹 `.sec-fold-body` + 标题可点 + 内含量徽标 + 未读蓝点（WeakSet 会话级）+ 顶部目录；`openAll` 打印/导出前强制展开；结果卡「展开分析详情」同机制；历史恢复防重 |
 | **store.js** | 统一数据层 | 13 键注册表（分组/备份标记）——分项清除与备份的单一事实源；`legal-store-ver` 版本键；配额溢出 LRU 先清可再生的 flk 全文缓存 |
 | **workspace.js** | 案件工作区 | 建案/切换/重命名/删除（仅解除关联）；`attach` 三路自动归集（去重）；判决书 `parseJudgment`+`futureNodes`（双时间线，`addDays` 手工拆日期防 V8 严格解析失败）；证据目录 `buildCatalog`+Word 表格导出；`renderBody` 结构保持式刷新（不重写 #ws-body，保护静态 UI） |

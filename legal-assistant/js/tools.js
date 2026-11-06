@@ -461,7 +461,7 @@
   /* =========================================================
    * 工具卡通用能力：分类筛选 / 排序 / 收藏置顶 / 一键复制 / 法条跳转
    * ========================================================= */
-  var TOOL_ORDER = ["sv", "ot", "al", "ln", "dj", "fy", "pt", "ip", "cf", "dl", "sx", "ws", "cal"];
+  var TOOL_ORDER = ["sv", "ot", "al", "ln", "dj", "fy", "pt", "ip", "cf", "dl", "claims", "sx", "ws", "cal"];
   var FAV_KEY = "legal-fav-tools";
 
   function getToolFavs() {
@@ -566,6 +566,7 @@
     ot: { label: "加班费试算", name: "加班费计算器" },
     al: { label: "年休假折算", name: "年休假折算器" },
     dl: { label: "时效倒计时", name: "时效倒计时" },
+    claims: { label: "请求试算", name: "一揽子请求与证据" },
     ln: { label: "利息试算", name: "民间借贷利息计算器" },
     dj: { label: "违约金/定金试算", name: "违约金与定金计算器" },
     fy: { label: "抚养费试算", name: "抚养费计算器" },

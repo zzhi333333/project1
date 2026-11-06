@@ -244,6 +244,36 @@ window.DOCTPL = (function () {
     return ctx.result && ctx.result.summary ? "经初步分析：" + ctx.result.summary : "";
   }
 
+  /* 劳动仲裁答辩书（被申请人视角，v3.2） */
+  function genArbDefense(ctx) {
+    return "劳动仲裁答辩书\n\n答辩人（被申请人）：【单位名称】，统一社会信用代码：【】，住所地：【】，联系电话：【】。\n申请人：【姓名】，就其与本答辩人劳动争议仲裁一案（案号：【】），现提出答辩如下：\n\n" +
+      "一、事实经过\n【简述用工事实：入职时间、岗位、合同签订与履行情况；解除或争议发生的经过与原因】\n\n" +
+      "二、答辩意见（对照申请人请求逐项）\n" +
+      "1. 关于【请求一，如违法解除赔偿金】：解除具有事实与制度依据——【法定情形＋制度依据＋程序履行（工会通知/公示签收）】，不存在违法解除情形；\n" +
+      "2. 关于【请求二，如加班费】：单位实行加班审批制，申请人主张的加班未经审批/与考勤记录不符，且工资中已包含相应部分；\n" +
+      "3. 关于【其他请求】：逐项反驳事实与法律依据。\n\n" +
+      "三、证据清单\n1.【规章制度及公示签收记录】——证明处理依据合法有效；\n2.【考勤/工资支付凭证】——证明工资已足额支付；\n3.【其他】。\n\n" +
+      "综上，申请人的仲裁请求缺乏事实与法律依据，请求仲裁委依法驳回其全部仲裁请求。\n\n" +
+      "此致\n【】劳动人事争议仲裁委员会\n\n答辩人（盖章）：\n" + today() + "\n\n" +
+      "※ 提示：答辩期 10 日；对管辖有异议的应在答辩期内提出；举证责任（如解除合法性、工资支付）在单位，务必在答辩同时提交全部证据；本模板为结构参考，建议由律师结合证据定制。";
+  }
+
+  /* 劳动争议/民事和解协议书（v3.2，谈判工具配套） */
+  function genSettlement(ctx) {
+    var partyA = "甲方（劳动者/债权人）：【姓名】，身份证号：【】";
+    var partyB = "乙方（用人单位/债务人）：【名称】，统一社会信用代码：【】";
+    return "和解协议书\n\n" + partyA + "\n" + partyB + "\n\n" +
+      "双方就【争议事由，如劳动争议/借款纠纷】（仲裁/诉讼案号：【如有】）达成如下和解协议：\n\n" +
+      "一、乙方于【年月日】前向甲方一次性支付人民币【】元（大写：【】），该款项包括但不限于【工资/经济补偿/赔偿金/本金利息】等全部款项；付款方式：【银行转账，收款账户：】。\n" +
+      "二、上述款项付清后，双方就本次争议一次性了结，甲方放弃就同一事实向乙方主张其他任何权利（含撤回仲裁/诉讼申请）。\n" +
+      "三、甲方应于收到全部款项后【3】个工作日内，向仲裁委/法院提交撤回申请（如有）。\n" +
+      "四、双方对本协议内容互负保密义务。\n" +
+      "五、任何一方违反本协议的，守约方有权就未履行部分继续依法主张权利，并要求违约方承担维权合理费用。\n" +
+      "六、本协议一式两份，自双方签字（盖章）之日起生效。\n\n" +
+      "甲方（签字并按手印）：　　　　乙方（盖章、法定代表人签字）：\n" + today() + "　　" + today() + "\n\n" +
+      "※ 提示：①「一次性了结/放弃其他请求」条款影响重大，签署前建议由律师审查；②乙方为公司时务必加盖公章；③建议约定迟延付款的加速条款（未按期支付则和解作废、按原请求主张）。";
+  }
+
   /* 场景 → 可用文书 */
   reg({ id: "arb-labor", name: "劳动仲裁申请书", scenarios: ["labor-dismiss", "labor-wage", "labor-no-contract", "labor-overtime", "labor-probation", "labor-noncompete", "labor-leave", "labor-transfer", "labor-injury", "labor-social"], gen: genArb });
   reg({ id: "forced-resign", name: "被迫解除劳动合同通知书", scenarios: ["labor-dismiss", "labor-wage", "labor-social", "labor-overtime", "labor-transfer"], gen: genForced });
@@ -256,6 +286,9 @@ window.DOCTPL = (function () {
   reg({ id: "defense", name: "民事答辩状", scenarios: ["mss-respond"], gen: genDefense });
   reg({ id: "protection-order", name: "人身安全保护令申请书", scenarios: ["js-protection"], gen: genProtectionOrder });
   reg({ id: "ip-complaint", name: "侵权投诉／警告函（商标与著作权）", scenarios: ["bq-weiquan", "bq-shangbiao"], gen: genIpComplaint });
+  reg({ id: "arb-defense", name: "劳动仲裁答辩书（被申请人视角）", scenarios: ["labor-dismiss", "labor-wage", "labor-no-contract", "labor-overtime", "labor-leave", "labor-social"], gen: genArbDefense });
+  reg({ id: "settlement-labor", name: "劳动争议和解协议书", scenarios: ["labor-dismiss", "labor-wage", "labor-no-contract", "labor-overtime", "labor-leave", "labor-transfer", "labor-injury"], gen: genSettlement });
+  reg({ id: "settlement-civil", name: "和解协议书（通用民事）", scenarios: ["mf-loan", "mf-contract", "mf-tort", "zl-deposit", "zl-early-leave", "zl-rent-owe", "zl-repair"], gen: genSettlement });
 
   function forScenario(sid) {
     var out = T.filter(function (t) { return t.scenarios.indexOf(sid) > -1; });

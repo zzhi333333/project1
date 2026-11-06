@@ -855,6 +855,7 @@
   window.LAWSEARCH.init();
   if (window.LIMITATION) window.LIMITATION.init();
   if (window.SKILLS) window.SKILLS.init();
+  if (window.CLAIMS) window.CLAIMS.init();
   if (window.WORKSPACE) window.WORKSPACE.init();
   window.TOOLS.init();
   window.ONLINE.init();
