@@ -23,6 +23,7 @@
 <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
 <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
 <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5M12 16h.01"/></symbol>
 <symbol id="i-more" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
@@ -534,17 +535,15 @@
       <button class="more-item" data-view="faq"><span class="more-ico"><svg class="ico"><use href="#i-faq"/></svg></span>讲堂</button>
       <button class="more-item" data-view="gsearch"><span class="more-ico"><svg class="ico"><use href="#i-search"/></svg></span>全局搜索</button>
     </div>
-  </div>
-
-  <!-- 「更多」弹层：收纳低频视图与全局搜索 -->
-  <div id="more-sheet-mask" class="drawer-mask hidden"></div>
-  <div id="more-sheet" class="more-sheet">
-    <div class="more-head"><span>更多功能</span><button id="more-close" class="icon-btn" aria-label="关闭"><svg class="ico"><use href="#i-x"/></svg></button></div>
-    <div class="more-grid">
-      <button class="more-item" data-view="contract"><span class="more-ico"><svg class="ico"><use href="#i-contract"/></svg></span>合同审查</button>
-      <button class="more-item" data-view="cases"><span class="more-ico"><svg class="ico"><use href="#i-cases"/></svg></span>案例</button>
-      <button class="more-item" data-view="faq"><span class="more-ico"><svg class="ico"><use href="#i-faq"/></svg></span>讲堂</button>
-      <button class="more-item" data-view="gsearch"><span class="more-ico"><svg class="ico"><use href="#i-search"/></svg></span>全局搜索</button>
+    <div class="more-ver">
+      <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.2.1</b>（<span id="app-build">2026-11-07</span>）</div>
+      <div class="mv-tips">
+        <div class="mv-tip"><svg class=ico><use href=#i-agent></use></svg> 深度咨询：AI 逐项追问案情要素，齐全后一键生成可核验分析</div>
+        <div class="mv-tip"><svg class=ico><use href=#i-list></use></svg> 一揽子请求计算器：勾选请求项→填参数→缺口自动转工作区待办</div>
+        <div class="mv-tip"><svg class=ico><use href=#i-calendar></use></svg> 案件工作区：粘贴判决书→双时间线+证据目录+程序期限入日历</div>
+        <div class="mv-tip"><svg class=ico><use href=#i-search></use></svg> 全局搜索：可搜报告存档/案例收藏/计算历史等本机数据</div>
+        <div class="mv-tip"><svg class=ico><use href=#i-lock></use></svg> 设置→隐私与数据：发送前自动脱敏身份证/手机号</div>
+      </div>
     </div>
   </div>
 </div>
