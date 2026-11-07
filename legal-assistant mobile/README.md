@@ -4,7 +4,7 @@
 
 - 包名：`com.zz333.legalassistant`，版本 `3.2.4`（versionCode 36）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.2.3.apk`（约 680KB）
+- 产物：`dist/legal-assistant-mobile-v3.2.4.apk`（约 680KB）
 
 ## 🆕 v3.2.4 更新（深度咨询入口修复，待出包：直接跑 build.bat）
 
