@@ -582,7 +582,7 @@ window.AI = (function () {
     });
 
     /* 咨询页：AI 对话开关（「新对话」按钮已由 main.js/history.js 接管） */
-    /* 快捷咨询场景卡：用户开始对话后隐藏（与当前咨询无关的引导卡不再占屏），新对话/清空后恢复 */
+    /* 快捷咨询场景卡与静态推荐问题：用户开始对话后隐藏（与当前咨询无关的引导不再占屏/误导），新对话/清空后恢复 */
     (function () {
       var quickList = document.getElementById("quick-scenarios");
       var quickTitle = document.getElementById("quick-title");
@@ -592,6 +592,8 @@ window.AI = (function () {
         var hasUser = chatB.querySelectorAll(".msg.user").length > 0;
         quickList.classList.toggle("hidden", hasUser);
         if (quickTitle) quickTitle.classList.toggle("hidden", hasUser);
+        var sug = document.getElementById("suggestions");
+        if (sug) sug.classList.toggle("hidden", hasUser);
       };
       new MutationObserver(updQuickVis).observe(chatB, { childList: true });
       updQuickVis();

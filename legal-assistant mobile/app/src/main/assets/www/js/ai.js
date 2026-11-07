@@ -591,6 +591,8 @@ window.AI = (function () {
         var hasUser = chatB.querySelectorAll(".msg.user").length > 0;
         quickList.classList.toggle("hidden", hasUser);
         if (quickTitle) quickTitle.classList.toggle("hidden", hasUser);
+        var sug = document.getElementById("suggestions");
+        if (sug) sug.classList.toggle("hidden", hasUser);
       };
       new MutationObserver(updQuickVis).observe(chatB, { childList: true });
       updQuickVis();

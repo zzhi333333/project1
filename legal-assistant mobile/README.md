@@ -2,9 +2,15 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.2.5`（versionCode 38）
+- 包名：`com.zz333.legalassistant`，版本 `3.2.6`（versionCode 39）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.2.5.apk`（约 680KB）
+- 产物：`dist/legal-assistant-mobile-v3.2.6.apk`（约 680KB）
+
+## 🆕 v3.2.6 更新（推荐问题卡防误点）
+
+| 修复 | 说明 |
+|---|---|
+| 🙈 静态推荐问题卡自动隐藏 | 用户开始对话后，输入框上方的静态推荐问题（固定 4 条：劳动/公司法/专利）随快捷场景卡一并隐藏——问商标咨询不再误点出劳务/公司法回复；新对话/清空后自动恢复。两端 ai.js `updQuickVis` 增量 patch，与 v3.2.5 场景卡隐藏同机制 |
 
 ## 🆕 v3.2.5 更新（跟随网页版）
 
