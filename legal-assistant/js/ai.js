@@ -544,7 +544,7 @@ window.AI = (function () {
       var chatBoxForIntake = document.getElementById("chat-box");
       if (chatBoxForIntake) {
         var updIntakeVis = function () {
-          intakeBtn.classList.toggle("hidden", chatBoxForIntake.querySelectorAll(".msg").length > 0);
+          intakeBtn.classList.toggle("hidden", chatBoxForIntake.querySelectorAll(".msg.user").length > 0);   /* 只统计用户消息：欢迎语不算对话内容 */
         };
         new MutationObserver(updIntakeVis).observe(chatBoxForIntake, { childList: true });
         updIntakeVis();
