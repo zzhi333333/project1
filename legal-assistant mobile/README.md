@@ -2,9 +2,18 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.2.2`（versionCode 34）
+- 包名：`com.zz333.legalassistant`，版本 `3.2.3`（versionCode 35）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.2.2.apk`（约 680KB）
+- 产物：`dist/legal-assistant-mobile-v3.2.3.apk`（约 680KB）
+
+## 🆕 v3.2.3 更新（SVG 反馈系统性修复）
+
+| 修复 | 说明 |
+|---|---|
+| 🐛 esc 未定义 | ai.js 补 esc 定义——appendFollowUps 引用导致 AI 回答完成即抛错（两端） |
+| 🐛 SVG 原始代码显示 | finishBubble/setStatus 含 SVG 时改 innerHTML 渲染（此前 textContent 显示原始代码） |
+| 🐛 abort 检查补齐 | aiDeepResult/aiFollowUp catch 补 abort 检查——停止时显示「已停止生成」而非 SVG 错误 |
+| 🧹 更多弹层去重 | more-sheet DOM 重复两次（合并产物）——已清理 |
 
 ## 🆕 v3.2.2 更新（更多弹层版本与使用说明）
 
