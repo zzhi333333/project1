@@ -99,6 +99,19 @@ window.ONLINE = (function () {
 
   var STATUS_MAP = { "1": "已废止", "2": "已被修改", "3": "有效", "4": "尚未生效" };
 
+  /* flk 响应统一渲染：上游失败（405/限流/超时/断网）不再吞掉原因——
+     明示「官方库暂不可用」并指回本地法条模式，避免用户误以为本地库里没有（降级透明化） */
+  function renderFlkResp(resp) {
+    var box = document.getElementById("flk-results");
+    if (resp && resp.ok === false && resp.msg) {
+      box.innerHTML =
+        '<div class="tool-warn">⚠️ 官方数据库暂时不可用：' + esc(resp.msg) +
+        '<br>可点上方「本地法条」用本地知识库检索，稍后再试官方库。</div>';
+      return;
+    }
+    renderFlkResults(resp && resp.results, resp && resp.total);
+  }
+
   function renderFlkResults(list, total) {
     var box = document.getElementById("flk-results");
     if (!list || !list.length) {
@@ -297,8 +310,8 @@ window.ONLINE = (function () {
         if (!q) return;
         if (!ensureOnline(document.getElementById("flk-results"))) return;
         document.getElementById("flk-results").innerHTML = '<div class="loading">正在检索国家法律法规数据库…</div>';
-        flkSearch(q).then(function (resp) { renderFlkResults(resp.results, resp.total); }).catch(function () {
-          document.getElementById("flk-results").innerHTML = '<div class="tool-warn">检索请求失败：请确认本地服务已启动、外网可访问 flk.npc.gov.cn。</div>';
+        flkSearch(q).then(function (resp) { renderFlkResp(resp); }).catch(function () {
+          renderFlkResp({ ok: false, msg: "检索请求失败：请确认本地服务已启动、外网可访问 flk.npc.gov.cn。" });
         });
       }
       flkBtn.addEventListener("click", doFlk);
@@ -336,6 +349,7 @@ window.ONLINE = (function () {
     init: init, check: check,
     isAvailable: function () { return available; },
     flkSearch: flkSearch, flkDetail: flkDetail, flkText: flkText, caseSearch: caseSearch,
-    renderGuiding: renderGuiding
+    renderGuiding: renderGuiding,
+    _testFlkResp: renderFlkResp
   };
 })();

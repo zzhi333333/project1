@@ -316,7 +316,7 @@ window.AGENT = (function () {
     L.push("\n以上仅供参考，不构成法律意见。");
     return L.join("\n");
   }
-  function appendCopyButton(container, text) {
+  function appendCopyButton(container, text, vstats) {
     var cp = document.createElement("button");
     cp.className = "mini-btn";
     cp.style.margin = "10px 14px";
@@ -346,7 +346,8 @@ window.AGENT = (function () {
         mode: mode === "ai" ? "AI 可核验分析" : "规则引擎报告",
         html: container.querySelector(".bubble, .report-card") ? (container.querySelector(".bubble") || container).innerHTML : container.innerHTML,
         text: text.slice(0, 8000),
-        verify: els.panel ? (els.panel.textContent || "").replace(/\s+/g, " ").trim().slice(0, 200) : ""
+        verify: els.panel ? (els.panel.textContent || "").replace(/\s+/g, " ").trim().slice(0, 200) : "",
+        vstats: vstats || null
       });
       saveBtn.innerHTML = saved
         ? "<svg class=ico><use href=#i-checkc></use></svg> 已存入报告库"
@@ -369,7 +370,7 @@ window.AGENT = (function () {
   }
   function saveReport(entry) {
     var list = loadReports();
-    var rec = { id: "r-" + Date.now(), date: new Date().toISOString(), q: entry.q, mode: entry.mode, html: entry.html, text: entry.text, verify: entry.verify };
+    var rec = { id: "r-" + Date.now(), date: new Date().toISOString(), q: entry.q, mode: entry.mode, html: entry.html, text: entry.text, verify: entry.verify, vstats: entry.vstats || null };
     list.unshift(rec);
     var ok = saveReports(list);
     /* 案件工作区自动归集（当前案件激活时） */
@@ -386,9 +387,18 @@ window.AGENT = (function () {
     var rows = list.length ? list.map(function (r, i) {
       var d = new Date(r.date);
       var ts = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2) + " " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+      /* 核验概览：tier 分布一行看全（旧记录无 vstats 则回退 200 字摘要） */
+      var vline = "";
+      if (r.vstats && r.vstats.totalCitations) {
+        var s = r.vstats;
+        vline = '<div style="font-size:11.5px;margin-top:3px">核验：<span style="color:#16a34a">✓✓ ' + s.tier2Count + "/" + s.totalCitations + "</span>" +
+          " · ✓ " + Math.max(0, s.verifiedCount - s.tier2Count) +
+          (s.totalCitations - s.verifiedCount > 0 ? ' · <span style="color:var(--danger)">⚠ ' + (s.totalCitations - s.verifiedCount) + "</span>" : "") +
+          (s.numbers ? " · 数字 " + (s.numbers - s.flagged) + "/" + s.numbers : "") + "</div>";
+      }
       return '<div class="ci-card" data-i="' + i + '">' +
         '<div class="case-title">' + esc(r.q.slice(0, 60) || "未命名案情") + '</div>' +
-        '<div class="dim" style="font-size:11.5px">' + ts + " · " + esc(r.mode) + (r.verify ? " · " + esc(r.verify.slice(0, 60)) : "") + '</div>' +
+        '<div class="dim" style="font-size:11.5px">' + ts + " · " + esc(r.mode) + (r.verify && !r.vstats ? " · " + esc(r.verify.slice(0, 60)) : "") + '</div>' + vline +
         '<div class="ci-actions">' +
           '<button class="mini-btn primary rep-view">查看</button>' +
           '<button class="mini-btn rep-export">导出 Word</button>' +
@@ -804,6 +814,7 @@ window.AGENT = (function () {
         gWrap.innerHTML = window.GLOSSARY.btnHtml() + '<span class="dim" style="font-size:11.5px;margin-left:8px">报告中的 N / 2N / 除斥期间 / 一裁终局……点开可查白话解释</span>';
         els.answer.appendChild(gWrap);
         window.GLOSSARY.bind(els.answer);
+        if (window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
       }
       appendCopyButton(els.answer, reportToText(rep));
       /* 劳动领域：追加仲裁请求清单生成器入口 */
@@ -893,8 +904,9 @@ window.AGENT = (function () {
       /* 用标注版替换纯文本 */
       var html = annotate(gen.text, v);
       els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
+      if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
       renderPanel(v, gen.text);
-      appendCopyButton(els.answer, gen.text);
+      appendCopyButton(els.answer, gen.text, { verifiedCount: v.verifiedCount, tier2Count: v.tier2Count, totalCitations: v.totalCitations, numbers: v.numbers.length, flagged: v.flaggedNumbers });
       setStopBtn(false);
     }).catch(function (e) {
       if (myToken !== runToken) return;   /* 停止触发的 abort 不当错误展示 */
@@ -985,8 +997,9 @@ window.AGENT = (function () {
         var v2 = verifyText(full, lastRun.ctxText, lastRun.fullTexts);
         stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
+        if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
         renderPanel(v2, full);
-        appendCopyButton(els.answer, full);
+        appendCopyButton(els.answer, full, { verifiedCount: v2.verifiedCount, tier2Count: v2.tier2Count, totalCitations: v2.totalCitations, numbers: v2.numbers.length, flagged: v2.flaggedNumbers });
         setStopBtn(false);
       })
       .catch(function (e) {

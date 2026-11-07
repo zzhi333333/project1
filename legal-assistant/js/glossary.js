@@ -82,5 +82,62 @@ window.GLOSSARY = (function () {
     }
   }
 
-  return { open: open, TERMS: TERMS, btnHtml: btnHtml, bind: bind };
+  /* 报告正文术语高亮：命中白话卡术语的文本包一层可点标记，点击弹卡（随读随解）。
+     单容器上限 60 处；跳过按钮/输入框/已高亮元素；纯 ASCII 术语（N/2N/LPR）按词边界匹配；
+     长术语优先（避免 N+1 里的 N 被单独命中） */
+  var HL_SKIP = { SCRIPT: 1, STYLE: 1, BUTTON: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1, SVG: 1 };
+  var HL_MAX = 60;
+  function tEsc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  function hlAccept(node) {
+    var p = node.parentNode;
+    if (!p || HL_SKIP[p.nodeName]) return false;
+    return !(p.classList && p.classList.contains && (p.classList.contains("gl-hl") || p.classList.contains("glossary-btn")));
+  }
+  function highlight(root) {
+    if (!root || !TERMS.length || !document.createTreeWalker) return 0;
+    var res = [];
+    TERMS.forEach(function (x) {
+      if (!x.t) return;
+      if (/^[A-Za-z0-9%]+$/.test(x.t)) res.push({ t: x.t, re: new RegExp("(^|[^A-Za-z0-9])(" + tEsc(x.t) + ")(?=[^A-Za-z0-9]|$)", "g") });
+      else if (x.t.length >= 2) res.push({ t: x.t, re: new RegExp("(" + tEsc(x.t) + ")", "g") });
+    });
+    if (!res.length) return 0;
+    var walker = document.createTreeWalker(root, 4, null, false);   /* 4 = SHOW_TEXT */
+    var nodes = [], n = walker.nextNode();
+    while (n) { nodes.push(n); n = walker.nextNode(); }
+    var count = 0;
+    nodes.forEach(function (node) {
+      var cur = node;
+      while (cur && count < HL_MAX && hlAccept(cur)) {
+        var hit = null;
+        for (var i = 0; i < res.length; i++) {
+          var m = res[i].re.exec(cur.nodeValue);
+          res[i].re.lastIndex = 0;
+          if (!m) continue;
+          /* ascii 带前导边界组：m[1]=前导字符，m[2]=术语本体；中文只有 m[1]=术语本体 */
+          var start = m[2] ? m.index + m[1].length : m.index;
+          if (!hit || start < hit.start) hit = { start: start, t: res[i].t };
+        }
+        if (!hit) break;
+        var a = cur.splitText(hit.start);       /* a = 命中及之后 */
+        var b = a.splitText(hit.t.length);      /* a = 命中本体，b = 其后剩余 */
+        var span = document.createElement("span");
+        span.className = "gl-hl";
+        span.setAttribute("data-gl", hit.t);
+        span.title = "点击查看白话解释";
+        span.textContent = a.nodeValue;
+        a.parentNode.replaceChild(span, a);
+        cur = b;
+        count++;
+      }
+    });
+    return count;
+  }
+  /* 事件委托：任意容器内 .gl-hl 点击 → 弹术语卡（绑定一次，全局生效） */
+  document.addEventListener("click", function (e) {
+    var el = e.target && e.target.closest ? e.target.closest(".gl-hl") : null;
+    if (el) open(el.getAttribute("data-gl") || "");
+  });
+
+  return { open: open, TERMS: TERMS, btnHtml: btnHtml, bind: bind, highlight: highlight };
 })();

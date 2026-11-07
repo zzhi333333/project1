@@ -762,6 +762,48 @@ T("技能：内置示例含企业用工合规清单（3 个）", function () {
   if (!hr.checklists.length) throw new Error("合规清单技能缺证据清单");
 });
 
+T("请求组合：八类清单完整且 id 唯一", function () {
+  if (CLAIMS.ITEMS.length !== 8) throw new Error("应 8 类：" + CLAIMS.ITEMS.length);
+  const ids = CLAIMS.ITEMS.map(i => i.id);
+  if (new Set(ids).size !== 8) throw new Error("id 重复：" + ids.join(","));
+  CLAIMS.ITEMS.forEach(i => { if (!i.calc || !i.formula || !i.evidence || !i.law) throw new Error(i.id + " 缺字段"); });
+});
+T("请求组合：N（经济补偿金）4.5 年折算", function () {
+  const r = CLAIMS.collectForTest({ checked: ["severanceN"], severanceN: { salary: "8000", years: "4.5" } });
+  if (r.rows[0].amount !== 36000) throw new Error("N 异常：" + r.rows[0].amount);
+});
+T("请求组合：代通知金=上月工资；拖欠工资直通并四舍五入", function () {
+  const a = CLAIMS.collectForTest({ checked: ["notice"], notice: { salary: "9000" } });
+  if (a.rows[0].amount !== 9000) throw new Error("代通知金异常：" + a.rows[0].amount);
+  const b = CLAIMS.collectForTest({ checked: ["arrears"], arrears: { amount: "12345.678" } });
+  if (b.rows[0].amount !== 12345.68) throw new Error("四舍五入异常：" + b.rows[0].amount);
+});
+T("请求组合：加班费三档倍率（150%/200%/300%）", function () {
+  /* 时薪 8700/21.75/8 = 50；50×(2×1.5 + 2×2 + 2×3) = 50×13 = 650 */
+  const r = CLAIMS.collectForTest({ checked: ["overtime"], overtime: { salary: "8700", wd: "2", we: "2", hd: "2" } });
+  if (r.rows[0].amount !== 650) throw new Error("三档倍率异常：" + r.rows[0].amount);
+});
+T("请求组合：未休年假 200%；社保 30% 估算", function () {
+  const a = CLAIMS.collectForTest({ checked: ["annual"], annual: { salary: "6525", days: "10" } });
+  if (a.rows[0].amount !== 6000) throw new Error("年假异常：" + a.rows[0].amount);
+  const b = CLAIMS.collectForTest({ checked: ["social"], social: { salary: "6000", months: "12" } });
+  if (b.rows[0].amount !== 21600) throw new Error("社保估算异常：" + b.rows[0].amount);
+});
+T("请求组合：四请求合计与逐项一致性", function () {
+  const r = CLAIMS.collectForTest({
+    checked: ["severanceN", "notice", "arrears", "annual"],
+    severanceN: { salary: "8000", years: "4.5" }, notice: { salary: "9000" },
+    arrears: { amount: "5000" }, annual: { salary: "6525", days: "10" }
+  });
+  if (r.rows.length !== 4) throw new Error("应 4 行：" + r.rows.length);
+  const sum = r.rows.map(x => x.amount).reduce((a, b) => a + b, 0);
+  if (r.total !== Math.round(sum * 100) / 100) throw new Error("合计异常：" + r.total);
+});
+T("请求组合：全零参数行跳过（不产生 0 元请求）", function () {
+  const r = CLAIMS.collectForTest({ checked: ["severance2n", "notice"], severance2n: { salary: "0", years: "0" }, notice: { salary: "0" } });
+  if (r.rows.length !== 0 || r.total !== 0) throw new Error("应无行：" + JSON.stringify(r.rows));
+});
+
 /* ---------- 16. 推荐追问贴合化（parseAiFollowupLine） ---------- */
 console.log("━━ 推荐追问贴合化测试（js/ai.js）");
 const AImod = sandbox.window.AI;
@@ -880,6 +922,32 @@ T("日期管线：证据目录——编号剥离/来源建议/证明目的", fun
   if (rows[1].src.indexOf("银行") === -1) throw new Error("流水来源建议异常：" + rows[1].src);
   if (rows[0].purpose.indexOf("劳动关系") === -1) throw new Error("合同证明目的异常：" + rows[0].purpose);
   if (rows[2].purpose.indexOf("沟通") === -1) throw new Error("聊天记录证明目的异常：" + rows[2].purpose);
+});
+
+/* ---------- 18. flk 降级透明化（online.js renderFlkResp） ---------- */
+console.log("━━ flk 降级透明化测试（js/online.js）");
+vm.runInContext(fs.readFileSync(path.join(root, "js", "online.js"), "utf8"), sandbox, { filename: "js/online.js" });
+const ONLINE = sandbox.window.ONLINE;
+if (!ONLINE || !ONLINE._testFlkResp) { console.error("❌ online.js 未暴露 _testFlkResp"); process.exit(1); }
+T("flk 降级：上游 405/限流时明示原因并指回本地法条（不再吞错）", function () {
+  ONLINE._testFlkResp({ ok: false, msg: "flk 返回 405，可能被临时限流，请稍后重试" });
+  const html = els["flk-results"].innerHTML;
+  if (html.indexOf("官方数据库暂时不可用") === -1) throw new Error("缺降级明示：" + html);
+  if (html.indexOf("405") === -1) throw new Error("上游原因被吞：" + html);
+  if (html.indexOf("本地法条") === -1) throw new Error("缺本地法条指引：" + html);
+});
+T("flk 降级：网络失败 catch 消息同样走统一渲染", function () {
+  ONLINE._testFlkResp({ ok: false, msg: "检索请求失败：请确认本地服务已启动、外网可访问 flk.npc.gov.cn。" });
+  if (els["flk-results"].innerHTML.indexOf("检索请求失败") === -1) throw new Error("catch 消息未透出");
+});
+T("flk 正常：空结果与有结果分支不受影响", function () {
+  ONLINE._testFlkResp({ ok: true, total: 0, results: [] });
+  if (els["flk-results"].innerHTML.indexOf("未返回匹配结果") === -1) throw new Error("空结果分支异常");
+  ONLINE._testFlkResp({ ok: true, total: 1, results: [{ id: "x1", title: "中华人民共和国劳动合同法", status: "3" }] });
+  const html2 = els["flk-results"].innerHTML;
+  if (html2.indexOf("劳动合同法") === -1 || html2.indexOf("flk-meta") === -1) throw new Error("结果分支异常：" + html2.slice(0, 80));
+  ONLINE._testFlkResp(undefined);
+  if (els["flk-results"].innerHTML.indexOf("未返回匹配结果") === -1) throw new Error("undefined 容错异常");
 });
 
 /* ---------- 结果 ---------- */

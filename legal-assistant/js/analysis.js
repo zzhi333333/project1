@@ -202,69 +202,71 @@ window.ANALYSIS = (function () {
     "patent-invalid": ["无效宣告请求书与证据组合", "公知性证据（专利文献/论文/在售产品公证）", "口头审理记录"]
   };
 
-  /* ---------------- 程序建议（分领域阶段化） ---------------- */
+  /* ---------------- 程序建议（分领域阶段化） ----------------
+     layer 时序分层：now=立即 / week=7 日内 / filing=立案前 / trial=诉讼·执行 */
+  var LAYER_META = { now: ["立即", "#dc2626"], week: ["7 日内", "#d97706"], filing: ["立案前", "#2563eb"], trial: ["诉讼·执行", "#7c3aed"] };
   function buildProcedure(domain, scenarios, text) {
     var steps = [];
     var ids = scenarios.map(function (s) { return s.id; });
     if (domain === "labor") {
-      steps.push({ stage: "第0步 · 证据固定（立即做）", detail: [
+      steps.push({ layer: "now", stage: "第0步 · 证据固定（立即做）", detail: [
         "系统归集：劳动合同、工资流水、考勤、沟通记录（原始载体保存，勿只截图）、涉及谈话的录音。",
         "对电子证据做可信存证（时间戳/公证），防止删除后无法复原。"
       ], tip: "证据决定成败：多数败诉不是因为没理，而是因为没有证据。" });
-      steps.push({ stage: "第1步 · 内部主张（1–2周）", detail: [
+      steps.push({ layer: "week", stage: "第1步 · 内部主张（1–2周）", detail: [
         "用可留痕方式（EMS/邮件/OA）向单位书面主张：要求支付/说明理由/继续履行，限期回复。",
         "拟离职维权的，先咨询再决定是否发出《被迫解除劳动合同通知书》——措辞直接决定能否拿到N。"
       ], tip: "书面留痕既是协商筹码，也是后续仲裁的证据。" });
-      steps.push({ stage: "第2步 · 行政/快速渠道（可选）", detail: [
+      steps.push({ layer: "week", stage: "第2步 · 行政/快速渠道（可选）", detail: [
         "拖欠工资、未缴社保：拨打12333或向劳动保障监察部门投诉（免费、较快）。",
         "拖欠劳动报酬：可向法院申请支付令（ht-30，对方书面异议即失效，可转仲裁）。"
       ], tip: "监察投诉与仲裁不冲突，欠薪类问题投诉常更快见效。" });
-      steps.push({ stage: "第3步 · 劳动仲裁（前置必经）", detail: [
+      steps.push({ layer: "filing", stage: "第3步 · 劳动仲裁（前置必经）", detail: [
         "向用人单位所在地或劳动合同履行地的劳动人事争议仲裁委员会提交《仲裁申请书》（免费）。",
         "时效：知道权利被侵害之日起1年；追索劳动报酬在职期间不受限，离职后1年内必须提出（zc-27）。",
         "材料：仲裁申请书（按被申请人人数+1份）、身份证复印件、证据清单及证据复印件。",
         "追索劳动报酬/工伤医疗费/经济补偿不超过当地月最低工资标准12个月金额的，一裁终局。"
       ], tip: "请求金额要写清计算方式：基数 × 月数，方便裁决且显专业。" });
-      steps.push({ stage: "第4步 · 诉讼与执行（如不服裁决）", detail: [
+      steps.push({ layer: "trial", stage: "第4步 · 诉讼与执行（如不服裁决）", detail: [
         "收到裁决书15日内向法院起诉（终局裁决用人单位不能起诉）。",
         "一审→二审→生效后申请强制执行；执行阶段可申请查封账户、纳入失信名单。"
       ], tip: "小额争议多数在仲裁阶段就能解决，诉前测算好合理金额更利于调解。" });
     } else if (domain === "company") {
-      steps.push({ stage: "第0步 · 权利体检与取证", detail: [
+      steps.push({ layer: "now", stage: "第0步 · 权利体检与取证", detail: [
         "调取工商内档（章程、股东名册、历次决议、备案信息）——市场监督局凭立案/身份可查。",
         "先书面行使知情权（gf-57）：EMS提出查阅请求+说明目的，公司15日内须书面答复——这是查账与后续诉讼的证据地基。"
       ], tip: "公司诉讼普遍「先知情、后动手」，账目资料决定策略。" });
-      steps.push({ stage: "第1步 · 内部程序（部分诉讼的前置条件）", detail: [
+      steps.push({ layer: "filing", stage: "第1步 · 内部程序（部分诉讼的前置条件）", detail: [
         "股东会决议投反对票并留记录（回购请求权的前提，gf-89）。",
         "股东代表诉讼：先书面请求监事会/董事会起诉，30日未起诉或情况紧急方可自行起诉（gf-189）。",
         "（如适用）失权、催缴出资：先发书面催缴书，宽限期不少于60日（gf-52）。"
       ], tip: "前置程序缺失是公司诉讼常见败诉原因，顺序别搞反。" });
-      steps.push({ stage: "第2步 · 诉讼（注意除斥期间）", detail: [
+      steps.push({ layer: "trial", stage: "第2步 · 诉讼（注意除斥期间）", detail: [
         "管辖：公司诉讼一般由公司住所地法院管辖。",
         "关键期限：决议撤销60日（未获通知者自知悉起60日、决议作出起1年）；回购协商不成90日内起诉；知情权诉讼时效3年。",
         "同步申请财产保全，防止转移资产。"
       ], tip: "除斥期间是不变期间，逾期失权，宁可先起诉后补证。" });
-      steps.push({ stage: "第3步 · 执行与后续追责", detail: [
+      steps.push({ layer: "trial", stage: "第3步 · 执行与后续追责", detail: [
         "胜诉后申请执行；公司无财产的，核查股东出资情况，依法追加/另诉股东（加速到期 gf-54、人格否认 gf-23）。",
         "董监高履职损害的，另循代表诉讼追究赔偿。"
       ], tip: "对公司执行不能 ≠ 终局，穿透到股东是常见翻盘点。" });
     } else {
-      steps.push({ stage: "第0步 · 权利与证据准备", detail: [
+      steps.push({ layer: "now", stage: "第0步 · 权利与证据准备", detail: [
         "核对专利法律状态：登记簿副本、年费缴纳、是否在保护期内。",
         "固定侵权证据：公证购买（实物+发票+包装）、网页时间戳、宣传物料；规模证据（销量、评价数）。",
         "实用新型/外观：建议先请求国务院专利行政部门出具《专利权评价报告》，再决定出手。"
       ], tip: "先取证后发函，防止对方销毁证据；评价报告负面要慎重起诉。" });
-      steps.push({ stage: "第1步 · 路径选择（三条路）", detail: [
+      steps.push({ layer: "week", stage: "第1步 · 路径选择（三条路）", detail: [
         "协商/律师函：成本低，适合收许可费或快速下架。",
         "行政途径：请求地方知识产权局处理，快、可责令停止侵权（zl-65），但赔偿需另循途径。",
         "司法途径：向知识产权法院/有管辖权的中级法院起诉，可申请行为保全（禁令）+财产保全+证据保全。"
       ], tip: "看商业目标选路径：要钱→诉讼；要停→行政/禁令；要合作→许可谈判。" });
-      steps.push({ stage: "第2步 · 程序攻防", detail: [
+      steps.push({ layer: "trial", stage: "第2步 · 程序攻防", detail: [
         "被告通常反制无效宣告（zl-45）：起诉前先自查稳定性，答辩期内被诉方可提无效并申请中止。",
         "赔偿举证按顺序：实际损失→侵权获利→许可费倍数→法定赔偿（3万–500万）；故意且情节严重可主张1–5倍惩罚性赔偿（zl-71）。",
         "维权合理开支（律师费、公证费）一并主张。"
       ], tip: "时效应对：侵权诉讼时效3年（zl-74），发现侵权尽早行动。" });
-      steps.push({ stage: "第3步 · 履行与执行", detail: [
+      steps.push({ layer: "trial", stage: "第3步 · 履行与执行", detail: [
         "判决/决定生效后监督履行，逾期申请强制执行。",
         "平台内的侵权链接，凭生效裁判向电商平台投诉下架。"
       ], tip: "胜诉不是终点，禁令+下架+赔偿执行组合才算闭环。" });
@@ -407,11 +409,12 @@ window.ANALYSIS = (function () {
 
     /* 程序建议 */
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-agent></use></svg> 程序建议（阶段化路径）</div>';
-    r.procedure.forEach(function (p) {
-      html += '<div class="proc-step"><div class="proc-stage">' + esc(p.stage) + '</div><ul>' +
-        p.detail.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join("") +
-        '</ul><div class="proc-tip"><svg class=ico><use href=#i-d-patent></use></svg> ' + esc(p.tip) + '</div></div>';
-    });
+      r.procedure.forEach(function (p) {
+        var lm = LAYER_META[p.layer];
+        html += '<div class="proc-step"><div class="proc-stage">' + (lm ? '<span style="background:' + lm[1] + ';color:#fff;font-size:10.5px;padding:1px 7px;border-radius:99px;margin-right:6px;display:inline-block;vertical-align:1px">' + lm[0] + '</span>' : "") + esc(p.stage) + '</div><ul>' +
+          p.detail.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join("") +
+          '</ul><div class="proc-tip">... ' + esc(p.tip) + '</div></div>';
+      });
     html += '</div>';
 
     /* 案件时间线：阶段序列可视化 + 一键加入合规日历 */
