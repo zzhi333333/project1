@@ -115,6 +115,25 @@ window.WORKSPACE = (function () {
 
   /* ---------------- 判决书双时间线（已发生事实 + 程序期限节点） ---------------- */
   var DAYS = 86400000;
+  /* 中文数字日期 → 阿拉伯数字（判决书落款法定格式为「二〇二三年十一月二十日」，
+     不转换则落款日会被误取为正文中最后一个阿拉伯日期，上诉期等期限推算整体错位） */
+  var CN_DIG = { "〇": "0", "零": "0", "一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9" };
+  function cnYearToAr(s) {
+    return String(s).split("").map(function (ch) { return CN_DIG[ch] !== undefined ? CN_DIG[ch] : ch; }).join("");
+  }
+  function cnSmallToAr(s) {
+    if (!s) return "";
+    if (s.indexOf("三十") === 0) return "3" + (s.length > 2 ? (CN_DIG[s.charAt(2)] || "0") : "0");
+    if (s.indexOf("二十") === 0) return "2" + (s.length > 2 ? (CN_DIG[s.charAt(2)] || "0") : "0");
+    if (s.charAt(0) === "十") return "1" + (s.length > 1 ? (CN_DIG[s.charAt(1)] || "0") : "0");
+    return CN_DIG[s] !== undefined ? CN_DIG[s] : "";
+  }
+  function normCnDates(text) {
+    return String(text).replace(/([一二三四五六七八九〇零]{4})年\s*([一二三四五六七八九十]{1,3})月(?:\s*([一二三四五六七八九十]{1,3})日)?/g,
+      function (_, y, mo, d) {
+        return cnYearToAr(y) + "年" + cnSmallToAr(mo) + "月" + (d ? cnSmallToAr(d) + "日" : "");
+      });
+  }
   function addDays(dateStr, days) {
     /* 手工拆年月日（不依赖 Date 字符串解析——"2024-8-15" 未补零的 ISO 串在 V8 严格解析下会失败） */
     var m = String(dateStr).match(/([12]\d{3})[-/年](\d{1,2})(?:[-/月](\d{1,2}))?/);
@@ -126,14 +145,15 @@ window.WORKSPACE = (function () {
   }
   /* 提取全文日期（含上下文短语），按时间排序为「已发生事实时间线」 */
   function extractDates(text) {
+    var src = normCnDates(text);
     var seen = {}, out = [];
     var re = /([12]\d{3})\s*年\s*(\d{1,2})\s*月(\s*\d{1,2}\s*日)?/g, m;
-    while ((m = re.exec(text)) !== null) {
+    while ((m = re.exec(src)) !== null) {
       var y = m[1], mo = ("0" + m[2]).slice(-2), d = m[3] ? ("0" + m[3].replace(/\D/g, "")).slice(-2) : "";
       var iso = y + "-" + mo + (d ? "-" + d : "");
       if (seen[iso]) continue;
       seen[iso] = 1;
-      var ctx = text.slice(Math.max(0, m.index - 18), m.index).replace(/\s+/g, " ");
+      var ctx = src.slice(Math.max(0, m.index - 18), m.index).replace(/\s+/g, " ");
       out.push({ date: iso, label: (ctx.slice(-14) || "发生") });
     }
     out.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
@@ -158,11 +178,11 @@ window.WORKSPACE = (function () {
     if (caseNo) r.caseNo = caseNo[0].replace(/\s+/g, "");
     var courtM = text.match(/[^\n。，；]{4,20}人民法院/);
     if (courtM) r.court = courtM[0].trim().slice(0, 30);
-    /* 落款日 = 文本中最后一个完整日期（判决书落款在尾部） */
-    var allDates = text.match(/[12]\d{3}\s*年\s*\d{1,2}\s*月\s*(?:\d{1,2}\s*日)?/g) || [];
+    /* 落款日 = 文本中最后一个完整日期（判决书落款在尾部；中文数字落款先归一化，统一补零为 ISO） */
+    var allDates = normCnDates(text).match(/[12]\d{3}\s*年\s*\d{1,2}\s*月\s*(?:\d{1,2}\s*日)?/g) || [];
     if (allDates.length) {
-      var last = allDates[allDates.length - 1].replace(/\s+/g, "").replace("年", "-").replace("月", "-").replace(/-$/, "");
-      r.judgmentDate = last;
+      var lm = allDates[allDates.length - 1].replace(/\s+/g, "").match(/([12]\d{3})年(\d{1,2})月(?:(\d{1,2})日)?/);
+      if (lm) r.judgmentDate = lm[1] + "-" + ("0" + lm[2]).slice(-2) + (lm[3] ? "-" + ("0" + lm[3]).slice(-2) : "");
     }
     r.past = extractDates(text);
     r.future = futureNodes(r.judgmentDate, type);
@@ -398,6 +418,8 @@ window.WORKSPACE = (function () {
     list: list, current: current, currentId: currentId,
     create: create, rename: rename, remove: remove, setCurrent: setCurrent,
     attach: attach, addNote: addNote, toggleNote: toggleNote, removeNote: removeNote,
-    toMarkdown: toMarkdown, init: init, openModal: openModal
+    toMarkdown: toMarkdown, init: init, openModal: openModal,
+    /* 测试钩子（不进 UI，无副作用）：test.js 日期管线回归用（同 claims.collectForTest 先例） */
+    _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates }
   };
 })();

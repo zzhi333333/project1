@@ -779,6 +779,109 @@ T("推荐追问：无该行返回 null（回退静态推荐）；超长/过短�
   if (r.questions.length !== 1 || r.questions[0].indexOf("工伤等级") === -1) throw new Error("过滤异常：" + JSON.stringify(r.questions));
 });
 
+/* ---------- 17. 工作区日期管线（workspace.js 判决书双时间线） ---------- */
+console.log("━━ 工作区日期管线测试（js/workspace.js）");
+const WST = sandbox.window.WORKSPACE && sandbox.window.WORKSPACE._test;
+if (!WST) { console.error("❌ workspace.js 未暴露 _test 测试钩子"); process.exit(1); }
+
+/* 脱敏合成样本（不对应任何真实案件；落款格式覆盖阿拉伯/中文数字两种） */
+const JUDG_FIRST = [
+  "某某市某某区人民法院",
+  "民事判决书",
+  "（2023）京0105民初1234号",
+  "原告：张某。被告：某某科技有限公司。",
+  "本院经审理查明：2021年5月10日双方签订劳动合同，2022年8月31日被告解除劳动关系。",
+  "本院认为：被告解除行为违反法律规定。",
+  "判决如下：一、被告于本判决生效之日起十日内支付赔偿金；",
+  "如不服本判决，可在判决书送达之日起十五日内向本院递交上诉状。",
+  "审判员　某某某",
+  "2023年11月20日"
+].join("\n");
+const JUDG_SECOND = [
+  "某某省某某市中级人民法院",
+  "民事判决书",
+  "（2024）苏05民终888号",
+  "上诉人：李某。被上诉人：某某公司。",
+  "本院于2024年3月5日立案后依法组成合议庭审理了本案。",
+  "本判决为终审判决。",
+  "审判长　某某某",
+  "二〇二四年七月十五日"
+].join("\n");
+const JUDG_MEDIATE = [
+  "某某县人民法院",
+  "民事调解书",
+  "（2024）豫1626民初77号",
+  "本院于2024年6月1日立案后进行调解。",
+  "协议如下：一、被告于2024年6月30日前支付欠款；",
+  "二〇二四年六月十日"
+].join("\n");
+
+T("日期管线：中文数字落款归一化（二〇二四年七月十五日→2024年7月15日）", function () {
+  const out = WST.normCnDates("本院于二〇二四年七月十五日宣判，二〇二四年十一月三十日送达。");
+  if (out.indexOf("2024年7月15日") === -1) throw new Error("年月日未转换：" + out);
+  if (out.indexOf("2024年11月30日") === -1) throw new Error("三十日未转换：" + out);
+});
+T("日期管线：落款日取全文最后一个日期（而非正文中段日期）", function () {
+  const a = WST.parseJudgment(JUDG_FIRST, "first");
+  if (a.judgmentDate !== "2023-11-20") throw new Error("一审落款应 2023-11-20：" + a.judgmentDate);
+  const b = WST.parseJudgment(JUDG_SECOND, "second");
+  if (b.judgmentDate !== "2024-07-15") throw new Error("中文数字落款应 2024-07-15（修前会误取 2024-03-05）：" + b.judgmentDate);
+  const c = WST.parseJudgment(JUDG_MEDIATE, "");
+  if (c.judgmentDate !== "2024-06-10") throw new Error("调解书落款应 2024-06-10：" + c.judgmentDate);
+});
+T("日期管线：案号与法院提取", function () {
+  const a = WST.parseJudgment(JUDG_FIRST, "first");
+  if (a.caseNo.indexOf("（2023）京0105民初1234号") === -1) throw new Error("案号提取异常：" + a.caseNo);
+  if (a.court.indexOf("某某区人民法院") === -1) throw new Error("法院提取异常：" + a.court);
+});
+T("日期管线：已发生时间线数量/排序/上下文标签", function () {
+  const a = WST.parseJudgment(JUDG_FIRST, "first");
+  if (a.past.length !== 3) throw new Error("应提取 3 个日期：" + JSON.stringify(a.past));
+  if (a.past[0].date !== "2021-05-10" || a.past[1].date !== "2022-08-31" || a.past[2].date !== "2023-11-20")
+    throw new Error("排序异常：" + a.past.map(p => p.date).join(","));
+  if (a.past[0].label.indexOf("查明") === -1) throw new Error("上下文标签丢失：" + a.past[0].label);
+  const b = WST.parseJudgment(JUDG_SECOND, "second");
+  if (b.past.length !== 2 || b.past[1].date !== "2024-07-15") throw new Error("二审时间线应含中文数字落款日：" + JSON.stringify(b.past));
+});
+T("日期管线：一审判决程序节点（上诉期 15 日）", function () {
+  const a = WST.parseJudgment(JUDG_FIRST, "first");
+  if (a.future.length !== 2) throw new Error("一审应有 2 个节点：" + a.future.length);
+  if (a.future[0].name.indexOf("上诉期") === -1) throw new Error("缺上诉期节点");
+  if (a.future[0].date !== "2023-12-05") throw new Error("上诉期应为 2023-12-05：" + a.future[0].date);
+  if (a.future[1].date !== WST.addDays("2023-11-20", 745)) throw new Error("执行期节点与 addDays 组成不一致");
+});
+T("日期管线：二审/调解书程序节点", function () {
+  const b = WST.parseJudgment(JUDG_SECOND, "second");
+  if (b.future[0].name.indexOf("强制执行") === -1) throw new Error("二审缺执行节点");
+  if (b.future[0].date !== "2026-07-15") throw new Error("二审执行 2 年应为 2026-07-15：" + b.future[0].date);
+  const c = WST.parseJudgment(JUDG_MEDIATE, "");
+  if (c.future[0].name.indexOf("履行核查") === -1) throw new Error("调解书缺履行核查节点");
+  if (c.future[0].date !== "2024-07-10") throw new Error("调解核查应为 2024-07-10：" + c.future[0].date);
+});
+T("addDays 边缘：闰日/月末+31/跨年/未补零/中文分隔/非法输入", function () {
+  if (WST.addDays("2024-02-29", 1) !== "2024-03-01") throw new Error("闰日异常：" + WST.addDays("2024-02-29", 1));
+  if (WST.addDays("2024-01-31", 31) !== "2024-03-02") throw new Error("月末+31 异常：" + WST.addDays("2024-01-31", 31));
+  if (WST.addDays("2023-12-20", 15) !== "2024-01-04") throw new Error("跨年异常：" + WST.addDays("2023-12-20", 15));
+  if (WST.addDays("2024-2-15", 10) !== "2024-02-25") throw new Error("未补零月异常：" + WST.addDays("2024-2-15", 10));
+  if (WST.addDays("2024年3月15日", 5) !== "2024-03-20") throw new Error("中文分隔异常：" + WST.addDays("2024年3月15日", 5));
+  if (WST.addDays("无法解析", 5) !== null) throw new Error("非法输入应返回 null");
+});
+T("日期管线：extractDates 去重与仅年月条目", function () {
+  const r = WST.extractDates("2024年3月5日首次催告，2024年3月5日再次催告；自2024年4月起租金上调。");
+  const dates = r.map(x => x.date);
+  if (dates.length !== 2 || dates[0] !== "2024-03-05" || dates[1] !== "2024-04")
+    throw new Error("去重/年月条目异常：" + JSON.stringify(dates));
+});
+T("日期管线：证据目录——编号剥离/来源建议/证明目的", function () {
+  const rows = WST.buildCatalog("1. 劳动合同\n2. 工资银行流水\n3. 微信聊天记录");
+  if (rows.length !== 3) throw new Error("应 3 行：" + rows.length);
+  if (rows[0].name !== "劳动合同") throw new Error("编号未剥离：" + rows[0].name);
+  if (rows[0].no !== 1 || rows[2].no !== 3) throw new Error("序号异常");
+  if (rows[1].src.indexOf("银行") === -1) throw new Error("流水来源建议异常：" + rows[1].src);
+  if (rows[0].purpose.indexOf("劳动关系") === -1) throw new Error("合同证明目的异常：" + rows[0].purpose);
+  if (rows[2].purpose.indexOf("沟通") === -1) throw new Error("聊天记录证明目的异常：" + rows[2].purpose);
+});
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(fail === 0

@@ -227,6 +227,88 @@ try {
   warn("双端一致性检查未执行：" + e.message + "（移动版目录不存在时忽略）");
 }
 
+/* ---------- 10. 版本一致性（出包链五处对齐） ----------
+   血泪教训（dea1d35）：v3.2.5 出包只改了 manifest/build.bat，APK 内 app-ver 仍自报 3.2.4。
+   出包链共 5 处版本号，此处机器比对：任何一处不一致即失败，防止漏改再发生。 */
+head("版本一致性（出包链五处对齐）");
+(function () {
+  const MOB_ROOT = path.join(root, "..", "legal-assistant mobile");
+  if (!fs.existsSync(MOB_ROOT)) { warn("移动版目录不存在，跳过版本一致性检查"); return; }
+  const read = p => { try { return fs.readFileSync(p, "utf8"); } catch (e) { return null; } };
+  const manifest = read(path.join(MOB_ROOT, "app", "src", "main", "AndroidManifest.xml"));
+  const buildBat = read(path.join(MOB_ROOT, "build.bat"));
+  const mobIndex = read(path.join(MOB_ROOT, "app", "src", "main", "assets", "www", "index.html"));
+  const mobReadme = read(path.join(MOB_ROOT, "README.md"));
+  const features = read(path.join(root, "FEATURES.md"));
+  const manual = read(path.join(MOB_ROOT, "MANUAL.md"));
+  if (!manifest || !buildBat || !mobIndex || !mobReadme) { bad("版本链文件不可读（manifest/build.bat/移动 index.html/移动 README）"); return; }
+  const grab = (re, s) => { const x = re.exec(s || ""); return x ? x[1] : null; };
+  const vManifest = grab(/android:versionName="([\d.]+)"/, manifest);
+  const cManifest = grab(/android:versionCode="(\d+)"/, manifest);
+  const vBuild = grab(/VERSION_NAME=([\d.]+)/, buildBat);
+  const vAppVer = grab(/id="app-ver">([\d.]+)</, mobIndex);
+  /* README/MANUAL 需取两个分组，不能用 grab（其只返回第 1 组字符串） */
+  const readmeX = /版本 `([\d.]+)`（versionCode (\d+)）/i.exec(mobReadme);
+  const vReadme = readmeX ? readmeX[1] : null;
+  const cReadme = readmeX ? readmeX[2] : null;
+  const vFeats = grab(/> 版本：v([\d.]+)（/, features);
+  const manX = /> 版本：v([\d.]+)（versionCode (\d+)）/.exec(manual);
+  const vManual = manX ? manX[1] : null;
+  const cManual = manX ? manX[2] : null;
+  const names = [["manifest", vManifest], ["build.bat", vBuild], ["app-ver", vAppVer], ["移动README", vReadme], ["FEATURES", vFeats], ["MANUAL", vManual]];
+  const codes = [["manifest", cManifest], ["移动README", cReadme], ["MANUAL", cManual]];
+  const mismatch = arr => arr.filter(x => x[1] && x[1] !== arr[0][1]).map(x => x[0] + "=" + x[1]);
+  const missing = arr => arr.filter(x => !x[1]).map(x => x[0]);
+  const base = names[0][1];
+  if (missing(names).length || missing(codes).length)
+    bad("版本链取值失败（正则未命中，可能是格式改动）：" +
+      missing(names).concat(missing(codes).map(n => "code:" + n)).join(", "));
+  if (!base) { bad("版本链基准值缺失，无法比对"); return; }
+  const badNames = mismatch(names), badCodes = mismatch(codes);
+  if (badNames.length) bad("版本号不一致：基准 " + base + "，但 " + badNames.join("、") + " 不同");
+  if (badCodes.length) bad("versionCode 不一致：基准 " + codes[0][1] + "，但 " + badCodes.join("、") + " 不同");
+  if (!badNames.length && !badCodes.length && !missing(names).length && !missing(codes).length)
+    ok("版本链一致：" + base + "（versionCode " + codes[0][1] + "），六处对齐");
+})();
+
+/* ---------- 11. 分支文件特征嗅探（函数集不变量） ----------
+   5 个分支文件不受 sync-www 字节级校验保护。曾两次踩坑：esc 仅单端定义、
+   updQuickVis 类增量 patch 单端漏改。此节校验：同名函数在两端的出现次数
+   必须一致（ai/analysis/consult/main 全等；online.js 移动端可多出 BRIDGE 白名单函数）。 */
+head("分支文件特征嗅探（DIFF 文件防单端漏改）");
+(function () {
+  const sync = require("./sync-www.js");
+  const MOB_JS = path.join(root, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js");
+  if (!fs.existsSync(MOB_JS)) { warn("移动版目录不存在，跳过分支嗅探"); return; }
+  const reFn = /function\s+([A-Za-z_$][\w$]*)\s*\(/g;
+  const fnCount = s => { const c = {}; let x; reFn.lastIndex = 0; while ((x = reFn.exec(s)) !== null) c[x[1]] = (c[x[1]] || 0) + 1; return c; };
+  /* online.js 移动端合法多出的原生桥函数（window.BRIDGE 直连分支），新增桥函数须同步维护此清单 */
+  const ONLINE_MOBILE_EXTRA = ["htmlToText", "flkBridgeSearch", "flkBridgeDetail", "signed", "b64ToBytes", "zipExtract", "docxBytesToText", "flkBridgeText", "bingBridgeSearch", "caseBridgeSearch"];
+  const branchFiles = Object.keys(sync.BRANCH_FILES || {});
+  if (!branchFiles.length) { warn("sync-www 未暴露分支清单，跳过嗅探"); return; }
+  let sniffBad = 0;
+  branchFiles.forEach(function (rel) {
+    const webPath = path.join(root, rel);
+    const mobPath = path.join(MOB_JS, path.basename(rel));
+    let w, m2;
+    try { w = fs.readFileSync(webPath, "utf8"); m2 = fs.readFileSync(mobPath, "utf8"); }
+    catch (e) { bad(rel + " 不可读，无法嗅探：" + e.message); sniffBad++; return; }
+    const cw = fnCount(w), cm = fnCount(m2);
+    const names = Object.keys(Object.assign({}, cw, cm));
+    const diffs = names.filter(n => (cw[n] || 0) !== (cm[n] || 0));
+    if (!diffs.length) { ok(rel + " 两端函数集一致（" + Object.keys(cw).length + " 个函数名）"); return; }
+    if (rel === "js/online.js") {
+      const illegal = diffs.filter(n => !(cm[n] && !cw[n] && ONLINE_MOBILE_EXTRA.indexOf(n) > -1));
+      if (!illegal.length) ok(rel + " 差异均为已知 BRIDGE 桥函数（" + diffs.length + " 个，白名单内）");
+      else { bad(rel + " 出现白名单外函数差异：" + illegal.join(", ") + "；若为新增桥函数请更新 check.js ONLINE_MOBILE_EXTRA，否则两端补齐"); sniffBad++; }
+    } else {
+      bad(rel + " 两端函数集不一致：" + diffs.map(n => n + " web=" + (cw[n] || 0) + " mob=" + (cm[n] || 0)).join("; "));
+      sniffBad++;
+    }
+  });
+  if (!sniffBad && branchFiles.length) ok("分支嗅探通过：" + branchFiles.length + " 个 DIFF 文件");
+})();
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(failures === 0

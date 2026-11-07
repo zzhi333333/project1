@@ -2,9 +2,17 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.2.6`（versionCode 39）
+- 包名：`com.zz333.legalassistant`，版本 `3.2.7`（versionCode 40）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.2.6.apk`（约 680KB）
+- 产物：`dist/legal-assistant-mobile-v3.2.7.apk`（约 680KB）
+- 构建：双击 `build.bat`（手动）；**脚本化出包用 `node release.js <版本号> [提交说明]`**——版本 6 处自动对齐 + check/test 门禁 + 管道安全构建 + 包内双验证 + 推送重试，`--dry` 只构建验证
+
+## 🆕 v3.2.7 更新（判决书中文数字落款修复）
+
+| 修复 | 说明 |
+|---|---|
+| 📅 中文数字落款解析 | 判决书落款法定格式「二〇二四年七月十五日」此前不被识别——落款日被误取为正文中段阿拉伯日期，上诉期/执行期推算整体错位；现 normCnDates 归一化（含三十/廿类组合），落款日统一补零为 ISO。测试 17 节新增日期管线回归 9 项（83 项全绿） |
+| 🧪 测试钩子 | workspace.js 暴露 `_test`（addDays/extractDates/futureNodes/parseJudgment/buildCatalog/normCnDates，循 claims.collectForTest 先例，无 UI 副作用） |
 
 ## 🆕 v3.2.6 更新（推荐问题卡防误点）
 
