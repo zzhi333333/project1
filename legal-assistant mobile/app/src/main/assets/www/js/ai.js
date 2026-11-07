@@ -539,6 +539,17 @@ window.AI = (function () {
     /* 咨询页：AI 对话开关（「新对话」按钮已由 main.js/history.js 接管） */
     /* 深度咨询入口：引导式要素收集（需已配置 AI） */
     var intakeBtn = document.getElementById("intake-btn");
+    /* 深度咨询入口在有对话内容后隐藏——避免用户在已有咨询流程中误触 */
+    if (intakeBtn) {
+      var chatBoxForIntake = document.getElementById("chat-box");
+      if (chatBoxForIntake) {
+        var updIntakeVis = function () {
+          intakeBtn.classList.toggle("hidden", chatBoxForIntake.querySelectorAll(".msg").length > 0);
+        };
+        new MutationObserver(updIntakeVis).observe(chatBoxForIntake, { childList: true });
+        updIntakeVis();
+      }
+    }
     if (intakeBtn) intakeBtn.addEventListener("click", function () {
       if (!(window.AI && window.AI.isConfigured())) {
         var box = document.getElementById("chat-box");
