@@ -233,7 +233,8 @@ window.AI = (function () {
     "④存在地方裁审口径差异或事实不足时明确说明，不要编造；" +
     "⑤关键事实缺失时的追问与拒答：若案件时间、所在地区、双方身份关系、合同性质、金额等关键事实缺失且直接影响结论，先合并追问（最多两个问题），不要直接给出确定性结论；" +
     "⑥同一问题存在多种解释或法律路径时，用条件分支表述——「若 A 情形则…；若 B 情形则…」，不要擅自替用户选定事实；" +
-    "⑦结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
+    "⑦回答正文之后，另起一行输出推荐追问（严格格式，不要加其他文字）：「【推荐追问】问题1｜问题2｜问题3」——3 个针对本次回答内容的具体追问，必须贴合用户当前问题与回答（如工伤咨询就追问工伤认定/待遇/停工留薪期，不要给无关领域的通用问题）；" +
+    "⑧结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
     "使用简体中文，条理清晰，适度使用小标题与列表。";
 
   function buildContext(text) {
@@ -264,8 +265,48 @@ window.AI = (function () {
   };
   var GENERIC_FOLLOWS = ["我还需要准备哪些证据？", "走法律程序的时间和费用大概多少？"];
 
-  function appendFollowUps(div, domainId) {
-    var qs = (DOMAIN_FOLLOWS[domainId] || []).slice(0, 2).concat(GENERIC_FOLLOWS).slice(0, 4);
+  /* 解析 AI 回答末尾的「【推荐追问】问题1｜问题2」行：返回 {questions, cleaned}；无该行返回 null（回退静态推荐） */
+  function parseAiFollowupLine(text) {
+    var s = String(text || "");
+    var m = s.match(/【推荐追问】\s*([^\n]+)/);
+    if (!m) return null;
+    var qs = m[1].split(/｜|\|/).map(function (q) { return q.replace(/^[0-9]+[.、\s]*/, "").trim(); })
+      .filter(function (q) { return q.length > 3 && q.length < 40; }).slice(0, 3);
+    if (!qs.length) return null;
+    return { questions: qs, cleaned: s.replace(m[0], "").replace(/\n{3,}/g, "\n\n").trim() };
+  }
+
+  /* 计算器 chips 按回答文本过滤：label 关键词在文本中出现才保留；「时效」类几乎总相关；无匹配返回 "" */
+  function filterChipsByText(chipsHtml, text) {
+    if (!chipsHtml) return "";
+    var t = String(text || "");
+    if (!t) return chipsHtml;
+    var tmp = document.createElement("div");
+    tmp.innerHTML = chipsHtml;
+    var KEYS = { "补偿金": ["补偿", "赔偿", "辞退", "解除", "2N", "N+"], "加班费": ["加班", "延时"], "年休假": ["年假", "年休假"], "利息": ["利息", "借款", "LPR", "借"], "抚养费": ["抚养", "孩子"], "诉讼费": ["诉讼费", "起诉", "立案", "费用"], "专利": ["专利"], "赔偿": ["赔偿", "侵权", "商标", "著作权"], "时效": ["时效", "仲裁", "起诉", "期限", "过期", "工伤"] };
+    var KEPT_ANY = ["时效"];
+    var kept = [];
+    tmp.querySelectorAll(".tool-jump-btn").forEach(function (b) {
+      var label = (b.textContent || "").trim();
+      var hit = false;
+      Object.keys(KEYS).forEach(function (k) {
+        if (hit) return;
+        if (label.indexOf(k) > -1) {
+          if (KEYS[k].some(function (kw) { return t.indexOf(kw) > -1; })) hit = true;
+        }
+      });
+      if (hit || KEPT_ANY.some(function (k) { return label.indexOf(k) > -1; })) kept.push(b);
+    });
+    if (!kept.length) return "";
+    tmp.innerHTML = "";
+    kept.forEach(function (b) { tmp.appendChild(b); });
+    return tmp.innerHTML;
+  }
+
+  function appendFollowUps(div, domainId, aiQuestions, answerText) {
+    /* 优先使用 AI 生成的贴合追问；无则回退领域静态推荐 */
+    var qs = (aiQuestions && aiQuestions.length) ? aiQuestions.slice(0, 3)
+      : (DOMAIN_FOLLOWS[domainId] || []).slice(0, 2).concat(GENERIC_FOLLOWS).slice(0, 4);
     var wrap = document.createElement("div");
     wrap.className = "msg bot followup-row";
     wrap.innerHTML = '<div class="bubble followup-bubble"><div class="fu-title"><svg class=ico><use href=#i-q></use></svg> 可以继续问我</div>' +
@@ -278,9 +319,9 @@ window.AI = (function () {
       wrap.remove();
       aiConsult(b.getAttribute("data-q"));
     });
-    /* 领域相关计算器直达（与结果卡共用映射） */
+    /* 相关计算器：按回答文本过滤（只保留与本次回答内容相关的计算器，避免无关推荐） */
     if (window.TOOLS && window.TOOLS.toolChipsForDomain && domainId) {
-      var toolChips = window.TOOLS.toolChipsForDomain(domainId);
+      var toolChips = filterChipsByText(window.TOOLS.toolChipsForDomain(domainId), answerText || "");
       if (toolChips) {
         var trow = document.createElement("div");
         trow.className = "msg bot followup-row";
@@ -381,13 +422,16 @@ window.AI = (function () {
       setText(div, full);
     }).then(function () {
       if (!full) full = "（模型未返回内容，请检查模型名称与服务商设置。）";
+      /* 解析 AI 推荐追问行：从正文剥离，问题贴合本次回答 */
+      var fl = parseAiFollowupLine(full);
+      if (fl) full = fl.cleaned;
       finishBubble(div, full);
       if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
       if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       addCopyButton(div, full);
       aiHistory.push({ role: "user", content: text }, { role: "assistant", content: full });
       if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
-      if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onAssistantDone(); else appendFollowUps(div, dId);
+      if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onAssistantDone(); else appendFollowUps(div, dId, fl ? fl.questions : null, full);
     }).catch(function (e) {
       var msg = (e && e.message || String(e));
       if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
@@ -537,6 +581,20 @@ window.AI = (function () {
     });
 
     /* 咨询页：AI 对话开关（「新对话」按钮已由 main.js/history.js 接管） */
+    /* 快捷咨询场景卡：用户开始对话后隐藏（与当前咨询无关的引导卡不再占屏），新对话/清空后恢复 */
+    (function () {
+      var quickList = document.getElementById("quick-scenarios");
+      var quickTitle = document.getElementById("quick-title");
+      var chatB = document.getElementById("chat-box");
+      if (!quickList || !chatB) return;
+      var updQuickVis = function () {
+        var hasUser = chatB.querySelectorAll(".msg.user").length > 0;
+        quickList.classList.toggle("hidden", hasUser);
+        if (quickTitle) quickTitle.classList.toggle("hidden", hasUser);
+      };
+      new MutationObserver(updQuickVis).observe(chatB, { childList: true });
+      updQuickVis();
+    })();
     /* 深度咨询入口：引导式要素收集（需已配置 AI） */
     var intakeBtn = document.getElementById("intake-btn");
     /* 深度咨询入口在有对话内容后隐藏——避免用户在已有咨询流程中误触 */
@@ -770,7 +828,8 @@ window.AI = (function () {
     resetHistory: resetHistory, stopCurrent: stopCurrent, langPrompt: langPrompt,
     aiFollowUp: aiFollowUp,
     exportData: exportData, importData: importData, buildBackup: buildBackup, restoreBackup: restoreBackup, redactPII: redactPII,
-    systemPromptText: function () { return SYSTEM_PROMPT; },   /* 评测集只读访问 */
+    systemPromptText: function () { return SYSTEM_PROMPT; },
+    parseFollowupLine: parseAiFollowupLine,   /* 评测集只读访问 */
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

@@ -762,6 +762,23 @@ T("技能：内置示例含企业用工合规清单（3 个）", function () {
   if (!hr.checklists.length) throw new Error("合规清单技能缺证据清单");
 });
 
+/* ---------- 16. 推荐追问贴合化（parseAiFollowupLine） ---------- */
+console.log("━━ 推荐追问贴合化测试（js/ai.js）");
+const AImod = sandbox.window.AI;
+T("推荐追问：解析【推荐追问】行（｜分隔，剥离正文）", function () {
+  const ans = "结论：属于工伤，应先做工伤认定。\n【推荐追问】工伤认定的时限是多久｜停工留薪期工资怎么算｜工伤待遇仲裁怎么申请";
+  const r = AImod.parseFollowupLine(ans);
+  if (!r) throw new Error("应解析成功");
+  if (r.questions.length !== 3) throw new Error("应提取 3 个问题：" + r.questions.length);
+  if (r.cleaned.indexOf("【推荐追问】") > -1) throw new Error("正文未剥离推荐行");
+  if (r.cleaned.indexOf("工伤认定") === -1) throw new Error("剥离时丢了正文");
+});
+T("推荐追问：无该行返回 null（回退静态推荐）；超长/过短问题被过滤", function () {
+  if (AImod.parseFollowupLine("普通回答，没有推荐行。") !== null) throw new Error("无行应返回 null");
+  const r = AImod.parseFollowupLine("回答。\n【推荐追问】短｜这是一个特别特别特别特别特别长的超过了四十个字符上限的问题不该被采纳请重新生成一个足够长的违规推荐问题示例用于边界测试｜工伤等级鉴定流程怎么走");
+  if (r.questions.length !== 1 || r.questions[0].indexOf("工伤等级") === -1) throw new Error("过滤异常：" + JSON.stringify(r.questions));
+});
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(fail === 0
