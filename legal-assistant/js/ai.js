@@ -333,7 +333,9 @@ window.AI = (function () {
     var cursor = div.querySelector(".ai-cursor");
     if (cursor) cursor.remove();
     div.querySelectorAll(".ai-stop").forEach(function (x) { x.remove(); });
-    setText(div, text);
+    /* 含 SVG（错误/停止图标）的文本走 innerHTML；纯文本流走 textContent */
+    if (text.indexOf("<svg") > -1) div.querySelector(".ai-text").innerHTML = text;
+    else setText(div, text);
   }
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
@@ -425,7 +427,11 @@ window.AI = (function () {
         if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, content);
         if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       })
-      .catch(function (e) { finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + (e && e.message || e)); });
+      .catch(function (e) {
+        var msg = (e && e.message || String(e));
+        if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
+        finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
+      });
   }
   /* 集成③（案情分析 AI 深度分析）已并入「深度分析」页 AI 模式，见 agent.js */
 
@@ -454,7 +460,11 @@ window.AI = (function () {
         aiHistory.push({ role: "user", content: question }, { role: "assistant", content: full });
         if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
       })
-      .catch(function (e) { finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + (e && e.message || e)); });
+      .catch(function (e) {
+        var msg = (e && e.message || String(e));
+        if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
+        finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
+      });
   }
 
   /* ---------------- 设置弹窗 ---------------- */
@@ -473,7 +483,7 @@ window.AI = (function () {
   }
   function setStatus(t, cls) {
     var el = document.getElementById("ai-status");
-    el.textContent = t;
+    el.innerHTML = t;   /* 含 SVG 图标的调用方需要 innerHTML */
     el.className = "ai-status " + (cls || "");
   }
   function applyProviderPreset(v) {

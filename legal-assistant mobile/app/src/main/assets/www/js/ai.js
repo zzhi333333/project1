@@ -146,12 +146,11 @@ window.AI = (function () {
     if (!cfg.apiKey && cfg.provider !== "ollama") return Promise.reject(new Error("未配置 API Key，请点击右上角「AI 模型」设置。"));
     var temp = parseFloat(cfg.temperature);
     if (isNaN(temp)) temp = 0.5;
-    /* 隐私：发送前脱敏（默认开）+ 发送前预览（默认关，可在设置开启）；原生桥与代理两条通道共用此门 */
+    /* 隐私：发送前脱敏（默认开）+ 发送前预览（默认关，可在设置开启） */
     messages = messages.map(function (m) {
       return m.role === "user" && cfg.redact ? Object.assign({}, m, { content: redactPII(m.content) }) : m;
     });
     var proceed = maybePreview(messages);
-    var runCore = function () {
     var ctrl = new AbortController();
     activeCtrl = ctrl;
     var body = {
@@ -166,68 +165,27 @@ window.AI = (function () {
       acc += String(d);
       if (onDelta) onDelta(d);
     }
-
-    /* ── App 内：经原生桥直连流式（无本地代理，无需探测） ── */
-    if (window.BRIDGE && window.BRIDGE.available) {
-      var sseBuf = "";
-      var pumpSSE = function (raw) {
-        sseBuf += raw;
-        var lines = sseBuf.split("\n");
-        sseBuf = lines.pop();
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i].trim();
-          if (!line || line.indexOf("data:") !== 0) continue;
-          var data = line.slice(5).trim();
-          if (data === "[DONE]") continue;
-          try {
-            var j = JSON.parse(data);
-            var ch = j.choices && j.choices[0];
-            var piece = ch && ((ch.delta && ch.delta.content) || (ch.message && ch.message.content)) || "";
-            if (piece) emit(piece);
-          } catch (e) { /* 忽略无法解析的行 */ }
-        }
-      };
-      /* 「⏹ 停止」→ AbortController 触发 → 通知原生断开当前连接 */
-      if (ctrl && ctrl.signal) {
-        ctrl.signal.addEventListener("abort", function () {
-          window.BRIDGE.cancelActive();
-        });
-      }
-      return window.BRIDGE.stream("POST",
-        cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions",
-        { "Content-Type": "application/json", "Authorization": "Bearer " + (cfg.apiKey || "") },
-        JSON.stringify({ model: cfg.model, messages: messages, temperature: temp, stream: true }),
-        pumpSSE
-      ).then(function (r) {
-        if (sseBuf) { var tail = sseBuf; sseBuf = ""; pumpSSE(tail + "\n"); }
-        if (!r || r.status == null) throw new Error("网络通道异常，请稍后重试。");
-        if (r.status >= 400) throw new Error("模型接口返回 " + r.status + "：" + String(r.text || acc || "").slice(0, 300));
-        if (!acc) throw new Error("模型未返回内容，请检查「模型名称 / 接口地址 / API Key」设置。");
-        return acc;
-      }).catch(function (e) {
-        if (e instanceof Error) throw e;
-        throw new Error(String(e && e.message || e));
-      });
-    }
-    return detectProxy().then(function (pb) {
-      var viaProxy = pb !== false;
-      var p;
-      if (viaProxy) {
-        p = post(pb + "/api/ai/chat", body).catch(function (e1) {
-          return postDirect(cfg, body).catch(function (e2) {
-            throw new Error(friendly(e1, e2));
+    /* 预览确认 → 探测代理 → 发送；取消预览时整个调用拒绝 */
+    return proceed.then(function (finalMessages) {
+      body.messages = finalMessages;
+      return detectProxy().then(function (pb) {
+        var viaProxy = pb !== false;
+        var p;
+        if (viaProxy) {
+          p = post(pb + "/api/ai/chat", body).catch(function (e1) {
+            return postDirect(cfg, body).catch(function (e2) {
+              throw new Error(friendly(e1, e2));
+            });
           });
-        });
-      } else {
-        p = postDirect(cfg, body).catch(function (e2) {
-          throw new Error("无法连接模型接口（直连）：" + (e2 && e2.message || e2) +
-            "。若为浏览器跨域限制，请运行 node server.js / python server.py 后重试。");
-        });
-      }
-      return p.then(function () { return acc; });
+        } else {
+          p = postDirect(cfg, body).catch(function (e2) {
+            throw new Error("无法连接模型接口（直连）：" + (e2 && e2.message || e2) +
+              "。若为浏览器跨域限制，请运行 node server.js / python server.py 后重试。");
+          });
+        }
+        return p.then(function () { return acc; });
+      });
     });
-    };  /* runCore 结束 */
-    return proceed.then(function () { return runCore(); });
 
     function post(url, b) {
       return fetch(url, {
@@ -269,7 +227,7 @@ window.AI = (function () {
   }
   var SYSTEM_PROMPT =
     "你是「法律咨询助手」的 AI 法律顾问。" + domainListText() + " 回答规则：" +
-    "①先给直接结论，再分点分析；" +
+    "①先给直接结论，再分析；较复杂的问题按争点展开（每个争点：问题→规则→适用到本案→小结），并在结尾给出对方可能的抗辩及应对；" +
     "②引用法条写明法律名称与条文号（如《劳动合同法》第47条），优先依据下方提供的匹配资料；" +
     "③给出可执行建议：如何固定证据、走什么程序、注意什么时效；" +
     "④存在地方裁审口径差异或事实不足时明确说明，不要编造；" +
@@ -375,7 +333,9 @@ window.AI = (function () {
     var cursor = div.querySelector(".ai-cursor");
     if (cursor) cursor.remove();
     div.querySelectorAll(".ai-stop").forEach(function (x) { x.remove(); });
-    setText(div, text);
+    /* 含 SVG（错误/停止图标）的文本走 innerHTML；纯文本流走 textContent */
+    if (text.indexOf("<svg") > -1) div.querySelector(".ai-text").innerHTML = text;
+    else setText(div, text);
   }
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
@@ -467,7 +427,11 @@ window.AI = (function () {
         if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, content);
         if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       })
-      .catch(function (e) { finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + (e && e.message || e)); });
+      .catch(function (e) {
+        var msg = (e && e.message || String(e));
+        if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
+        finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
+      });
   }
   /* 集成③（案情分析 AI 深度分析）已并入「深度分析」页 AI 模式，见 agent.js */
 
@@ -496,7 +460,11 @@ window.AI = (function () {
         aiHistory.push({ role: "user", content: question }, { role: "assistant", content: full });
         if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
       })
-      .catch(function (e) { finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + (e && e.message || e)); });
+      .catch(function (e) {
+        var msg = (e && e.message || String(e));
+        if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
+        finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
+      });
   }
 
   /* ---------------- 设置弹窗 ---------------- */
@@ -515,7 +483,7 @@ window.AI = (function () {
   }
   function setStatus(t, cls) {
     var el = document.getElementById("ai-status");
-    el.textContent = t;
+    el.innerHTML = t;   /* 含 SVG 图标的调用方需要 innerHTML */
     el.className = "ai-status " + (cls || "");
   }
   function applyProviderPreset(v) {
@@ -619,7 +587,7 @@ window.AI = (function () {
       if (e.target.files[0]) importData(e.target.files[0]);
       e.target.value = "";
     });
-    /* 反馈清单导出（维护者评测闭环） */
+    /* 反馈清单导出（维护者评测闭环：差评案例人工筛选后进 test.js 金问题） */
     var fbBtn = document.getElementById("fb-export");
     if (fbBtn) fbBtn.addEventListener("click", exportFeedback);
 
@@ -682,8 +650,8 @@ window.AI = (function () {
   function stopCurrent() { if (activeCtrl) activeCtrl.abort(); }
 
   /* ---------------- 数据备份：导出 / 导入 ----------------
-     v3：按 store.js 键注册表导出全部 backup:true 的键；aiSettings 始终排除 API Key。
-     restoreBackup 兼容 v1/v2 旧格式。 */
+     v3：按 store.js 键注册表导出全部 backup:true 的键（对话/工作区/报告/案例/日历等）；
+     aiSettings 始终排除 API Key。restoreBackup 兼容 v1/v2 旧格式。 */
   function buildBackup() {
     var payload = {
       app: "legal-assistant", version: 3, exportedAt: new Date().toISOString(),
@@ -709,18 +677,6 @@ window.AI = (function () {
   }
   function exportData() {
     var payload = buildBackup();
-    /* App 内：调用原生「另存为」选择器写文件（WebView 的 blob 下载不可靠） */
-    if (window.BRIDGE && window.BRIDGE.available) {
-      setStatus("⏳ 请选择保存位置…");
-      window.BRIDGE.exportFile("legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json",
-        JSON.stringify(payload, null, 2))
-        .then(function () { setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出", "ok"); })
-        .catch(function (e) {
-          var m = e && e.message || String(e);
-          setStatus(/cancel/i.test(m) ? "已取消导出" : "❌ 导出失败：" + m);
-        });
-      return;
-    }
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -746,11 +702,6 @@ window.AI = (function () {
       lines.push("- [" + (x.verdict || "?") + "][" + (x.domain || "?") + "] " + x.scene + (x.comment ? "｜" + x.comment : "") + "｜" + (x.time || "").slice(0, 10));
     });
     lines.push("", "（本清单由本机生成；加入评测集时请匿名化处理案情信息。）");
-    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) {
-      window.BRIDGE.exportFile("feedback-" + new Date().toISOString().slice(0, 10) + ".md", lines.join("\n"));
-      setStatus("<svg class=ico><use href=#i-checkc></use></svg> 反馈清单已导出", "ok");
-      return;
-    }
     var blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
