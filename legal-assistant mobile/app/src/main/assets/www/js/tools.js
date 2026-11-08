@@ -188,7 +188,7 @@
        过期态：满圈灰红（#b06868，与紧急亮红区分）+ 环心「已过期/N天」双行 */
     var ringPct = left < 0 ? 1 : Math.min(1, left / days);
     var ringSvg = window.SVGCHART ? window.SVGCHART.ring(ringPct, left < 0
-      ? { size: 56, color: "#b06868", label: "已过期", sub: (-left) + "天" }
+      ? { size: 56, color: "var(--c-danger-muted)", label: "已过期", sub: (-left) + "天" }
       : { size: 56, label: left + "天" }) : "";
     function fmt(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
     out.innerHTML = '<div class="' + cls + '" style="display:flex;align-items:center;gap:12px;border-radius:8px;padding:10px 13px;font-size:14.5px">' + ringSvg + '<div>⏳ ' + status + '</div></div>' +

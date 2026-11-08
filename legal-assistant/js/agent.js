@@ -200,6 +200,7 @@ window.AGENT = (function () {
         status: v ? v.status : "fail",
         source: v ? v.source : null,
         lawDisplay: v ? v.law : c.law,
+        lawId: v && v.entry ? v.entry.id : null,
         text: v ? v.text : "",
         tier: 0, textChecked: false, articleLocated: true
       };
@@ -250,7 +251,9 @@ window.AGENT = (function () {
         tip = "未能核实该引用，请到法条检索页人工确认";
       }
       var safeRaw = esc(r.cit.raw).replace(/"/g, "&quot;");
-      html = html.split(esc(r.cit.raw)).join('<span class="' + cls + '" title="' + tip + '">' + safeRaw + badge + "</span>");
+      /* V9：可定位引用带 data-law-id（点击就地展开条文原文卡）；未定位的带 data-law-name（卡片引导检索） */
+      var lawAttr = r.lawId ? ' data-law-id="' + esc(r.lawId) + '"' : ' data-law-name="' + safeRaw + '"';
+      html = html.split(esc(r.cit.raw)).join('<span class="' + cls + '" title="' + tip + '"' + lawAttr + ' style="cursor:pointer">' + safeRaw + badge + "</span>");
     });
     /* 未核实数字断言高亮 */
     verification.numbers.forEach(function (x) {
@@ -260,6 +263,92 @@ window.AGENT = (function () {
       html = html.split(esc(x.claim.raw)).join('<span class="num-warn" title="' + tip + '">' + safeRaw + "<svg class=ico><use href=#i-warn></use></svg></span>");
     });
     return html;
+  }
+
+  /* ============ V9 引用条文原文卡（就地展开，对标引用溯源体验） ============ */
+  function openLawCard(lawId, fallbackName) {
+    var l = lawId && window.DomainRegistry ? window.DomainRegistry.lawById(lawId) : null;
+    var old = document.getElementById("law-card-modal");
+    if (old) old.remove();
+    var w = document.createElement("div");
+    w.className = "modal";
+    w.id = "law-card-modal";
+    var body;
+    if (l) {
+      body = '<div class="lawcard-title">' + esc(l.law + " " + l.article) + '</div>' +
+        (l.title ? '<div class="lawcard-head dim" style="font-size:12px">' + esc(l.title) + '</div>' : "") +
+        '<div class="lawcard-text">' + esc(l.text || "（本地库未收录条文正文）") + '</div>' +
+        (l.note ? '<div class="lawcard-note"><svg class=ico><use href=#i-d-patent></use></svg> ' + esc(l.note) + '</div>' : "") +
+        (l.url ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(l.url) + '" style="margin-top:10px"><svg class=ico><use href=#i-link></use></svg> 官方原文</a>' : "");
+    } else {
+      body = '<div class="lawcard-title">' + esc(fallbackName || "引用条文") + '</div>' +
+        '<div class="tool-warn">本地知识库未收录该条文的原文——请到「法条」页检索核实（联网模式可查国家法律法规数据库）。</div>';
+    }
+    w.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="max-width:600px;width:94%">' +
+      '<div class="modal-title"><svg class=ico><use href=#i-laws></use></svg> 引用条文原文</div>' +
+      '<div class="modal-body" style="max-height:60vh;overflow-y:auto">' + body + '</div>' +
+      '<div class="modal-foot"><button class="primary" id="lawcard-go"><svg class=ico><use href=#i-search></use></svg> 到法条页检索</button><button id="lawcard-close">关闭</button></div>' +
+      '<div class="modal-note" style="padding:0 18px 12px;font-size:11px">条文原文仅供阅读核对，以官方公布文本为准。</div></div>';
+    document.body.appendChild(w);
+    w.querySelector(".modal-mask").addEventListener("click", function () { w.remove(); });
+    w.querySelector("#lawcard-close").addEventListener("click", function () { w.remove(); });
+    w.querySelector("#lawcard-go").addEventListener("click", function () {
+      var q = l ? (l.law + " " + l.article) : (fallbackName || "");
+      w.remove();
+      var tab = document.querySelector('.nav-tab[data-view="laws"]');
+      if (tab) tab.click();
+      var inp = document.getElementById("law-search-input");
+      if (inp) { inp.value = q; inp.dispatchEvent(new Event("input", { bubbles: true })); }
+      var sb = document.getElementById("law-search-btn");
+      if (sb) sb.click();
+    });
+  }
+  /* 事件委托：报告/AI 回答中带 data-law-id / data-law-name 的引用徽标 → 条文卡（绑定一次全局生效） */
+  document.addEventListener("click", function (e) {
+    var el = e.target && e.target.closest ? e.target.closest("[data-law-id],[data-law-name]") : null;
+    if (!el) return;
+    if (el.hasAttribute("data-law-id")) openLawCard(el.getAttribute("data-law-id"), el.getAttribute("data-law-name") || "");
+    else openLawCard(null, el.getAttribute("data-law-name") || "");
+  });
+
+  /* ============ V10 事实高亮：报告正文的日期/金额自动着色 ============ */
+  var FACT_SKIP = { SCRIPT: 1, STYLE: 1, BUTTON: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1, SVG: 1 };
+  var FACT_RE = /(?:[12]\d{3}\s*年\s*\d{1,2}\s*月(?:\s*\d{1,2}\s*日)?|[12]\d{3}-\d{1,2}-\d{1,2})|\d[\d,]{2,}(?:\.\d+)?\s*元|[¥￥]\s?\d[\d,]*/g;
+  function factSkip(node) {
+    var p = node.parentNode;
+    if (!p || FACT_SKIP[p.nodeName]) return true;
+    if (p.classList && p.classList.contains) {
+      if (p.classList.contains("fact-hl") || p.classList.contains("gl-hl") ||
+          p.classList.contains("cite-ok") || p.classList.contains("cite-ok2") ||
+          p.classList.contains("cite-warn") || p.classList.contains("num-warn")) return true;
+    }
+    return false;
+  }
+  function highlightFacts(root) {
+    if (!root || !document.createTreeWalker) return 0;
+    var walker = document.createTreeWalker(root, 4, null, false);   /* 4 = SHOW_TEXT */
+    var nodes = [], n = walker.nextNode();
+    while (n) { nodes.push(n); n = walker.nextNode(); }
+    var count = 0;
+    nodes.forEach(function (node) {
+      var cur = node, guard = 0;
+      while (cur && count < 80 && guard < 40) {
+        guard++;
+        if (factSkip(cur)) break;
+        FACT_RE.lastIndex = 0;
+        var m = FACT_RE.exec(cur.nodeValue || "");
+        if (!m) break;
+        var a = cur.splitText(m.index);
+        var b = a.splitText(m[0].length);
+        var span = document.createElement("span");
+        span.className = "fact-hl";
+        span.textContent = a.nodeValue;
+        a.parentNode.replaceChild(span, a);
+        cur = b;
+        count++;
+      }
+    });
+    return count;
   }
 
   /* ============ 硬约束提示词 ============ */
@@ -797,7 +886,7 @@ window.AGENT = (function () {
         /* V4：路径泳道示意条——周期长度与成本颜色按文本描述归档（示意非精确刻度） */
         if (window.SVGCHART) {
           var clsLen = function (t) { t = String(t || ""); return /数天/.test(t) ? 0.25 : /周|日/.test(t) ? 0.55 : 0.85; };
-          var clsColor = function (t) { t = String(t || ""); return /免费|0 元/.test(t) ? "#16a34a" : /很低|低/.test(t) ? "#2563eb" : "#d97706"; };
+          var clsColor = function (t) { t = String(t || ""); return /免费|0 元/.test(t) ? "var(--ok)" : /很低|低/.test(t) ? "var(--c-info)" : "var(--warn)"; };
           ph += window.SVGCHART.lanes(paths.map(function (p) { return { label: p.name, sub: p.time + " · " + p.cost, len: clsLen(p.time), color: clsColor(p.cost) }; }));
           ph += '<div class="calc-note">泳道为周期/成本的示意排序（按描述归档），以各路径详表为准。</div>';
         }
@@ -849,6 +938,7 @@ window.AGENT = (function () {
         els.answer.appendChild(gWrap);
         window.GLOSSARY.bind(els.answer);
         if (window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
+        highlightFacts(els.answer);
       }
       appendCopyButton(els.answer, reportToText(rep));
       /* 劳动领域：追加仲裁请求清单生成器入口 */
@@ -939,6 +1029,7 @@ window.AGENT = (function () {
       var html = annotate(gen.text, v);
       els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
       if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
+      highlightFacts(els.answer);
       renderPanel(v, gen.text);
       appendCopyButton(els.answer, gen.text, { verifiedCount: v.verifiedCount, tier2Count: v.tier2Count, totalCitations: v.totalCitations, numbers: v.numbers.length, flagged: v.flaggedNumbers });
       setStopBtn(false);
@@ -1032,6 +1123,8 @@ window.AGENT = (function () {
         stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
         if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
+      highlightFacts(els.answer);
+        highlightFacts(els.answer);
         renderPanel(v2, full);
         appendCopyButton(els.answer, full, { verifiedCount: v2.verifiedCount, tier2Count: v2.tier2Count, totalCitations: v2.totalCitations, numbers: v2.numbers.length, flagged: v2.flaggedNumbers });
         setStopBtn(false);

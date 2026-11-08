@@ -116,7 +116,11 @@ window.GLOSSARY = (function () {
   function hlAccept(node) {
     var p = node.parentNode;
     if (!p || HL_SKIP[p.nodeName]) return false;
-    return !(p.classList && p.classList.contains && (p.classList.contains("gl-hl") || p.classList.contains("glossary-btn")));
+    if (p.classList && p.classList.contains) {
+      /* 跳过自身高亮与 V10 事实高亮（避免嵌套包裹） */
+      if (p.classList.contains("gl-hl") || p.classList.contains("glossary-btn") || p.classList.contains("fact-hl")) return false;
+    }
+    return true;
   }
   function highlight(root) {
     if (!root || !TERMS.length || !document.createTreeWalker) return 0;

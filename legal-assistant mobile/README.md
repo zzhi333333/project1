@@ -2,10 +2,22 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.3.2`（versionCode 48）
+- 包名：`com.zz333.legalassistant`，版本 `3.4.0`（versionCode 49）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.3.2.apk`（约 680KB）
+- 产物：`dist/legal-assistant-mobile-v3.4.0.apk`（约 680KB）
 - 构建：双击 `build.bat`（手动）；**脚本化出包用 `node release.js <版本号> [提交说明]`**——版本 6 处自动对齐 + check/test 门禁 + 管道安全构建 + 包内双验证 + 推送重试，`--dry` 只构建验证
+
+## 🆕 v3.4.0 更新（设计令牌 + 动效 + 可达性 + 引用卡/事实高亮）
+
+| 功能 | 说明 |
+|---|---|
+| 🎨 D1 设计令牌收敛 | 图表语义色全部对齐 CSS 令牌（--ok/--warn/--danger + 新增 --c-info/--c-purple/--c-neutral/--c-danger-muted），JS 硬编码色清零，**暗色模式图表自动适配**（两端 CSS 含暗色覆盖） |
+| ✨ D2 图表入场动效 | ring 扫描、stepper 节点依次点亮、雷达淡入、泳道/阶梯横向生长——纯 CSS keyframes，SVG 属性改 style 形式引用 var |
+| ♿ W1 色盲冗余 | 风险分级标记形状分级：高=实心●红 / 中=空心○橙 / 低=小号空心○灰——形状+填充双通道不单靠颜色 |
+| ♿ W2 reduce-motion | 尊重系统「减少动态」设置，sc-* 动效自动关闭 |
+| 📄 V9 引用条文卡 | AI 报告里可定位的法条引用**点击就地弹出条文原文卡**（lawById 全文+官方链接），未定位的引导到法条页检索——对标引用溯源体验 |
+| 🖍️ V10 事实高亮 | 报告正文的日期/金额自动琥珀底色着色（与术语虚线下划线区分），聚焦法律文书阅读锚点 |
+| 🧪 test 105 项 | ring/stepper/scale/ladder/radar/lanes 断言对齐令牌输出 |
 
 ## 🆕 v3.3.2 更新（时效环过期态区分）
 

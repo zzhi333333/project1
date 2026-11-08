@@ -204,7 +204,7 @@ window.ANALYSIS = (function () {
 
   /* ---------------- 程序建议（分领域阶段化） ----------------
      layer 时序分层：now=立即 / week=7 日内 / filing=立案前 / trial=诉讼·执行 */
-  var LAYER_META = { now: ["立即", "#dc2626"], week: ["7 日内", "#d97706"], filing: ["立案前", "#2563eb"], trial: ["诉讼·执行", "#7c3aed"] };
+  var LAYER_META = { now: ["立即", "var(--danger)"], week: ["7 日内", "var(--warn)"], filing: ["立案前", "var(--c-info)"], trial: ["诉讼·执行", "var(--c-purple)"] };
   function buildProcedure(domain, scenarios, text) {
     var steps = [];
     var ids = scenarios.map(function (s) { return s.id; });
@@ -468,8 +468,13 @@ window.ANALYSIS = (function () {
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 风险提示</div><ul class="report-list risk">';
     r.risks.forEach(function (c) {
       var lv = riskLevel(c);
-      var dot = lv === "high" ? "#dc2626" : lv === "mid" ? "#d97706" : "#9ca3af";
-      html += '<li><span style="display:inline-block;width:8px;height:8px;border-radius:99px;background:' + dot + ';margin-right:6px;vertical-align:1px" title="' + (lv === "high" ? "高风险：直接影响请求成立" : lv === "mid" ? "中风险：影响金额或程序推进" : "一般提示") + '"></span>' + esc(c) + '</li>';
+      /* W1 色盲冗余：高=实心圆● / 中=空心圆（粗描边）/ 低=小号空心圆——形状+填充双通道，不单靠颜色 */
+      var mk = lv === "high"
+        ? '<span style="display:inline-block;width:8px;height:8px;border-radius:99px;background:var(--danger);margin-right:6px;vertical-align:1px" title="高风险：直接影响请求成立"></span>'
+        : lv === "mid"
+        ? '<span style="display:inline-block;width:10px;height:10px;border-radius:99px;border:2.5px solid var(--warn);box-sizing:border-box;margin-right:5px;vertical-align:1px" title="中风险：影响金额或程序推进"></span>'
+        : '<span style="display:inline-block;width:7px;height:7px;border-radius:99px;border:2px solid var(--c-neutral);box-sizing:border-box;margin-right:7px;vertical-align:1px" title="一般提示"></span>';
+      html += '<li>' + mk + esc(c) + '</li>';
     });
     html += '</ul></div>';
 

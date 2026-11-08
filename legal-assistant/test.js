@@ -1006,22 +1006,24 @@ vm.runInContext(fs.readFileSync(path.join(root, "js", "svgchart.js"), "utf8"), s
 const CH = sandbox.window.SVGCHART;
 if (!CH || !CH.ring) { console.error("❌ SVGCHART 未暴露"); process.exit(1); }
 section("图表原语测试（js/svgchart.js）");
-T("ring：剩余比例三档着色（绿/橙/红）+ 钳制", function () {
-  if (CH.ring(0.8).indexOf("#16a34a") === -1) throw new Error("80% 应绿色");
-  if (CH.ring(0.3).indexOf("#d97706") === -1) throw new Error("30% 应橙色");
-  if (CH.ring(0.1).indexOf("#dc2626") === -1) throw new Error("10% 应红色");
-  if (CH.ring(1.5).indexOf("#16a34a") === -1 || CH.ring(-3).indexOf("#dc2626") === -1) throw new Error("未钳制到 0–1");
+T("ring：剩余比例三档着色（绿/橙/红语义令牌）+ 钳制", function () {
+  if (CH.ring(0.8).indexOf("var(--ok)") === -1) throw new Error("80% 应绿色令牌");
+  if (CH.ring(0.3).indexOf("var(--warn)") === -1) throw new Error("30% 应橙色令牌");
+  if (CH.ring(0.1).indexOf("var(--danger)") === -1) throw new Error("10% 应红色令牌");
+  if (CH.ring(1.5).indexOf("var(--ok)") === -1 || CH.ring(-3).indexOf("var(--danger)") === -1) throw new Error("未钳制到 0–1");
   if (CH.ring(0.4, { label: "35天" }).indexOf("35天") === -1) throw new Error("自定义标签丢失");
+  if (CH.ring(0.5).indexOf("sc-ring-box") === -1) throw new Error("缺入场动效包裹");
+  if (CH.ring(0.5).indexOf("sc-arc") === -1) throw new Error("缺扫描动效类");
 });
-T("ring：过期态——满圈灰红 #b06868（与紧急亮红区分）+「已过期/N天」双行", function () {
-  const s = CH.ring(1, { color: "#b06868", label: "已过期", sub: "58天" });
-  if (s.indexOf("#b06868") === -1) throw new Error("过期灰红色缺失");
+T("ring：过期态——满圈灰红令牌（与紧急亮红区分）+「已过期/N天」双行", function () {
+  const s = CH.ring(1, { color: "var(--c-danger-muted)", label: "已过期", sub: "58天" });
+  if (s.indexOf("var(--c-danger-muted)") === -1) throw new Error("过期灰红令牌缺失");
   if (s.indexOf("已过期") === -1 || s.indexOf("58天") === -1) throw new Error("双行文本缺失");
   if (s.indexOf("stroke-dasharray") === -1) throw new Error("缺弧段");
   const full = s.match(/stroke-dasharray="([\d.]+)/);
   if (!full || parseFloat(full[1]) <= 0) throw new Error("过期应满圈（弧长>0）");
   const normal = CH.ring(0.65, {});
-  if (normal.indexOf("#b06868") > -1) throw new Error("未过期不应出现灰红");
+  if (normal.indexOf("var(--c-danger-muted)") > -1) throw new Error("未过期不应出现灰红");
 });
 T("stepper：节点数与转义（阶段条）", function () {
   const s = CH.stepper([
