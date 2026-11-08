@@ -269,6 +269,14 @@ head("版本一致性（出包链五处对齐）");
   if (badCodes.length) bad("versionCode 不一致：基准 " + codes[0][1] + "，但 " + badCodes.join("、") + " 不同");
   if (!badNames.length && !badCodes.length && !missing(names).length && !missing(codes).length)
     ok("版本链一致：" + base + "（versionCode " + codes[0][1] + "），六处对齐");
+  /* 构建日期（app-build）：格式合法且不超前（release.js 出包自动刷新，此处防手改/时钟错误） */
+  const buildD = grab(/id="app-build">([\d-]+)</, mobIndex);
+  if (!buildD) { warn("app-build 未解析（格式变动？）"); return; }
+  const nowD = new Date();
+  const todayStr = nowD.getFullYear() + "-" + ("0" + (nowD.getMonth() + 1)).slice(-2) + "-" + ("0" + nowD.getDate()).slice(-2);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(buildD)) bad("构建日期格式异常：" + buildD);
+  else if (buildD > todayStr) warn("构建日期在未来：" + buildD + "（时钟或手改错误？）");
+  else ok("构建日期合法：" + buildD);
 })();
 
 /* ---------- 11. 分支文件特征嗅探（函数集不变量） ----------

@@ -87,6 +87,9 @@ const newCode = String(parseInt(oldCode, 10) + 1);
 /* dry 模式不落盘改版 → 构建/验证用当前值；正式模式用新值 */
 const effName = DRY ? oldName : versionName;
 const effCode = DRY ? oldCode : newCode;
+/* 构建日期（更多弹层 app-build）随每次出包自动刷新——曾因不在对齐清单漏改 4 个版本 */
+const now = new Date();
+const today = now.getFullYear() + "-" + ("0" + (now.getMonth() + 1)).slice(-2) + "-" + ("0" + now.getDate()).slice(-2);
 console.log("  " + oldName + "(code " + oldCode + ") → " + versionName + "(code " + newCode + ")" + (DRY ? "（dry：不改文件）" : ""));
 
 const targets = [
@@ -94,6 +97,7 @@ const targets = [
   { file: manifestPath, re: /android:versionName="[\d.]+"/, to: 'android:versionName="' + versionName + '"', tag: "manifest versionName" },
   { file: path.join(MOB_ROOT, "build.bat"), re: /set "VERSION_NAME=[\d.]+"/, to: 'set "VERSION_NAME=' + versionName + '"', tag: "build.bat VERSION_NAME" },
   { file: path.join(APP, "assets", "www", "index.html"), re: /id="app-ver">[\d.]+</, to: 'id="app-ver">' + versionName + "<", tag: "更多弹层 app-ver" },
+  { file: path.join(APP, "assets", "www", "index.html"), re: /id="app-build">[\d-]+</, to: 'id="app-build">' + today + "<", tag: "更多弹层构建日期" },
   { file: path.join(MOB_ROOT, "README.md"), re: /版本 `[\d.]+`（versionCode \d+）/, to: "版本 `" + versionName + "`（versionCode " + newCode + "）", tag: "移动 README 版本行" },
   { file: path.join(MOB_ROOT, "README.md"), re: /legal-assistant-mobile-v[\d.]+\.apk/, to: "legal-assistant-mobile-v" + versionName + ".apk", tag: "移动 README 产物名" },
   { file: path.join(WEB_ROOT, "FEATURES.md"), re: /> 版本：v[\d.]+（/, to: "> 版本：v" + versionName + "（", tag: "FEATURES 版本头" },
