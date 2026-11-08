@@ -115,6 +115,7 @@ window.WORKSPACE = (function () {
 
   /* ---------------- 判决书双时间线（已发生事实 + 程序期限节点） ---------------- */
   var DAYS = 86400000;
+  function fmt(n) { var v = parseFloat(n); return isFinite(v) ? v.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) : "0"; }
   /* 中文数字日期 → 阿拉伯数字（判决书落款法定格式为「二〇二三年十一月二十日」，
      不转换则落款日会被误取为正文中最后一个阿拉伯日期，上诉期等期限推算整体错位） */
   var CN_DIG = { "〇": "0", "零": "0", "一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9" };
@@ -534,6 +535,6 @@ window.WORKSPACE = (function () {
     toMarkdown: toMarkdown, init: init, openModal: openModal,
     buildEnforce: buildEnforce, PROPERTY_LIST: PROPERTY_LIST,   /* 评测与验证用 */
     /* 测试钩子（不进 UI，无副作用）：test.js 日期管线回归用（同 claims.collectForTest 先例） */
-    _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates }
+    _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates, buildEnforce: buildEnforce }
   };
 })();

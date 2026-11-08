@@ -2,10 +2,18 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.2.9`（versionCode 44）
+- 包名：`com.zz333.legalassistant`，版本 `3.2.10`（versionCode 45）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.2.9.apk`（约 680KB）
+- 产物：`dist/legal-assistant-mobile-v3.2.10.apk`（约 680KB）
 - 构建：双击 `build.bat`（手动）；**脚本化出包用 `node release.js <版本号> [提交说明]`**——版本 6 处自动对齐 + check/test 门禁 + 管道安全构建 + 包内双验证 + 推送重试，`--dry` 只构建验证
+
+## 🆕 v3.2.10 更新（仿真审核三问题修复）
+
+| 修复 | 说明 |
+|---|---|
+| 🔴 执行申请书 fmt 崩溃 | workspace.js 调用 fmt() 但文件内无定义——判决书提取到履行金额时点「执行申请书」必抛 ReferenceError、文书不出现（金额为空时反而正常，主路径必踩）；补 fmt 定义（两端），test 98 项含千分位回归断言 |
+| 🟠 移动端风险分级圆点 | riskLevel 两端都有定义但只有网页版接入渲染——移动端规则报告风险列表补分级着色（高红/中橙/低灰），双端一致 |
+| 🟠 会话自动绑定补全 | 「关联会话」UI/回看跳转都在但零写入点（stub）——main.js appendUser 挂 bindSessionToCase：发消息即绑定当前会话到激活案件（首条用户消息作名称、按会话 id 去重、未激活案件静默跳过），回看切换实测通过 |
 
 ## 🆕 v3.2.9 更新（内容扩容 + 体验三件）
 

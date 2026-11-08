@@ -46,7 +46,21 @@
     div.innerHTML = '<div class="bubble">' + esc(text) + '</div>';
     box.appendChild(div);
     recordMsg({ who: "user", html: esc(text), text: text });
+    bindSessionToCase();
     scrollDown();
+  }
+
+  /* 方向一补全：咨询会话自动绑定激活案件（工作区「关联会话」回看用）。
+     attach() 按 id 去重，重复发送不会产生重复条目；未激活案件时 attach 静默无操作 */
+  function bindSessionToCase() {
+    try {
+      if (!window.WORKSPACE || !window.CHATHISTORY) return;
+      var cur = window.CHATHISTORY.current();
+      if (!cur || !cur.id) return;
+      var firstUser = (cur.messages || []).filter(function (m) { return m.who === "user"; })[0];
+      var name = (firstUser && firstUser.text ? String(firstUser.text) : (cur.name || "咨询会话")).replace(/\s+/g, " ").trim().slice(0, 40);
+      window.WORKSPACE.attach("sessions", { id: cur.id, name: name || "咨询会话", date: new Date().toISOString().slice(0, 10) });
+    } catch (e) { /* 绑定失败不阻断咨询流程 */ }
   }
 
   function appendBot(html) {

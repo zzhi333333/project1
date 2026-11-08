@@ -928,6 +928,19 @@ T("日期管线：证据目录——编号剥离/来源建议/证明目的", fun
   if (rows[0].purpose.indexOf("劳动关系") === -1) throw new Error("合同证明目的异常：" + rows[0].purpose);
   if (rows[2].purpose.indexOf("沟通") === -1) throw new Error("聊天记录证明目的异常：" + rows[2].purpose);
 });
+T("日期管线：执行申请书自动填充（当事人/金额提取 + fmt 千分位回归，修前 fmt 未定义必崩）", function () {
+  const j = WST.parseJudgment("某某市某某区人民法院\n民事判决书\n（2024）京0105民初66号\n原告：张三。被告：某某科技有限公司。\n判决如下：一、被告于本判决生效之日起十日内支付原告赔偿金96000元；\n2024年8月15日", "first");
+  if (j.plaintiff !== "张三") throw new Error("原告提取异常：" + j.plaintiff);
+  if (j.defendant.indexOf("某某科技") === -1) throw new Error("被告提取异常：" + j.defendant);
+  if (j.amount !== "96000") throw new Error("金额提取异常：" + j.amount);
+  const doc = WST.buildEnforce(j);
+  if (doc.indexOf("96,000") === -1) throw new Error("金额未千分位格式化（fmt 回归）：" + doc.slice(0, 120));
+  if (doc.indexOf("张三") === -1 || doc.indexOf("某某科技有限公司") === -1) throw new Error("当事人未自动填充");
+  if (doc.indexOf("（2024）京0105民初66号") === -1 || doc.indexOf("某某市某某区人民法院") === -1) throw new Error("案号/法院未填充");
+  if (doc.indexOf("第二百四十六条") === -1) throw new Error("缺申请执行期间法条引用");
+  const empty = WST.buildEnforce({ plaintiff: "", defendant: "", court: "", caseNo: "", amount: "", judgmentDate: "2024-08-15" });
+  if (empty.indexOf("【") === -1) throw new Error("缺项应留【】占位");
+});
 
 /* ---------- 18. flk 降级透明化（online.js renderFlkResp） ---------- */
 section("flk 降级透明化测试（js/online.js）");
