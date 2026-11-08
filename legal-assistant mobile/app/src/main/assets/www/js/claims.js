@@ -10,6 +10,22 @@ window.CLAIMS = (function () {
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function round2(n) { return Math.round(n * 100) / 100; }
   function fmt(n) { var v = parseFloat(n); return isFinite(v) ? v.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) : "0"; }
+  /* ---------------- 方向三：法条关联网络（配套条文簇，法条检索页展示） ----------------
+     key = 法条 id，value = 同一争议链条上常一起引用的配套条文 id（须为 lawById 可解析的真实 id） */
+  var LAW_LINKS = {
+    "ht-46": ["ht-47", "ht-87", "ht-48"],
+    "ht-47": ["ht-46", "ht-87"],
+    "ht-87": ["ht-46", "ht-47"],
+    "mf-188": ["zc-27"],
+    "zc-27": ["mf-188", "ht-46"],
+    "zl-733": ["zl-734", "zl-725", "zl-726", "zl-deposit"],
+    "zl-725": ["zl-726", "zl-733", "zl-734"],
+    "zl-722": ["zl-721", "zl-733"],
+    "zl-deposit": ["zl-733", "zl-713"],
+    "zl-712": ["zl-713", "zl-724"],
+    "mss-246": ["mss-22", "mss-122"]
+  };
+
   function $(id) { return document.getElementById(id); }
 
   /* ---------------- 批次一+二：请求项（计算式 + 所需证据） ---------------- */
@@ -215,7 +231,20 @@ window.CLAIMS = (function () {
     });
     var gapsAll = rows.reduce(function (a, r) { return a.concat(r.gaps); }, []);
     var uniqGaps = gapsAll.filter(function (g, i) { return gapsAll.indexOf(g) === i; });
-    $("cl-total").innerHTML = "合计请求金额：<b>¥ " + fmt(total) + "</b>" +
+    /* 方向三：请求金额构成条形图（纯 CSS，按金额占比） */
+    var bars = "";
+    if (rows.length > 1) {
+      var max = Math.max.apply(null, rows.map(function (r) { return r.amount; })) || 1;
+      bars = '<div class="cl-bars" style="margin:8px 0 4px">' + rows.map(function (r) {
+        var pct = Math.max(4, Math.round(r.amount / max * 100));
+        return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px">' +
+          '<span style="flex:none;width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(r.name) + '">' + esc(r.name.slice(0, 10)) + '</span>' +
+          '<span style="flex:1;background:var(--soft);border-radius:99px;height:10px;overflow:hidden"><span style="display:block;height:100%;width:' + pct + '%;background:var(--primary);border-radius:99px"></span></span>' +
+          '<span style="flex:none;min-width:76px;text-align:right">¥ ' + fmt(r.amount) + '</span></div>';
+      }).join("") + '</div>';
+    }
+    $("cl-total").innerHTML = bars +
+      "合计请求金额：<b>¥ " + fmt(total) + "</b>" +
       (rows.length ? "（" + rows.length + " 项" + (uniqGaps.length ? "，证据缺口 " + uniqGaps.length + " 项" : "，证据齐备") + "）" : "（勾选请求项并填写参数）");
     return { rows: rows, total: round2(total), gaps: uniqGaps };
   }
@@ -356,7 +385,7 @@ window.CLAIMS = (function () {
     if (btn) btn.addEventListener("click", openModal);
   }
 
-  return { init: init, openModal: openModal, ITEMS: ITEMS, FLOWS: FLOWS, collectForTest: function (vals) {
+  return { init: init, openModal: openModal, ITEMS: ITEMS, FLOWS: FLOWS, LAW_LINKS: LAW_LINKS, collectForTest: function (vals) {
     /* 供 test.js：vals = { itemId: {param:value}, checked:[ids] } → {rows,total} */
     var rows = [], total = 0;
     ITEMS.forEach(function (it) {

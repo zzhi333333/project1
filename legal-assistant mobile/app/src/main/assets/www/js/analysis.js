@@ -351,6 +351,14 @@ window.ANALYSIS = (function () {
     box.appendChild(el);
   }
 
+  /* 风险分级：按文本关键词定性 high/mid/low（仅供视觉分级，非概率判断） */
+  function riskLevel(t) {
+    var s = String(t || "");
+    if (/败诉|驳回|不予受理|不予支持|丧失|超过诉讼时效|败诉风险|无法认定|不成立|不承担/.test(s)) return "high";
+    if (/可能|注意|建议|风险|影响|举证|期限|程序|缺席/.test(s)) return "mid";
+    return "low";
+  }
+
   function render(r, container) {
     if (r.error) {
       container.innerHTML = '<div class="tool-warn">' + esc(r.error) + '</div>';

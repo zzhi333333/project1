@@ -351,6 +351,14 @@ window.ANALYSIS = (function () {
     box.appendChild(el);
   }
 
+  /* 风险分级：按文本关键词定性 high/mid/low（仅供视觉分级，非概率判断） */
+  function riskLevel(t) {
+    var s = String(t || "");
+    if (/败诉|驳回|不予受理|不予支持|丧失|超过诉讼时效|败诉风险|无法认定|不成立|不承担/.test(s)) return "high";
+    if (/可能|注意|建议|风险|影响|举证|期限|程序|缺席/.test(s)) return "mid";
+    return "low";
+  }
+
   function render(r, container) {
     if (r.error) {
       container.innerHTML = '<div class="tool-warn">' + esc(r.error) + '</div>';
@@ -448,9 +456,13 @@ window.ANALYSIS = (function () {
     }
     html += '</ul></div>';
 
-    /* 风险提示 */
+    /* 风险提示（分级着色：高=败诉/驳回类硬风险，中=程序/举证类，低=一般提示） */
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 风险提示</div><ul class="report-list risk">';
-    r.risks.forEach(function (c) { html += '<li>' + esc(c) + '</li>'; });
+    r.risks.forEach(function (c) {
+      var lv = riskLevel(c);
+      var dot = lv === "high" ? "#dc2626" : lv === "mid" ? "#d97706" : "#9ca3af";
+      html += '<li><span style="display:inline-block;width:8px;height:8px;border-radius:99px;background:' + dot + ';margin-right:6px;vertical-align:1px" title="' + (lv === "high" ? "高风险：直接影响请求成立" : lv === "mid" ? "中风险：影响金额或程序推进" : "一般提示") + '"></span>' + esc(c) + '</li>';
+    });
     html += '</ul></div>';
 
     html += '<div class="result-disclaimer" style="padding:0 2px 4px">规则引擎自动生成，仅供参考，不构成法律意见 · 完整声明见页脚</div>';

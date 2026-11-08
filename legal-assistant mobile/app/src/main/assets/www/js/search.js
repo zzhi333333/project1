@@ -128,14 +128,39 @@
         '<div class="law-text">' + highlight(l.text, query) + '</div>' +
         (l.note ? '<div class="law-note"><svg class=ico><use href=#i-d-patent></use></svg> ' + highlight(l.note, query) + '</div>' : '') +
         (l.url ? '<a class="mini-btn" target="_blank" rel="noopener" href="' + esc(l.url) + '" style="margin:8px 6px 0 0"><svg class=ico><use href=#i-link></use></svg> 官方原文（英文）</a>' : '') +
-        '<div class="law-tags">' + l.tags.map(function (t) { return '<i>#' + esc(t) + '</i>'; }).join("") + '</div>';
+        '<div class="law-tags">' + l.tags.map(function (t) { return '<i>#' + esc(t) + '</i>'; }).join("") + '</div>' +
+        relatedLaws(l);
       container.appendChild(card);
+    });
+    /* 配套条文 chips（法条关联网络）：点击跳转同页检索 */
+    function relatedLaws(l) {
+      var LINKS = (window.CLAIMS && window.CLAIMS.LAW_LINKS) || {};
+      var rel = LINKS[l.id] || [];
+      if (!rel.length) return "";
+      var chips = rel.map(function (rid) {
+        var r = window.lawById(rid);
+        if (!r) return "";
+        return '<button class="law-chip rel-law-chip" data-relaw="' + esc(r.id) + '">' + esc(r.lawShort + " " + r.article) + '</button>';
+      }).filter(Boolean).join("");
+      if (!chips) return "";
+      return '<div class="law-related" style="margin:6px 0 0;font-size:12px;color:var(--ink-2)">配套条文：<div class="chips" style="margin-top:4px">' + chips + '</div></div>';
+    }
+    /* 配套条文点击：法条页内直接跳到该条文检索结果 */
+    container.addEventListener("click", function (e) {
+      var rel = e.target.closest ? e.target.closest(".rel-law-chip") : null;
+      if (!rel) return;
+      var input = document.getElementById("law-search-input");
+      var target = window.lawById(rel.getAttribute("data-relaw"));
+      if (!input || !target) return;
+      input.value = target.title;
+      if (window.LAWSEARCH && window.LAWSEARCH.refreshNow) window.LAWSEARCH.refreshNow();
     });
     var count = document.getElementById("law-count");
     if (count) count.textContent = "共 " + results.length + " 条结果";
   }
 
   window.LAWSEARCH = {
+    refreshNow: function () { if (_refresh) _refresh(); },
     init: function () {
       var input = document.getElementById("law-search-input");
       var btn = document.getElementById("law-search-btn");

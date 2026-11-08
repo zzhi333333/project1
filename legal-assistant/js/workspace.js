@@ -32,7 +32,7 @@ window.WORKSPACE = (function () {
       name: String(name || "未命名案件").slice(0, 40),
       createdAt: new Date().toISOString(),
       notes: [],           /* 待确认事项 [{text, done, at}] */
-      links: { reports: [], deadlines: [], cases: [], docs: [] }
+      links: { reports: [], deadlines: [], cases: [], docs: [], sessions: [] }
     };
     d.list.unshift(c);
     d.currentId = c.id;
@@ -186,8 +186,16 @@ window.WORKSPACE = (function () {
     }
     r.past = extractDates(text);
     r.future = futureNodes(r.judgmentDate, type);
+    /* 当事人与履行金额（执行申请书自动填充用） */
+    var ap = text.match(/原告[：:]\s*([^\n，。；]{2,25})/);
+    var de = text.match(/被告[：:]\s*([^\n，。；]{2,25})/);
+    r.plaintiff = ap ? ap[1].trim() : "";
+    r.defendant = de ? de[1].trim() : "";
+    var amt = normCnDates(text).match(/(?:返还|支付|赔偿|给付)[^0-9\n]{0,12}([0-9][0-9,]{0,11}(?:\.[0-9]{1,2})?)\s*元/);
+    r.amount = amt ? amt[1].replace(/,/g, "") : "";
     return r;
   }
+  var lastJudg = null;   /* 最近一次判决书解析结果（执行申请书自动填充用） */
   function renderJudgmentTL(text, type) {
     var out = $("ws-judg-out");
     var j = parseJudgment(text, type);
@@ -204,6 +212,7 @@ window.WORKSPACE = (function () {
         '<div class="tl-add"><input class="tl-date" type="date" value="' + esc(n.date) + '"><button class="mini-btn ws-tl-cal-add" data-name="' + esc(n.name) + '"><svg class=ico><use href=#i-calendar></use></svg> 加入日历</button></div></div></div>';
     });
     html += '</div><div class="calc-note">期限日期按文书落款日近似推算（法定起算点多为「送达之日」），请按实际送达日调整后再入日历；已加入日历的节点到期前 7 天会提醒。</div>';
+    lastJudg = j;   /* 供执行申请书自动填充 */
     out.innerHTML = html;
     out.querySelectorAll(".ws-tl-cal-add").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -330,7 +339,8 @@ window.WORKSPACE = (function () {
       sec("关联分析报告", lk.reports, "（激活案件后，深度分析「存入报告库」自动归集）") +
       sec("文书草稿", lk.docs || [], "（生成文书后点「存入案件工作区」）") +
       sec("期限与提醒", lk.deadlines, "（激活案件后，合规日历添加自动归集）") +
-      sec("关联案例", lk.cases, "（激活案件后，案例粘贴导入自动归集）");
+      sec("关联案例", lk.cases, "（激活案件后，案例粘贴导入自动归集）") +
+      sec("关联会话", lk.sessions || [], "（激活案件后，咨询会话自动绑定，点击下方回看）");
   }
 
   function renderAll() { renderSelect(); renderBody(); }
@@ -357,6 +367,82 @@ window.WORKSPACE = (function () {
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
     } catch (e) { }
+  }
+
+  /* ---------------- 方向二：执行阶段工具包 ---------------- */
+  var PROPERTY_LIST =
+    "财产线索清单（执行阶段自查，提供给法院执行局）\n\n" +
+    "一、银行存款：列出对方可能开户的全部银行（工资行/房贷行/常用行），可申请网络查控（法院一键查询全国银行账户）\n" +
+    "二、微信/支付宝：财付通、支付宝余额与流水（法院可冻结划扣；注意零钱通/理财）\n" +
+    "三、不动产：房产（本人/配偶/未成年子女名下）、土地、车位——可查不动产登记中心，请求查封\n" +
+    "四、车辆：机动车登记信息（车牌号尽量提供），可查封并扣押\n" +
+    "五、股权与证券：公司股权（工商登记可查）、股票基金账户\n" +
+    "六、应收账款与债权：对方对第三人的到期债权（工资、工程款、租金），可申请冻结代扣\n\n" +
+    "线索提供越具体越有效：账号/车牌/产权坐落尽量写全。\n" +
+    "对方转移财产的：可主张撤销转让（民法典538/539条），并留意拒不执行判决裁定罪（刑法313条）的追责可能。";
+
+  function buildEnforce(j) {
+    function fb(v, ph) { return v && v.trim() ? v.trim() : "【" + ph + "】"; }
+    var amt = j.amount || "";
+    return "强制执行申请书\n\n" +
+      "申请人（申请执行人）：" + fb(j.plaintiff, "原告姓名——请核对判决书首部") + "\n" +
+      "被申请人（被执行人）：" + fb(j.defendant, "被告姓名/名称——请核对判决书首部") + "\n\n" +
+      "申请人依据" + fb(j.court, "执行法院") + "作出的（案号：" + fb(j.caseNo, "案号") + "）民事判决书，被申请人未在履行期限内履行义务。现该判决已发生法律效力，被申请人拒不履行，特申请强制执行。\n\n" +
+      "执行请求：\n" +
+      "一、请求强制被申请人履行判决确定的义务" + (amt ? "（含返还/支付人民币 " + fmt(amt) + " 元及迟延履行利息）" : "") + "；\n" +
+      "二、执行费用由被申请人承担。\n\n" +
+      "事实与理由：\n判决生效后，被申请人经催告仍拒不履行（可附催告记录）。为维护申请人合法权益，依据《民事诉讼法》第二百四十六条（申请执行期间二年）之规定，特提出本申请。\n\n" +
+      "附：1. 生效判决书/调解书原件；2. 申请人身份证明；3. 财产线索清单（见另附）。\n\n" +
+      "此致\n" + fb(j.court, "执行法院") + "\n\n申请人（签名）：\n" + (j.judgmentDate ? "判决落款日：" + j.judgmentDate + "\n" : "") + "申请日期：【填写】\n\n" +
+      "※ 提示：申请执行期间为 2 年（自履行期限届满日起算）；执行局可网络查控银行/微信/支付宝/车辆——建议同时提交《财产线索清单》。\n" +
+      "※ 本文书由本机自动填充，【】内容与当事人信息请核对判决书原件后填写。";
+  }
+
+  function printOnePager(c) {
+    var dl = (c.links.deadlines || []).slice(0, 4);
+    var docs = (c.links.docs || []).slice(0, 5);
+    var wrap = document.createElement("div");
+    wrap.className = "print-target";
+    wrap.style.cssText = "font-family:sans-serif;color:#111;font-size:13px;line-height:1.9;padding:8px 4px";
+    wrap.innerHTML = '<h2 style="margin:0 0 6px;font-size:19px">案件摘要 · ' + esc(c.name) + '</h2>' +
+      '<div style="color:#555;font-size:11px;margin-bottom:10px">生成于本机 · ' + new Date().toISOString().slice(0, 10) + ' · 不构成法律意见</div>' +
+      '<h3 style="font-size:14px;margin:10px 0 4px">待确认事项</h3>' +
+      (c.notes.length ? '<ul style="margin:0;padding-left:18px">' + c.notes.map(function (n) { return '<li style="' + (n.done ? "text-decoration:line-through;color:#888" : "") + '">' + esc(n.text) + '</li>'; }).join("") + '</ul>' : '<div>（无）</div>') +
+      '<h3 style="font-size:14px;margin:10px 0 4px">关键期限</h3>' +
+      (dl.length ? '<ul style="margin:0;padding-left:18px">' + dl.map(function (r) { return '<li>' + esc(r.date || "") + "　" + esc(r.name) + '</li>'; }).join("") + '</ul>' : '<div>（暂无）</div>') +
+      '<h3 style="font-size:14px;margin:10px 0 4px">已准备文书与材料</h3>' +
+      (docs.length ? '<ul style="margin:0;padding-left:18px">' + docs.map(function (r) { return '<li>' + esc(r.name) + '</li>'; }).join("") + '</ul>' : '<div>（暂无）</div>') +
+      '<div style="margin-top:14px;font-size:11px;color:#777">以上内容由法律咨询助手按用户录入信息生成，仅供个人整理使用，不构成法律意见。</div>';
+    document.body.appendChild(wrap);
+    document.body.classList.add("print-mode");
+    var done = function () { document.body.classList.remove("print-mode"); wrap.remove(); window.removeEventListener("afterprint", done); };
+    window.addEventListener("afterprint", done);
+    window.print();
+    setTimeout(done, 3000);
+  }
+
+  function copy(text) {
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
+    else {
+      var ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } catch (e) {} ta.remove();
+    }
+  }
+
+  function docWinModal(title, text) {
+    var w = document.createElement("div");
+    w.className = "modal";
+    w.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="max-width:720px;width:94%"><div class="modal-title">' + esc(title) + '</div>' +
+      '<div class="modal-body" style="max-height:56vh;overflow-y:auto"><textarea readonly style="width:100%;min-height:40vh;font-size:13px;line-height:1.8;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);box-sizing:border-box">' + esc(text) + '</textarea></div>' +
+      '<div class="modal-foot"><button class="primary dw-copy">复制全文</button><button class="dw-close">关闭</button></div></div>';
+    document.body.appendChild(w);
+    w.querySelector(".modal-mask").addEventListener("click", function () { w.remove(); });
+    w.querySelector(".dw-close").addEventListener("click", function () { w.remove(); });
+    w.querySelector(".dw-copy").addEventListener("click", function () {
+      copy(text);
+      var b = w.querySelector(".dw-copy"); b.textContent = "已复制";
+      setTimeout(function () { b.textContent = "复制全文"; }, 1500);
+    });
   }
 
   function init() {
@@ -412,6 +498,33 @@ window.WORKSPACE = (function () {
     $("ws-ev-word").addEventListener("click", function () {
       if (catalogRows.length) catalogWordDownload(catalogRows);
     });
+    /* 关联会话回看（点击切回对应会话并跳到咨询视图） */
+    var linksBox = $("ws-links");
+    if (linksBox) linksBox.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".ws-sess-open") : null;
+      if (!b) return;
+      var sid = b.getAttribute("data-sid");
+      if (window.CHATHISTORY && window.CHATHISTORY.switchTo) window.CHATHISTORY.switchTo(sid);
+      var tab = document.querySelector('.nav-tab[data-view="consult"]');
+      if (tab) tab.click();
+      closeModal();
+    });
+    /* 执行阶段工具（方向二）：基于最近一次判决书解析生成文书/清单 */
+    var execEnforce = $("ws-exec-enforce");
+    if (execEnforce) execEnforce.addEventListener("click", function () {
+      if (!lastJudg) {
+        var out = $("ws-exec-out");
+        if (out) out.innerHTML = '<div class="tool-warn">请先在上方粘贴判决书并解析生成双时间线。</div>';
+        return;
+      }
+      docWinModal("执行申请书（自动填充）", buildEnforce(lastJudg));
+    });
+    var execList = $("ws-exec-list");
+    if (execList) execList.addEventListener("click", function () {
+      docWinModal("财产线索清单（执行阶段自查）", PROPERTY_LIST);
+    });
+    var printBtn = $("ws-onepager");
+    if (printBtn) printBtn.addEventListener("click", printOnePager);
   }
 
   return {
@@ -419,6 +532,7 @@ window.WORKSPACE = (function () {
     create: create, rename: rename, remove: remove, setCurrent: setCurrent,
     attach: attach, addNote: addNote, toggleNote: toggleNote, removeNote: removeNote,
     toMarkdown: toMarkdown, init: init, openModal: openModal,
+    buildEnforce: buildEnforce, PROPERTY_LIST: PROPERTY_LIST,   /* 评测与验证用 */
     /* 测试钩子（不进 UI，无副作用）：test.js 日期管线回归用（同 claims.collectForTest 先例） */
     _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates }
   };
