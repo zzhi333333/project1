@@ -152,8 +152,8 @@ const apkPath = path.join(DIST, "legal-assistant-mobile-v" + effName + ".apk");
 runBat(path.join(env.bt, "apksigner.bat"), ["sign", "--ks", KS, "--ks-pass", "pass:legal123",
   "--key-pass", "pass:legal123", "--out", apkPath, path.join(OUT, "aligned.apk")]);
 runBat(path.join(env.bt, "apksigner.bat"), ["verify", apkPath]);
-/* 清理 dist 内旧版本包（验证通过后执行；dry 模式不动工作区） */
-if (!DRY) fs.readdirSync(DIST).filter(f => f.endsWith(".apk") && f !== path.basename(apkPath)).forEach(f => {
+/* 清理 dist 内旧版本包与签名 sidecar（.idsig；验证通过后执行；dry 模式不动工作区） */
+if (!DRY) fs.readdirSync(DIST).filter(f => (f.endsWith(".apk") || f.endsWith(".apk.idsig")) && f !== path.basename(apkPath) && f !== path.basename(apkPath) + ".idsig").forEach(f => {
   fs.rmSync(path.join(DIST, f));
   console.log("  🧹 已清理旧包：" + f);
 });
@@ -229,7 +229,8 @@ for (let i = 1; i <= 8 && !ok; i++) {
   if (r.status === 0 && head === remote) { ok = true; console.log("  ✅ 已推送并验证 origin/" + pushed + " = " + head.slice(0, 7)); break; }
   lastErr = out.trim().split("\n").pop();
   console.log("  推送重试 " + i + "/8（" + lastErr + "）");
-  require("child_process").execSync("timeout /t 30 /nobreak >nul", { shell: "cmd.exe", stdio: "ignore" });
+  /* 同步睡眠 30s：不用 Windows timeout.exe——execSync 下 stdin 重定向会让其报错退出 125 并抛异常 */
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000);
 }
 if (!ok) die("推送 8 次未达（" + lastErr + "）——提交已在本地，网络恢复后手动 git push origin main 即可");
 console.log("\n✅ 出包完成：v" + versionName + "（versionCode " + newCode + "）· " + kb + "KB · MD5 " + md5);
