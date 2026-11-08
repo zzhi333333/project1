@@ -816,6 +816,11 @@
     else parent.appendChild(frag);
   }
 
+  /* ---------- W4 触觉反馈：关键操作成功/警报的轻震动（无 navigator.vibrate 时静默） ---------- */
+  function haptic(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms || 10); } catch (e) {}
+  }
+
   /* ---------- 装配 ---------- */
   window.TOOLS = {
     init: function () {
@@ -885,16 +890,18 @@
     toolChipsForDomain: toolChipsForDomain,
     TOOL_META: TOOL_META,
     TENURE_MAP: TENURE_MAP,
-    /* 供案件时间线等外部模块写入合规日历 */
-    calAdd: function (name, date) {
-      if (!name || !date) return false;
-      var list = calLoad();
-      list.push({ name: String(name).slice(0, 30), date: date });
-      calSave(list);
-      if (window.WORKSPACE) window.WORKSPACE.attach("deadlines", { name: String(name).slice(0, 30), date: date });   /* 案件工作区归集 */
-      calRender();
-      calNotifyCheck();
-      return true;
-    }
+      /* 供案件时间线等外部模块写入合规日历 */
+      calAdd: function (name, date) {
+        if (!name || !date) return false;
+        var list = calLoad();
+        list.push({ name: String(name).slice(0, 30), date: date });
+        calSave(list);
+        if (window.WORKSPACE) window.WORKSPACE.attach("deadlines", { name: String(name).slice(0, 30), date: date });   /* 案件工作区归集 */
+        calRender();
+        calNotifyCheck();
+        haptic(10);
+        return true;
+      },
+      haptic: haptic
   };
 })();

@@ -317,6 +317,54 @@ head("分支文件特征嗅探（DIFF 文件防单端漏改）");
   if (!sniffBad && branchFiles.length) ok("分支嗅探通过：" + branchFiles.length + " 个 DIFF 文件");
 })();
 
+/* ---------- 12. 对比度可达性（W3，WCAG AA 正文 ≥4.5:1） ----------
+   从 web 版 style.css 解析 :root（light）与暗色块的语义令牌，对关键前景/背景组合计算对比度。
+   令牌值改动导致不达标即失败——防止未来调色无意中破坏可读性。 */
+head("对比度可达性（W3 · WCAG AA）");
+(function () {
+  var css = "";
+  try { css = fs.readFileSync(path.join(root, "css", "style.css"), "utf8"); } catch (e) { warn("style.css 不可读，跳过对比度检查"); return; }
+  function tokensOf(block) {
+    var t = {};
+    ["bg", "card", "ink", "ink-2", "primary", "danger", "ok", "warn"].forEach(function (k) {
+      var m = block.match(new RegExp("--" + k + ":\\s*(#[0-9a-fA-F]{3,6})"));
+      if (m) t[k] = m[1];
+    });
+    return t;
+  }
+  var rootBlock = (css.match(/:root \{[\s\S]*?\n\}/) || [""])[0];
+  var light = tokensOf(rootBlock);
+  /* 暗色块取第一个（prefers-color-scheme 与 data-theme 两块令牌一致，取其一即可） */
+  var darkBlock = (css.match(/prefers-color-scheme: dark\) \{[\s\S]*?\n  \}/) || [""])[0];
+  var dark = tokensOf(darkBlock);
+  if (!light.ink || !dark.ink) { warn("对比度检查：令牌解析不全（light=" + Object.keys(light).length + " dark=" + Object.keys(dark).length + "）"); return; }
+  function lum(hex) {
+    var h = hex.replace("#", "");
+    if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
+    var rgb = [0, 1, 2].map(function (i) {
+      var v = parseInt(h.substr(i * 2, 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+  }
+  function contrast(fg, bg) {
+    var l1 = lum(fg), l2 = lum(bg);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  }
+  var combos = [["ink", "bg"], ["ink", "card"], ["ink-2", "card"], ["ink-2", "bg"], ["primary", "card"], ["danger", "card"], ["ok", "card"], ["warn", "card"]];
+  var badCount = 0;
+  [["light", light], ["dark", dark]].forEach(function (pair) {
+    var name = pair[0], t = pair[1];
+    combos.forEach(function (c) {
+      var fg = t[c[0]], bg = t[c[1]];
+      if (!fg || !bg) return;
+      var ratio = contrast(fg, bg);
+      if (ratio < 4.5) { badCount++; bad(c[0] + " on " + c[1] + "（" + name + "）对比度 " + ratio.toFixed(2) + " < 4.5"); }
+    });
+  });
+  if (!badCount) ok("对比度达标（light/dark × " + combos.length + " 组合全部 ≥ 4.5:1）");
+})();
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(failures === 0

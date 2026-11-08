@@ -441,6 +441,7 @@ window.AGENT = (function () {
       saveBtn.innerHTML = saved
         ? "<svg class=ico><use href=#i-checkc></use></svg> 已存入报告库"
         : "<svg class=ico><use href=#i-warn></use></svg> 存储空间不足";
+      if (saved && window.TOOLS && window.TOOLS.haptic) window.TOOLS.haptic(12);
       setTimeout(function () { saveBtn.innerHTML = "<svg class=ico><use href=#i-save></use></svg> 存入报告库"; }, 1800);
     });
     container.appendChild(saveBtn);
@@ -864,11 +865,14 @@ window.AGENT = (function () {
         });
         ih += '<div class="calc-note">争点为该类案件的常见分析框架，具体结论取决于在案证据与事实。</div></div>';
         ih += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-shield></use></svg> 对方抗辩预案（Red Team）</div>';
-        ins.defenses.forEach(function (df) {
-          ih += '<div class="defense-block"><div class="irac-q"><svg class=ico><use href=#i-warn></use></svg> 对方可能主张：' + esc(df.d) + '</div>' +
+        /* V11 反制链：左轴贯穿 + 序号节点，抗辩→应对→所需证据成链可视 */
+        ih += '<div class="defense-chain">';
+        ins.defenses.forEach(function (df, di) {
+          ih += '<div class="defense-node-wrap"><span class="defense-node">' + (di + 1) + '</span><div class="defense-block"><div class="irac-q"><svg class=ico><use href=#i-warn></use></svg> 对方可能主张：' + esc(df.d) + '</div>' +
             '<div class="irac-line"><b>应对</b>' + esc(df.counter) + '</div>' +
-            '<div class="irac-line irac-concl"><b>需准备的证据</b>' + esc(df.ev) + '</div></div>';
+            '<div class="irac-line irac-concl"><b>需准备的证据</b>' + esc(df.ev) + '</div></div></div>';
         });
+        ih += '</div>';
         ih += '<div class="calc-note">预判对方抗辩并提前固定反驳证据，是庭审攻防的核心功课。</div></div>';
         insDiv.innerHTML = ih;
         els.answer.appendChild(insDiv);

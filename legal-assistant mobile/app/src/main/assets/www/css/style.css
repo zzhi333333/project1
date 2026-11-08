@@ -17,7 +17,7 @@
   --primary-soft: #eef2ff;
   --primary-border: #c7d2fe;
   --danger: #dc2626;
-  --ok: #059669;
+  --ok: #047857;
   --warn: #b45309;
   /* 图表语义令牌（D1 收敛：svgchart/分析/请求组件统一引用；暗色在下方覆盖） */
   --c-info: #2563eb;
@@ -1023,3 +1023,14 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .lawcard-text { font-size: 13px; line-height: 1.9; color: var(--ink); white-space: pre-wrap; background: var(--soft); border-radius: 8px; padding: 10px 12px; }
 .lawcard-note { font-size: 12px; color: var(--ink-2); margin-top: 8px; line-height: 1.7; }
 [data-law-id] { cursor: pointer; }
+
+/* ---------------- V11 反制链（抗辩→应对→所需证据 左轴串联） ---------------- */
+.defense-chain { position: relative; padding-left: 22px; }
+.defense-chain::before { content: ""; position: absolute; left: 7px; top: 10px; bottom: 10px; width: 2px; background: var(--line); border-radius: 2px; }
+.defense-node-wrap { position: relative; margin-bottom: 10px; }
+.defense-node { position: absolute; left: -22px; top: 2px; width: 16px; height: 16px; border-radius: 99px; background: var(--warn); color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.defense-chain .defense-block:last-child { margin-bottom: 0; }
+
+/* ---------------- W5 触控热区：小按钮视觉不变、热区扩至 ≥44px ---------------- */
+.mini-btn, .fav-star { position: relative; }
+.mini-btn::after, .fav-star::after { content: ""; position: absolute; inset: -9px; }

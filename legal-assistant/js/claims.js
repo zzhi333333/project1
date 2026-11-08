@@ -283,6 +283,7 @@ window.CLAIMS = (function () {
       if (!c.rows.length) { hint($("cl-to-ws"), "请先勾选并填写请求项"); return; }
       window.WORKSPACE.attach("docs", { name: "仲裁请求清单（" + fmt(c.total) + " 元）", date: new Date().toISOString().slice(0, 10), draft: c.rows.map(function (r, i) { return (i + 1) + ". " + r.name + "：" + fmt(r.amount); }).join("；") });
       c.gaps.forEach(function (g) { window.WORKSPACE.addNote("补证据：" + g); });
+      if (window.TOOLS && window.TOOLS.haptic) window.TOOLS.haptic(12);
       hint($("cl-to-ws"), "已存入（清单+缺口待办）");
     });
     $("cl-to-settle").addEventListener("click", function () {

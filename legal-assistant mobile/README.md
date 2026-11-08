@@ -2,10 +2,20 @@
 
 把电脑版 `../legal-assistant/`（纯 Web 应用）封装为**安卓 APK 安装包**，并针对竖屏手机分辨率 **2780×1264**（≈460dp 宽、~2.75x 密度，兼容 360–480dp）重新设计了移动端 UI。**不改动原项目任何文件**，本目录完全独立。
 
-- 包名：`com.zz333.legalassistant`，版本 `3.4.0`（versionCode 49）
+- 包名：`com.zz333.legalassistant`，版本 `3.4.1`（versionCode 50）
 - 系统要求：Android 8.0+（minSdk 26，targetSdk 34），竖屏锁定
-- 产物：`dist/legal-assistant-mobile-v3.4.0.apk`（约 680KB）
+- 产物：`dist/legal-assistant-mobile-v3.4.1.apk`（约 680KB）
 - 构建：双击 `build.bat`（手动）；**脚本化出包用 `node release.js <版本号> [提交说明]`**——版本 6 处自动对齐 + check/test 门禁 + 管道安全构建 + 包内双验证 + 推送重试，`--dry` 只构建验证
+
+## 🆕 v3.4.1 更新（体验收尾：触觉/热区/对比度门禁/反制链）
+
+| 功能 | 说明 |
+|---|---|
+| 📳 W4 触觉反馈 | 关键操作成功（加入日历/存入报告库/存入工作区）轻震动 10-12ms——`TOOLS.haptic` 集中封装，无 vibrate 能力时静默 |
+| 👆 W5 触控热区 | 移动端 mini-btn/fav-star 伪元素外扩 9px——视觉不变、热区 ≥44px（WCAG 2.5.5 目标尺寸方向） |
+| ♿ W3 对比度门禁 | check.js 新增第 12 节：解析 CSS 令牌对 light/dark × 8 前景/背景组合算 WCAG 对比度（≥4.5:1）——**首跑即抓到 --ok #059669 白卡 3.77:1 不达标**，已校正为 #047857（emerald-700） |
+| ⛓️ V11 反制链 | 对方抗辩预案升级为左轴串联链：序号节点 + 抗辩→应对→所需证据成链可视（insights defenses 数据） |
+| ✅ 校验 30 项 | check 新增对比度节后 29→30 项，test 105 项全绿 |
 
 ## 🆕 v3.4.0 更新（设计令牌 + 动效 + 可达性 + 引用卡/事实高亮）
 
