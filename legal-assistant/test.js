@@ -1000,6 +1000,49 @@ T("合同审查：保密类——竞业终身+无补偿 双命中", function () 
   if (r.missing.indexOf("保密期限") === -1) throw new Error("保密期限应判缺失");
 });
 
+/* ---------- 20. 图表原语（svgchart.js） ---------- */
+console.log("━━ 图表原语测试（js/svgchart.js）");
+vm.runInContext(fs.readFileSync(path.join(root, "js", "svgchart.js"), "utf8"), sandbox, { filename: "js/svgchart.js" });
+const CH = sandbox.window.SVGCHART;
+if (!CH || !CH.ring) { console.error("❌ SVGCHART 未暴露"); process.exit(1); }
+section("图表原语测试（js/svgchart.js）");
+T("ring：剩余比例三档着色（绿/橙/红）+ 钳制", function () {
+  if (CH.ring(0.8).indexOf("#16a34a") === -1) throw new Error("80% 应绿色");
+  if (CH.ring(0.3).indexOf("#d97706") === -1) throw new Error("30% 应橙色");
+  if (CH.ring(0.1).indexOf("#dc2626") === -1) throw new Error("10% 应红色");
+  if (CH.ring(1.5).indexOf("#16a34a") === -1 || CH.ring(-3).indexOf("#dc2626") === -1) throw new Error("未钳制到 0–1");
+  if (CH.ring(0.4, { label: "35天" }).indexOf("35天") === -1) throw new Error("自定义标签丢失");
+});
+T("stepper：节点数与转义（阶段条）", function () {
+  const s = CH.stepper([
+    { label: "证据固定", color: "#dc2626", sub: "立即" },
+    { label: "<script>x</script>", color: "#2563eb" },
+    { label: "执行", color: "#7c3aed", sub: "诉讼·执行" }
+  ]);
+  if ((s.match(/sc-dot/g) || []).length !== 3) throw new Error("应 3 个节点");
+  if (s.indexOf("<script>") > -1) throw new Error("label 未转义");
+  if (s.indexOf("诉讼·执行") === -1) throw new Error("sub 丢失");
+});
+T("scale：合法区/超限区与游标位置（LPR 四倍标尺）", function () {
+  const s = CH.scale(18, 12.4, { capLabel: "12.40%", rateLabel: "18%" });
+  if (s.indexOf("12.40%") === -1 || s.indexOf("18%") === -1) throw new Error("标签丢失");
+  if (s.indexOf("sc-scale-mark over") === -1) throw new Error("超限游标未标红");
+  const inLegal = CH.scale(8, 12.4, {});
+  if (inLegal.indexOf("sc-scale-mark over") > -1) throw new Error("合法利率不应标红");
+  if (CH.scale(10, 0) !== "") throw new Error("cap 无效应不渲染");
+});
+T("ladder：等宽段/已跨过/当前段高亮", function () {
+  const br = [
+    { up: 10000, rate: "50元", label: "≤1万" },
+    { up: 100000, rate: "2.5%", label: "1–10万" },
+    { up: Infinity, rate: "2%", label: "10–20万" }
+  ];
+  const s = CH.ladder(50000, br);
+  if ((s.match(/sc-ladder-seg/g) || []).length !== 3) throw new Error("应 3 段");
+  if (s.indexOf("active") === -1) throw new Error("缺当前段高亮");
+  if (s.indexOf("reached") === -1) throw new Error("缺已跨过段");
+});
+
 /* ---------- 评测覆盖率报告（--report） ---------- */
 if (process.argv.indexOf("--report") > -1) {
   const covRows = (function () {

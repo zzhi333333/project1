@@ -184,8 +184,11 @@
     if (left < 0) { status = "已过期 " + (-left) + " 天"; cls = "tool-warn"; }
     else if (left <= 30) { status = "<svg class=ico><use href=#i-warn></use></svg> 紧急：仅剩 " + left + " 天"; cls = "tool-warn"; }
     else { status = "剩余 " + left + " 天"; cls = "calc-head"; }
+    /* V8：时效倒计时环——剩余比例着色（>50% 绿 / 20-50% 橙 / ≤20% 红），只表达剩余时间不预测结果 */
+    var ringPct = left < 0 ? 0 : Math.min(1, left / days);
+    var ringSvg = window.SVGCHART ? window.SVGCHART.ring(ringPct, { size: 56, label: left < 0 ? "过期" : left + "天" }) : "";
     function fmt(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
-    out.innerHTML = '<div class="' + cls + '" style="border-radius:8px;padding:10px 13px;font-size:14.5px">⏳ ' + status + '</div>' +
+    out.innerHTML = '<div class="' + cls + '" style="display:flex;align-items:center;gap:12px;border-radius:8px;padding:10px 13px;font-size:14.5px">' + ringSvg + '<div>⏳ ' + status + '</div></div>' +
       '<div class="calc-detail">起算日：' + fmt(start) + '　→　时效届满：' + fmt(deadline) + '（' + days + ' 天）' + postponedNote + '<br>' +
       '临近届满（30 天内）务必启动相应程序，或留存时效中断证据（书面催告、对方付款或承认等）。</div>' +
       '<div class="calc-note">说明：时效可因主张权利、对方同意履行、起诉等而中断重新起算；部分情形有特殊规则（如劳动报酬在职期间不受 1 年限制）。本工具按通用规则估算，仅供参考。</div>' +
@@ -217,7 +220,9 @@
     var interestAgreed = principal * rate / 100 * months / 12;
     var interestCapped = principal * legalRate / 100 * months / 12;
     var fmtN = function (v) { return "¥ " + v.toLocaleString("zh-CN", { maximumFractionDigits: 2 }); };
-    var html = '<div class="calc-head">司法保护利率上限 = ' + lpr + '%(LPR) × 4 = <b>' + cap.toFixed(2) + '%</b></div><div class="calc-detail">' +
+    /* V3：LPR 四倍利率标尺——绿=受保护区间，红=超限不受保护，游标=约定利率（法定规则可视化，非结果预测） */
+    var scaleHtml = window.SVGCHART ? window.SVGCHART.scale(rate, cap, { capLabel: cap.toFixed(2) + "%", rateLabel: rate + "%" }) : "";
+    var html = '<div class="calc-head">司法保护利率上限 = ' + lpr + '%(LPR) × 4 = <b>' + cap.toFixed(2) + '%</b></div>' + scaleHtml + '<div class="calc-detail">' +
       '期限内利息（按约定 ' + rate + '%）：' + fmtN(interestAgreed) + '<br>' +
       (over
         ? '<svg class=ico><use href=#i-warn></use></svg> 约定利率超过司法保护上限：法院仅支持按 <b>' + cap.toFixed(2) + '%</b> 计算 → 受保护利息 ' + fmtN(interestCapped) + '，超限部分 ' + fmtN(Math.max(0, interestAgreed - interestCapped)) + ' 不受支持<br>' +
@@ -264,8 +269,20 @@
     var full = courtFee(amount);
     var fee = proc === "simple" ? Math.round(full / 2) : full;
     var fmtN = function (v) { return "¥ " + v.toLocaleString("zh-CN"); };
+    /* V3：诉讼费累进阶梯——等宽段+已跨过段高亮，标法定费率（以《诉讼费用交纳办法》为准） */
+    var ladderHtml = window.SVGCHART ? window.SVGCHART.ladder(amount, [
+      { up: 10000, rate: "50元", label: "≤1万" },
+      { up: 100000, rate: "2.5%", label: "1–10万" },
+      { up: 200000, rate: "2%", label: "10–20万" },
+      { up: 500000, rate: "1.5%", label: "20–50万" },
+      { up: 1000000, rate: "1%", label: "50–100万" },
+      { up: 2000000, rate: "0.9%", label: "100–200万" },
+      { up: 5000000, rate: "0.8%", label: "200–500万" },
+      { up: 10000000, rate: "0.7%", label: "500–1000万" },
+      { up: Infinity, rate: "0.6%", label: "1000万+" }
+    ]) : "";
     var html = '<div class="calc-head">案件受理费 ≈ <b>' + fmtN(fee) + '</b>' +
-      (proc === "simple" ? '（简易/小额程序减半）' : '') + '</div><div class="calc-detail">' +
+      (proc === "simple" ? '（简易/小额程序减半）' : '') + '</div>' + ladderHtml + '<div class="calc-detail">' +
       '全额受理费：' + fmtN(full) + '　|　预交方：原告（判决后由败诉方负担，部分胜诉按比例）<br>';
     if (bq > 0) {
       var bf = baoquanFee(bq);

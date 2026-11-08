@@ -417,6 +417,14 @@ window.ANALYSIS = (function () {
 
     /* 程序建议 */
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-agent></use></svg> 程序建议（阶段化路径）</div>';
+    /* V5：案件全周期 stepper——按建议顺序的阶段条，颜色=时序分层（只表达推进顺序，非进度承诺） */
+    if (window.SVGCHART) {
+      html += window.SVGCHART.stepper(r.procedure.map(function (p) {
+        var lm = LAYER_META[p.layer] || {};
+        var name = (p.stage.split("·").pop() || p.stage).replace(/（[^）]*）/g, "").trim();
+        return { label: name.slice(0, 6), color: lm[1], sub: lm[0] || "" };
+      }));
+    }
     r.procedure.forEach(function (p) {
       var lm = LAYER_META[p.layer];
       html += '<div class="proc-step"><div class="proc-stage">' + (lm ? '<span style="background:' + lm[1] + ';color:#fff;font-size:10.5px;padding:1px 7px;border-radius:99px;margin-right:6px;display:inline-block;vertical-align:1px">' + lm[0] + '</span>' : "") + esc(p.stage) + '</div><ul>' +
