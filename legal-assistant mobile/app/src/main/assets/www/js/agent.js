@@ -793,15 +793,49 @@ window.AGENT = (function () {
         paths.forEach(function (p) {
           ph += '<div class="path-tr"><div><b>' + esc(p.name) + '</b></div><div>' + esc(p.cost) + '</div><div>' + esc(p.time) + '</div><div>' + esc(p.gate) + '</div><div>' + esc(p.pros) + '</div><div>' + esc(p.cons) + '</div><div>' + esc(p.fit) + '</div></div>';
         });
-        ph += '</div><div class="calc-note">路径可以组合使用（如先投诉施压再仲裁）；对比为一般情形概括，个案请结合证据与预算判断。</div></div>';
+        ph += '</div><div class="calc-note">路径可以组合使用（如先投诉施压再仲裁）；对比为一般情形概括，个案请结合证据与预算判断。</div>';
+        /* V4：路径泳道示意条——周期长度与成本颜色按文本描述归档（示意非精确刻度） */
+        if (window.SVGCHART) {
+          var clsLen = function (t) { t = String(t || ""); return /数天/.test(t) ? 0.25 : /周|日/.test(t) ? 0.55 : 0.85; };
+          var clsColor = function (t) { t = String(t || ""); return /免费|0 元/.test(t) ? "#16a34a" : /很低|低/.test(t) ? "#2563eb" : "#d97706"; };
+          ph += window.SVGCHART.lanes(paths.map(function (p) { return { label: p.name, sub: p.time + " · " + p.cost, len: clsLen(p.time), color: clsColor(p.cost) }; }));
+          ph += '<div class="calc-note">泳道为周期/成本的示意排序（按描述归档），以各路径详表为准。</div>';
+        }
+        ph += '</div>';
         pDiv.innerHTML = ph;
         els.answer.appendChild(pDiv);
       }
       /* 案件评估矩阵（信息完备度定性版，非胜诉率） */
+      /* 时效提示补全：ANALYSIS.run 的 rep 原无 deadline 字段——评估矩阵第三行「时效提示」
+         从未显示过（隐性缺陷）。从首个命中场景的 result({}) 取回，矩阵与雷达第三轴共用 */
+      if (!rep.deadline && rep.scenarios && rep.scenarios[0] && rep.scenarios[0].result) {
+        try { var rr0 = rep.scenarios[0].result({}); if (rr0 && rr0.deadline) rep.deadline = rr0.deadline; } catch (eD) {}
+      }
       var assess = buildAssessment(rep);
       if (assess) {
+        /* V6：信息完备度雷达——评估矩阵三维度可视化（口径不变：完备度画像非胜诉率） */
+        var radarHtml = "";
+        if (window.SVGCHART) {
+          var SCORE_MAP = { "较充分": 1, "偏少": 0.5, "有断点": 0.5, "未开始": 0.15, "不足": 0.15, "常规": 0.85, "注意期限": 0.25 };
+          try {
+            var items = [];
+            var amounts = (rep.facts && rep.facts.amounts) ? rep.facts.amounts.length : 0;
+            var dates = (rep.facts && rep.facts.dates) ? rep.facts.dates.length : 0;
+            items.push({ label: "事实线索", score: (amounts + dates) >= 2 ? 1 : (amounts + dates === 1 ? 0.5 : 0.15), note: "金额/时间线索 " + (amounts + dates) + " 项" });
+            var checks2 = null;
+            try { checks2 = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}")[rep.scenarios && rep.scenarios[0] ? rep.scenarios[0].id : ""] || null; } catch (e2) {}
+            if (checks2) {
+              var tt = 0, ok2 = 0;
+              for (var kk in checks2) { tt++; if (checks2[kk]["真实性"]) ok2++; }
+              items.push({ label: "证据自检", score: tt === 0 ? 0.15 : (ok2 === tt ? 1 : 0.5), note: "已确认真实性 " + ok2 + "/" + tt + " 项" });
+            } else items.push({ label: "证据自检", score: 0.15, note: "尚未做证据三性自检" });
+            if (rep.deadline) items.push({ label: "时效充裕", score: /尽快|立即|1年|15日|60日|30日/.test(rep.deadline) ? 0.25 : 0.85, note: rep.deadline });
+            if (items.length >= 3) radarHtml = window.SVGCHART.radar(items, { aria: "信息完备度雷达" });
+          } catch (eR) { /* 雷达失败不阻断报告 */ }
+        }
         var aDiv = document.createElement("div");
         aDiv.innerHTML = '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-checkc></use></svg> 案件评估（信息完备度 · 定性参考）</div>' +
+          (radarHtml ? radarHtml + '<div class="calc-note" style="text-align:center">▲ 雷达为上方三项评估的可视化：越外圈越充分（信息完备度画像，非胜诉率）</div>' : "") +
           '<div class="assess-grid">' + assess + '</div>' +
           '<div class="calc-note">本评估仅反映「信息与证据的完备程度」，不代表案件结果；任何结果预测均不可靠，请以执业律师意见为准。</div></div>';
         els.answer.appendChild(aDiv);

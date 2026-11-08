@@ -226,11 +226,22 @@ window.CLAIMS = (function () {
       if (on && filled) {
         var amt = it.calc(params);
         total += amt;
-        rows.push({ name: it.name, amount: amt, formula: it.formula(params), law: it.law, gaps: gaps });
+        rows.push({ name: it.name, amount: amt, formula: it.formula(params), law: it.law, gaps: gaps, evTotal: it.evidence.length });
       }
     });
     var gapsAll = rows.reduce(function (a, r) { return a.concat(r.gaps); }, []);
     var uniqGaps = gapsAll.filter(function (g, i) { return gapsAll.indexOf(g) === i; });
+    /* V7：证据完备度环——每个已勾选请求一个小环（覆盖比例着色），红/橙环即补证警报（悬停看缺项） */
+    var heat = "";
+    if (rows.length && window.SVGCHART) {
+      heat = '<div class="cl-evheat">' + rows.map(function (r) {
+        var total = r.evTotal || 0;
+        var has = Math.max(0, total - r.gaps.length);
+        var ring = window.SVGCHART.ring(total ? has / total : 1, { size: 40, stroke: 5, label: total ? has + "/" + total : "✓" });
+        return '<div class="cl-evheat-item" title="' + esc(r.name) + "：" + (r.gaps.length ? "还缺 " + r.gaps.length + " 项（" + r.gaps.join("；") + "）" : "证据齐备") + '">' + ring +
+          '<span class="cl-evheat-name">' + esc(r.name.replace(/（[^）]*）/g, "").slice(0, 6)) + '</span></div>';
+      }).join("") + '</div><div class="calc-note" style="margin:2px 0 6px">证据完备度环：按各项「已取证」勾选自动更新，红/橙环即补证警报（悬停看缺项）。</div>';
+    }
     /* 方向三：请求金额构成条形图（纯 CSS，按金额占比） */
     var bars = "";
     if (rows.length > 1) {
@@ -243,7 +254,7 @@ window.CLAIMS = (function () {
           '<span style="flex:none;min-width:76px;text-align:right">¥ ' + fmt(r.amount) + '</span></div>';
       }).join("") + '</div>';
     }
-    $("cl-total").innerHTML = bars +
+    $("cl-total").innerHTML = heat + bars +
       "合计请求金额：<b>¥ " + fmt(total) + "</b>" +
       (rows.length ? "（" + rows.length + " 项" + (uniqGaps.length ? "，证据缺口 " + uniqGaps.length + " 项" : "，证据齐备") + "）" : "（勾选请求项并填写参数）");
     return { rows: rows, total: round2(total), gaps: uniqGaps };

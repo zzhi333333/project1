@@ -80,5 +80,54 @@ window.SVGCHART = (function () {
     return '<div class="sc-ladder">' + segs + '</div>';
   }
 
-  return { ring: ring, stepper: stepper, scale: scale, ladder: ladder };
+  /* ---------- radar(dims)：信息完备度雷达（N 轴通用，评估矩阵为 3 轴三角） ----------
+     dims: [{ label, score 0–1, note? }]；网格 3 圈 + 数据多边形 + 顶点标签；
+     只表达信息/证据完备程度（免责口径：非胜诉率） */
+  function radar(dims, opts) {
+    opts = opts || {};
+    var size = opts.size || 210, cx = size / 2, cy = size / 2 + 4, R = size * 0.34;
+    var ds = (dims || []).filter(function (d) { return d && isFinite(d.score); });
+    if (ds.length < 3) return "";
+    var pt = function (i, ratio) {
+      var ang = -Math.PI / 2 + i * 2 * Math.PI / ds.length;
+      return [cx + Math.cos(ang) * R * ratio, cy + Math.sin(ang) * R * ratio];
+    };
+    var grid = [1 / 3, 2 / 3, 1].map(function (ratio) {
+      var pts = ds.map(function (d, i) { var p = pt(i, ratio); return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ");
+      return '<polygon points="' + pts + '" fill="none" stroke="var(--line,#e5e7eb)" stroke-width="1"/>';
+    }).join("");
+    var axes = ds.map(function (d, i) {
+      var p = pt(i, 1);
+      return '<line x1="' + cx + '" y1="' + cy + '" x2="' + p[0].toFixed(1) + '" y2="' + p[1].toFixed(1) + '" stroke="var(--line,#e5e7eb)" stroke-width="1"/>';
+    }).join("");
+    var dataPts = ds.map(function (d, i) { var p = pt(i, Math.max(0.04, Math.min(1, d.score))); return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ");
+    var dots = ds.map(function (d, i) {
+      var p = pt(i, Math.max(0.04, Math.min(1, d.score)));
+      var c = '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3.2" fill="#2563eb">';
+      if (d.note) c += '<title>' + esc(d.note) + '</title>';
+      return c + '</circle>';
+    }).join("");
+    var labels = ds.map(function (d, i) {
+      var p = pt(i, 1.22);
+      var anchor = Math.abs(p[0] - cx) < 12 ? "middle" : (p[0] > cx ? "start" : "end");
+      return '<text x="' + p[0].toFixed(1) + '" y="' + p[1].toFixed(1) + '" text-anchor="' + anchor + '" dominant-baseline="middle" font-size="10.5" font-weight="600" fill="currentColor">' + esc(d.label) + "</text>";
+    }).join("");
+    return '<svg width="' + size + '" height="' + (size + 6) + '" viewBox="0 0 ' + size + ' ' + (size + 6) + '" style="display:block;margin:0 auto" role="img" aria-label="' + esc(opts.aria || "信息完备度雷达") + '">' +
+      grid + axes +
+      '<polygon points="' + dataPts + '" fill="#2563eb" fill-opacity="0.22" stroke="#2563eb" stroke-width="1.8"/>' +
+      dots + labels + "</svg>";
+  }
+
+  /* ---------- lanes(rows)：路径泳道示意条 ----------
+     rows: [{ label, sub, len 0–1, color }]；len/color 为按文本描述归档的示意刻度（非精确数值） */
+  function lanes(rows) {
+    return '<div class="sc-lanes">' + (rows || []).map(function (r) {
+      var len = Math.max(12, Math.min(100, (isFinite(r.len) ? r.len : 0.5) * 100));
+      return '<div class="sc-lane"><span class="sc-lane-name">' + esc(r.label || "") + '</span>' +
+        '<span class="sc-lane-track"><span class="sc-lane-fill" style="width:' + len.toFixed(0) + "%;background:" + esc(r.color || "#2563eb") + '"></span>' +
+        '<span class="sc-lane-sub">' + esc(r.sub || "") + '</span></span></div>';
+    }).join("") + '</div>';
+  }
+
+  return { ring: ring, stepper: stepper, scale: scale, ladder: ladder, radar: radar, lanes: lanes };
 })();

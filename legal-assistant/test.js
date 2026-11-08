@@ -1042,6 +1042,28 @@ T("ladder：等宽段/已跨过/当前段高亮", function () {
   if (s.indexOf("active") === -1) throw new Error("缺当前段高亮");
   if (s.indexOf("reached") === -1) throw new Error("缺已跨过段");
 });
+T("radar：三轴多边形/网格/顶点标签/转义（信息完备度画像）", function () {
+  const s = CH.radar([
+    { label: "事实线索", score: 1, note: "金额/时间线索 3 项" },
+    { label: "证据自检", score: 0.5 },
+    { label: "时效充裕", score: 0.25, note: "注意期限" }
+  ]);
+  if (s.indexOf("<polygon") === -1) throw new Error("缺数据多边形");
+  if ((s.match(/<circle/g) || []).length !== 3) throw new Error("应 3 个数据点");
+  if ((s.match(/<title>/g) || []).length !== 2) throw new Error("note 悬停应 2 处");
+  if (s.indexOf("事实线索") === -1 || s.indexOf("时效充裕") === -1) throw new Error("顶点标签丢失");
+  if (CH.radar([{ label: "a", score: 1 }, { label: "b", score: 1 }]) !== "") throw new Error("少于 3 轴应不渲染");
+});
+T("lanes：泳道行数/长度钳制/颜色透传", function () {
+  const s = CH.lanes([
+    { label: "协商和解", sub: "数天–数周 · 0 元", len: 0.25, color: "#16a34a" },
+    { label: "劳动仲裁", sub: "45 日 · 免费", len: 1.7, color: "#d97706" }
+  ]);
+  if ((s.match(/sc-lane-track/g) || []).length !== 2) throw new Error("应 2 条泳道");
+  if (s.indexOf("#16a34a") === -1 || s.indexOf("#d97706") === -1) throw new Error("颜色未透传");
+  if (s.indexOf("width:100%") === -1) throw new Error("len 未钳制到 100%");
+  if (s.indexOf("45 日 · 免费") === -1) throw new Error("sub 丢失");
+});
 
 /* ---------- 评测覆盖率报告（--report） ---------- */
 if (process.argv.indexOf("--report") > -1) {

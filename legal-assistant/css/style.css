@@ -890,6 +890,16 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .sc-ladder-seg.active .sc-ladder-bar { background: var(--primary); opacity: 1; outline: 2px solid var(--ink); }
 .sc-ladder-t { display: block; font-size: 9.5px; color: var(--ink-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-ladder-r { display: block; font-size: 9.5px; font-weight: 700; color: var(--ink-2); }
+/* V7 证据完备度环行 + V4 泳道（svgchart 消费端） */
+.cl-evheat { display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 4px 0 2px; }
+.cl-evheat-item { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.cl-evheat-name { font-size: 10.5px; color: var(--ink-2); white-space: nowrap; }
+.sc-lanes { display: flex; flex-direction: column; gap: 6px; margin: 8px 2px 2px; }
+.sc-lane { display: flex; align-items: center; gap: 8px; }
+.sc-lane-name { flex: none; width: 118px; font-size: 11.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-lane-track { position: relative; flex: 1; height: 14px; background: var(--soft); border-radius: 99px; }
+.sc-lane-fill { display: block; height: 100%; border-radius: 99px; opacity: .85; }
+.sc-lane-sub { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--ink-2); }
 
 /* 术语卡英文行 */
 .gl-en { font-size: 11px; color: var(--ink-2); font-weight: 400; font-style: italic; }
