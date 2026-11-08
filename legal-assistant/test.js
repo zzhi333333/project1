@@ -16,6 +16,10 @@ const vm = require("vm");
 
 const root = __dirname;
 let pass = 0, fail = 0;
+let curSection = "未分组";
+const SECTION_STATS = [];   /* 评测报告（--report）用：每节 {name, pass, fail} */
+function section(name) { curSection = name; SECTION_STATS.push({ name: name, pass: 0, fail: 0 }); }
+function tally(ok) { const s = SECTION_STATS[SECTION_STATS.length - 1]; if (s) ok ? s.pass++ : s.fail++; }
 
 /* ---------------- 最小 DOM 桩 ---------------- */
 function makeEl(id) {
@@ -106,6 +110,7 @@ vm.runInContext(fs.readFileSync(path.join(root, "js", "registry.js"), "utf8"), s
  "js/domains/zulin.js"].forEach(function (f) {
   vm.runInContext(fs.readFileSync(path.join(root, f), "utf8"), sandbox, { filename: f });
 });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "insights.js"), "utf8"), sandbox, { filename: "js/insights.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"), sandbox, { filename: "js/limitation.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "store.js"), "utf8"), sandbox, { filename: "js/store.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "claims.js"), "utf8"), sandbox, { filename: "js/claims.js" });
@@ -146,8 +151,8 @@ function out(id) { return els[id] ? els[id].innerHTML : ""; }
 
 /* 断言工具 */
 function T(name, fn) {
-  try { fn(); pass++; console.log("  ✅ " + name); }
-  catch (e) { fail++; console.log("  ❌ " + name + "\n      " + e.message); }
+  try { fn(); pass++; tally(true); console.log("  ✅ " + name); }
+  catch (e) { fail++; tally(false); console.log("  ❌ " + name + "\n      " + e.message); }
 }
 function expectContains(html, needle, label) {
   if (html.indexOf(needle) === -1) throw new Error((label || "断言失败") + "：输出中未找到「" + needle + "」\n      实际输出：" + html.slice(0, 220).replace(/\n/g, " "));
@@ -164,7 +169,7 @@ function feed(map) {
   });
 }
 
-console.log("━━ 计算器断言测试（js/tools.js）");
+section("计算器断言测试（js/tools.js）");
 
 /* ---------- 1. 经济补偿金 ---------- */
 T("经济补偿金：4年6个月 / 月薪1万 / 2N → ¥100,000", function () {
@@ -340,7 +345,7 @@ T("知产赔偿：惩罚倍数 8（超出1–5）→ 校验提示", function () 
 });
 
 /* ---------- 11. AI 技能包（skill.js） ---------- */
-console.log("━━ AI 技能包测试（js/skill.js）");
+section("AI 技能包测试（js/skill.js）");
 T("技能：内置 2 个示例技能编译完整（框架/清单/模板/术语）", function () {
   const list = SKILLS.all();
   if (list.length < 2) throw new Error("内置技能不足 2 个：实际 " + list.length);
@@ -409,7 +414,7 @@ T("技能：与内置 id 冲突的导入被拒绝", function () {
 });
 
 /* ---------- 12. 核验三级制 + 隐私 + 计算器审计 ---------- */
-console.log("━━ 核验三级制与隐私测试（agent.js / ai.js / tools.js）");
+section("核验三级制与隐私测试（agent.js / ai.js / tools.js）");
 T("核验：本地命中且官方全文本机缓存比对一致 → 二级「原文已核对」", function () {
   const entry = sandbox.window.LAWS.find(l => l.law.indexOf("劳动合同法") > -1 && l.article.indexOf("46") > -1);
   if (!entry) throw new Error("本地库缺 劳动合同法 第46条 测试样本");
@@ -463,7 +468,7 @@ T("核验：报告面板三级汇总文案", function () {
 });
 
 /* ---------- 13. 评测集雏形（劳动+民事主线金问题，持续把真实问题加进来） ---------- */
-console.log("━━ 评测集雏形（主线：劳动 + 民事）");
+section("评测集雏形（主线：劳动 + 民事）");
 const RUN = sandbox.window.ANALYSIS.run;
 
 T("评测·劳动：口头辞退维权 → labor 域 + 劳动合同法相关法条", function () {
@@ -509,7 +514,7 @@ T("评测·租赁：买卖不破租赁引用可定位", function () {
   if (v.citations[0].status !== "ok") throw new Error("第725条应可定位：" + v.citations[0].status);
 });
 /* ---------- 评测集扩容：九大领域全覆盖（每域金问题 → 域识别 + 法条命中） ---------- */
-console.log("━━ 评测集扩容（公司法/专利/家事/商标/民诉/贸易）");
+section("评测集扩容（公司法/专利/家事/商标/民诉/贸易）");
 T("评测·公司：小股东分红与知情权 → company 域 + 公司法 57 条", function () {
   const rep = RUN("公司连续五年盈利从不分红，我是小股东，怎么行使知情权和分红权？");
   if (rep.domain !== "company") throw new Error("域识别错误：" + rep.domain);
@@ -555,7 +560,7 @@ T("评测·拒答红线：SYSTEM_PROMPT 含追问与条件分支规则", functio
 });
 
 /* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */
-console.log("━━ 技能注入预算测试（fold/预算管理）");
+section("技能注入预算测试（fold/预算管理）");
 var SKILLS = sandbox.window.SKILLS;
 T("技能预算·单技能超长截断：>6000 字符的 prompt 注入被截断且不破坏结构", function () {
   const md = "---\nid: test-long-skill\nname: 超长测试技能\ndomains: [labor]\n---\n\n## 分析框架\n" + "长".repeat(7000);
@@ -595,7 +600,7 @@ T("技能预算·停用排除：导入默认停用，启用后注入，再停用
 });
 
 /* ---------- 14. 案件工作区 + 统一数据层 ---------- */
-console.log("━━ 案件工作区与数据层测试（store.js / workspace.js）");
+section("案件工作区与数据层测试（store.js / workspace.js）");
 const WORKSPACE = sandbox.window.WORKSPACE;
 const STORE = sandbox.window.STORE;
 T("数据层：键注册表就绪 + 版本推进", function () {
@@ -728,7 +733,7 @@ T("工作区 v2：文书草稿归集 docs 组", function () {
 });
 
 /* ---------- 15. 一揽子请求与证据（claims.js） ---------- */
-console.log("━━ 一揽子请求与证据测试（js/claims.js）");
+section("一揽子请求与证据测试（js/claims.js）");
 const CLAIMS = sandbox.window.CLAIMS;
 if (!CLAIMS || !CLAIMS.collectForTest) { console.error("❌ claims.js 未暴露 window.CLAIMS"); process.exit(1); }
 T("请求组合：2N+加班费多请求合计与逐项计算式", function () {
@@ -805,7 +810,7 @@ T("请求组合：全零参数行跳过（不产生 0 元请求）", function ()
 });
 
 /* ---------- 16. 推荐追问贴合化（parseAiFollowupLine） ---------- */
-console.log("━━ 推荐追问贴合化测试（js/ai.js）");
+section("推荐追问贴合化测试（js/ai.js）");
 const AImod = sandbox.window.AI;
 T("推荐追问：解析【推荐追问】行（｜分隔，剥离正文）", function () {
   const ans = "结论：属于工伤，应先做工伤认定。\n【推荐追问】工伤认定的时限是多久｜停工留薪期工资怎么算｜工伤待遇仲裁怎么申请";
@@ -822,7 +827,7 @@ T("推荐追问：无该行返回 null（回退静态推荐）；超长/过短�
 });
 
 /* ---------- 17. 工作区日期管线（workspace.js 判决书双时间线） ---------- */
-console.log("━━ 工作区日期管线测试（js/workspace.js）");
+section("工作区日期管线测试（js/workspace.js）");
 const WST = sandbox.window.WORKSPACE && sandbox.window.WORKSPACE._test;
 if (!WST) { console.error("❌ workspace.js 未暴露 _test 测试钩子"); process.exit(1); }
 
@@ -925,7 +930,7 @@ T("日期管线：证据目录——编号剥离/来源建议/证明目的", fun
 });
 
 /* ---------- 18. flk 降级透明化（online.js renderFlkResp） ---------- */
-console.log("━━ flk 降级透明化测试（js/online.js）");
+section("flk 降级透明化测试（js/online.js）");
 vm.runInContext(fs.readFileSync(path.join(root, "js", "online.js"), "utf8"), sandbox, { filename: "js/online.js" });
 const ONLINE = sandbox.window.ONLINE;
 if (!ONLINE || !ONLINE._testFlkResp) { console.error("❌ online.js 未暴露 _testFlkResp"); process.exit(1); }
@@ -951,7 +956,7 @@ T("flk 正常：空结果与有结果分支不受影响", function () {
 });
 
 /* ---------- 19. 术语卡扩容与合同审查三类（glossary.js / contract.js） ---------- */
-console.log("━━ 术语卡扩容与合同审查测试（js/glossary.js · js/contract.js）");
+section("术语卡扩容与合同审查测试（js/glossary.js · js/contract.js）");
 vm.runInContext(fs.readFileSync(path.join(root, "js", "glossary.js"), "utf8"), sandbox, { filename: "js/glossary.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "contract.js"), "utf8"), sandbox, { filename: "js/contract.js" });
 const GLOSS = sandbox.window.GLOSSARY;
@@ -981,6 +986,30 @@ T("合同审查：保密类——竞业终身+无补偿 双命中", function () 
   if (r.risks.length < 2) throw new Error("应命中竞业期限/补偿两处：" + r.risks.map(x => x.warn).join("|"));
   if (r.missing.indexOf("保密期限") === -1) throw new Error("保密期限应判缺失");
 });
+
+/* ---------- 评测覆盖率报告（--report） ---------- */
+if (process.argv.indexOf("--report") > -1) {
+  const covRows = (function () {
+    const scs = sandbox.window.DomainRegistry.collect("scenarios");
+    const m = {};
+    scs.forEach(function (s) {
+      m[s.domain] = m[s.domain] || [0, 0];
+      m[s.domain][1]++;
+      if (sandbox.window.INSIGHTS.get(s.id)) m[s.domain][0]++;
+    });
+    return Object.keys(m).sort().map(function (d) { return { domain: d, got: m[d][0], total: m[d][1] }; });
+  })();
+  let md = "# 测试报告（评测覆盖率）\n\n生成：" + new Date().toISOString().slice(0, 16).replace("T", " ") + "\n";
+  md += "\n## 分节断言统计\n\n| 分节 | 通过 | 失败 |\n|---|---|---|\n";
+  SECTION_STATS.forEach(function (s) { md += "| " + s.name + " | " + s.pass + " | " + s.fail + " |\n"; });
+  md += "\n## insights 争点库覆盖矩阵\n\n| 领域 | 覆盖/场景 |\n|---|---|\n";
+  covRows.forEach(function (r) { md += "| " + r.domain + " | " + r.got + "/" + r.total + " |\n"; });
+  md += "\n（持续把真实使用发现的问题加入本回归套件。）\n";
+  try {
+    fs.writeFileSync(path.join(root, "test-report.md"), md);
+    console.log("\n📄 评测报告已生成：test-report.md");
+  } catch (e) {}
+}
 
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
