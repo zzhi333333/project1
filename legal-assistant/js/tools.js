@@ -761,6 +761,41 @@
     });
   }
 
+  /* ---------- 工具分组：同域卡片相邻 + 组头（data-cat 已有，无需改 HTML） ---------- */
+  function regroupToolCards() {
+    var view = document.getElementById("view-tools");
+    var cards = Array.prototype.slice.call((view || document).querySelectorAll(".tool-card[data-cat]"));
+    if (!cards.length) return;
+    var CAT_LABEL = { labor: "劳动维权", civil: "民事·赔偿", ip: "知产", proc: "程序·期限", util: "案件管理" };
+    var order = ["labor", "civil", "ip", "proc", "util"];
+    var groups = {};
+    cards.forEach(function (c) {
+      var cat = c.getAttribute("data-cat");
+      (groups[cat] = groups[cat] || []).push(c);
+    });
+    var parent = cards[0].parentNode;
+    var frag = document.createDocumentFragment();
+    order.forEach(function (cat) {
+      if (!groups[cat] || !groups[cat].length) return;
+      var head = document.createElement("div");
+      head.className = "tool-group-head";
+      head.innerHTML = (CAT_LABEL[cat] || cat) + '<span class="dim">' + groups[cat].length + " 个工具</span>";
+      frag.appendChild(head);
+      groups[cat].forEach(function (c) { frag.appendChild(c); });
+      delete groups[cat];
+    });
+    Object.keys(groups).forEach(function (cat) {
+      var head = document.createElement("div");
+      head.className = "tool-group-head";
+      head.innerHTML = (CAT_LABEL[cat] || cat) + '<span class="dim">' + groups[cat].length + " 个工具</span>";
+      frag.appendChild(head);
+      groups[cat].forEach(function (c) { frag.appendChild(c); });
+    });
+    var last = cards[cards.length - 1];
+    if (last.nextSibling) parent.insertBefore(frag, last.nextSibling);
+    else parent.appendChild(frag);
+  }
+
   /* ---------- 装配 ---------- */
   window.TOOLS = {
     init: function () {
@@ -776,6 +811,7 @@
       bindCalc("ip-calc", "ip-result", calcIpDamage, "知产侵权赔偿计算器");
       setupToolCards();
       bindToolFilter();
+      regroupToolCards();
       var sel = $("dl-type");
       if (sel) sel.addEventListener("change", function () {
         $("dl-custom-wrap").classList.toggle("hidden", sel.value !== "custom");

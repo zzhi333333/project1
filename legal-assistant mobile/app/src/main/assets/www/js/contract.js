@@ -49,6 +49,71 @@ window.CONTRACT = (function () {
         { re: /(应当|视为).{0,8}放弃(全部|任何)?(权利|诉权|抗辩)/g, warn: "概括性放弃诉权/抗辩权的条款无效力。" },
         { re: /口头(变更|修改|补充).{0,8}(有效|为准)/g, warn: "口头变更优先条款风险极高，建议书面变更为准。" }
       ]
+    },
+    rent: {
+      name: "房屋租赁合同",
+      items: [
+        { keys: ["租赁期限", "租期", "自.*起至"], label: "租赁期限" },
+        { keys: ["租金", "每月", "月租"], label: "租金数额与支付方式" },
+        { keys: ["押金", "保证金"], label: "押金（金额与退还条件）" },
+        { keys: ["维修", "修缮", "修理"], label: "维修责任划分" },
+        { keys: ["转租", "分租"], label: "转租约定" },
+        { keys: ["解除", "退租", "提前"], label: "解除与提前退租条件" },
+        { keys: ["水电", "物业", "燃气"], label: "水电物业费用承担" },
+        { keys: ["交付", "验收", "交房"], label: "房屋交付与验收" },
+        { keys: ["违约责任", "违约金"], label: "违约责任" },
+        { keys: ["身份证", "身份信息", "产权", "房产证"], label: "主体与产权信息" }
+      ],
+      risks: [
+        { re: /押金.{0,12}(概不退还|不予退还|不退)/g, warn: "「押金概不退还」显失公平：押金在扣除违约金/实际损失后余额应退还，此类条款无效风险高。" },
+        { re: /单方(有权)?(调整|上涨|提高|上浮).{0,8}租金/g, warn: "租期内单方调租对承租人没有约束力——租金变更须协商一致（民法典第509条全面履行原则）。" },
+        { re: /租赁期限.{0,16}二十年|租期.{0,12}(超过|超出).{0,8}二十年/g, warn: "租赁期限法定上限 20 年（民法典第705条），超出部分无效。" },
+        { re: /承租人.{0,14}(放弃|不得主张).{0,10}(优先购买|优先承租)/g, warn: "优先购买/优先承租是法定权利（民法典第726/734条），概括性放弃条款效力存疑，需特别提示。" },
+        { re: /转租.{0,14}(无需|不必|无须).{0,8}(同意|通知)/g, warn: "转租须经出租人同意（民法典第716条），未经同意转租出租人可解除合同。" },
+        { re: /税费.{0,14}(全部由(承租|乙方|租客))/g, warn: "房屋租赁法定纳税义务人是出租人；税费转嫁条款需明示且不得对抗税务征管。" }
+      ]
+    },
+    loan: {
+      name: "借款合同",
+      items: [
+        { keys: ["借款金额", "人民币", "借款本金", "金额"], label: "借款金额（大小写一致）" },
+        { keys: ["利息", "利率", "月息", "年息"], label: "利息与利率约定" },
+        { keys: ["借款用途", "用途"], label: "借款用途" },
+        { keys: ["还款期限", "还款日期", "分期", "于.*前归还"], label: "还款期限与方式" },
+        { keys: ["逾期", "违约金", "逾期利息", "罚息"], label: "逾期责任" },
+        { keys: ["担保", "保证", "抵押", "质押"], label: "担保条款（如有）" },
+        { keys: ["转账", "银行", "支付方式", "交付"], label: "交付方式（转账留痕）" },
+        { keys: ["身份证", "身份号码", "身份证号"], label: "双方身份信息" }
+      ],
+      risks: [
+        { re: /砍头息|预扣.{0,8}利息|先扣.{0,6}利息|扣除利息后(交付|支付)/g, warn: "预先扣除利息（砍头息）的，借款本金按实际出借金额认定（民法典第670条）。" },
+        { re: /利滚利|复利|利息.{0,8}(计入|转为).{0,6}本金|滚入本金/g, warn: "复利结算计入本金的受严格限制，超出法定上限部分不受保护。" },
+        { re: /月(息|利率)\s*\d/g, warn: "提示换算：月利率×12=年化；年利率超过合同成立时 LPR 四倍的部分不受法律保护。" },
+        { re: /年(息|利率)\s*([2-9]\d|[1-9]\d\.)/g, warn: "年利率明显偏高（≥20%）：核对是否超过 LPR 四倍上限，超出部分无效。" },
+        { re: /现金.{0,10}(交付|支付|出借)/g, warn: "大额现金交付举证困难，建议银行转账并备注「借款」，保留凭证。" },
+        { re: /逾期.{0,20}(且|并).{0,12}(支付|承担).{0,8}(利息|违约金)/g, warn: "逾期利息与违约金一并主张的，合计超过 LPR 四倍部分法院不予支持。" }
+      ]
+    },
+    nda: {
+      name: "保密协议",
+      items: [
+        { keys: ["保密信息", "商业秘密", "保密范围"], label: "保密信息范围定义" },
+        { keys: ["保密期限", "保密期", "保密义务.{0,10}年"], label: "保密期限" },
+        { keys: ["例外", "已公开", "已进入公有领域", "独立获得"], label: "保密义务例外情形" },
+        { keys: ["竞业限制", "竞业禁止"], label: "竞业限制条款（对象与期限）" },
+        { keys: ["补偿", "经济补偿", "按月支付"], label: "竞业限制经济补偿" },
+        { keys: ["违约金", "赔偿责任", "赔偿损失"], label: "违约责任" },
+        { keys: ["返还", "销毁", "删除"], label: "资料返还与销毁义务" },
+        { keys: ["争议解决", "仲裁", "诉讼", "管辖"], label: "争议解决条款" }
+      ],
+      risks: [
+        { re: /竞业限制.{0,40}(无.{0,4}补偿|不支付.{0,8}补偿|不给予.{0,6}补偿)/g, warn: "竞业限制以按月支付经济补偿为对价；未约定标准的，劳动者可主张离职前 12 个月平均工资的 30% 且不低于最低工资；三个月未支付劳动者可解除竞业限制。" },
+        { re: /竞业限制.{0,20}(终身|永久|长期|无限期)/g, warn: "竞业限制期限法定上限 2 年（劳动合同法第24条），超出部分无效。" },
+        { re: /全体(员工|人员|职工).{0,12}(均|都|一律).{0,8}(适用|签署|签订)/g, warn: "竞业限制仅适用于高管、高级技术人员及其他负有保密义务的人员（第24条），全员绑定存在无效风险。" },
+        { re: /保密期限.{0,16}(永久|终身|无限期)/g, warn: "提示区分：商业秘密以秘密存续为限受保护；一般保密信息建议约定合理期限，无限期义务易被认定过苛。" },
+        { re: /不得(入职|从事).{0,10}(任何|所有|同行业.{0,6}及).{0,10}(企业|行业|单位)/g, warn: "限制范围覆盖全部行业/企业的过宽约定，司法实践可能被酌减或认定部分无效，建议限定具体竞争业务与地域。" },
+        { re: /违约金.{0,24}(工资.{0,8}倍|百万元|高额)/g, warn: "竞业违约金畸高的，法院可按实际损失为基础酌减（民法典第585条）。" }
+      ]
     }
   };
 
@@ -101,7 +166,7 @@ window.CONTRACT = (function () {
     var rule = ruleReview(text, currentType);
     var ctxText = "【核对结果】已识别条款：" + rule.found.join("、") + "；疑似缺失：" + (rule.missing.join("、") || "无") + "；命中风险语句：" + (rule.risks.map(function (r) { return r.snippet; }).join("、") || "无");
     var prompt =
-      "你是资深合同审查律师。请审查以下" + (type === "labor" ? "劳动合同" : "商业合同") + "文本，按四部分输出：" +
+      "你是资深合同审查律师。请审查以下" + (CHECKLISTS[type] || CHECKLISTS.business).name + "文本，按四部分输出：" +
       "一、总体评价（2-3句）；二、缺漏条款（对照常规合同要素，说明缺失后果）；" +
       "三、风险与不利条款（逐条引用原文短语并说明风险与修改建议）；四、修改建议清单。" +
       "引用法律须用《法律名》第X条格式，只引用确实存在的常见法律（如劳动合同法、民法典），不确定不要编造条文号。\n\n" +
@@ -126,10 +191,19 @@ window.CONTRACT = (function () {
   function init() {
     var input = document.getElementById("ct-input");
     var btnL = document.getElementById("ct-type-labor");
-    var btnB = document.getElementById("ct-type-business");
     if (!btnL) return;
-    btnL.addEventListener("click", function () { currentType = "labor"; btnL.classList.add("active"); btnB.classList.remove("active"); });
-    btnB.addEventListener("click", function () { currentType = "business"; btnB.classList.add("active"); btnL.classList.remove("active"); });
+    var CT_TYPES = ["labor", "business", "rent", "loan", "nda"];
+    CT_TYPES.forEach(function (t) {
+      var b = document.getElementById("ct-type-" + t);
+      if (!b) return;
+      b.addEventListener("click", function () {
+        currentType = t;
+        CT_TYPES.forEach(function (x) {
+          var bx = document.getElementById("ct-type-" + x);
+          if (bx) bx.classList.toggle("active", x === t);
+        });
+      });
+    });
     document.getElementById("ct-rule-run").addEventListener("click", function () {
       var text = (input.value || "").trim();
       var out = document.getElementById("ct-rule-result");
@@ -145,5 +219,5 @@ window.CONTRACT = (function () {
     });
   }
 
-  return { init: init };
+  return { init: init, _testScan: function (text, type) { return ruleReview(text, type); } };
 })();

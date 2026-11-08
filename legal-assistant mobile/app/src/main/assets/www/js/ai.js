@@ -593,6 +593,8 @@ window.AI = (function () {
         if (quickTitle) quickTitle.classList.toggle("hidden", hasUser);
         var sug = document.getElementById("suggestions");
         if (sug) sug.classList.toggle("hidden", hasUser);
+        var ec = document.getElementById("entry-cards");
+        if (ec) ec.classList.toggle("hidden", hasUser);
       };
       new MutationObserver(updQuickVis).observe(chatB, { childList: true });
       updQuickVis();

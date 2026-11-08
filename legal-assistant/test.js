@@ -950,6 +950,38 @@ T("flk 正常：空结果与有结果分支不受影响", function () {
   if (els["flk-results"].innerHTML.indexOf("未返回匹配结果") === -1) throw new Error("undefined 容错异常");
 });
 
+/* ---------- 19. 术语卡扩容与合同审查三类（glossary.js / contract.js） ---------- */
+console.log("━━ 术语卡扩容与合同审查测试（js/glossary.js · js/contract.js）");
+vm.runInContext(fs.readFileSync(path.join(root, "js", "glossary.js"), "utf8"), sandbox, { filename: "js/glossary.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "contract.js"), "utf8"), sandbox, { filename: "js/contract.js" });
+const GLOSS = sandbox.window.GLOSSARY;
+const CONTRACT = sandbox.window.CONTRACT;
+if (!GLOSS || !CONTRACT || !CONTRACT._testScan) { console.error("❌ GLOSSARY/CONTRACT 未暴露"); process.exit(1); }
+T("术语卡：55 条且术语名唯一（高亮反查的数据基础）", function () {
+  if (GLOSS.TERMS.length !== 55) throw new Error("应 55 条：" + GLOSS.TERMS.length);
+  const names = GLOSS.TERMS.map(x => x.t);
+  if (new Set(names).size !== 55) throw new Error("术语重复");
+  GLOSS.TERMS.forEach(x => { if (!x.t || !x.p) throw new Error(x.t + " 缺解释"); });
+});
+T("合同审查：租房类——押金概不退还/转租无需同意 命中，维修责任判缺失", function () {
+  const r = CONTRACT._testScan("乙方租用甲方房屋，月租3000元，押金概不退还；乙方转租无需甲方同意。", "rent");
+  const warns = r.risks.map(x => x.warn).join("|");
+  if (r.risks.length < 2) throw new Error("应命中≥2 处风险：" + warns);
+  if (warns.indexOf("押金") === -1 || warns.indexOf("716") === -1) throw new Error("租房高危模式未命中：" + warns);
+  if (r.missing.indexOf("维修责任划分") === -1) throw new Error("维修责任应判缺失：" + r.missing.join(","));
+});
+T("合同审查：借款类——砍头息/月息 命中，身份信息判缺失", function () {
+  const r = CONTRACT._testScan("出借人预先扣除利息后交付借款，约定月息2分，借款金额拾万元整。", "loan");
+  const warns = r.risks.map(x => x.warn).join("|");
+  if (warns.indexOf("670") === -1 || warns.indexOf("LPR") === -1) throw new Error("砍头息/利率红线未命中：" + warns);
+  if (r.missing.indexOf("双方身份信息") === -1) throw new Error("身份信息应判缺失");
+});
+T("合同审查：保密类——竞业终身+无补偿 双命中", function () {
+  const r = CONTRACT._testScan("员工竞业限制期限为终身且公司不支付经济补偿，全员适用。", "nda");
+  if (r.risks.length < 2) throw new Error("应命中竞业期限/补偿两处：" + r.risks.map(x => x.warn).join("|"));
+  if (r.missing.indexOf("保密期限") === -1) throw new Error("保密期限应判缺失");
+});
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(fail === 0

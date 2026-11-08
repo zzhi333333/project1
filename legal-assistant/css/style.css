@@ -856,6 +856,15 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .gl-row span { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; display: block; }
 /* 报告正文术语高亮（glossary.js highlight）：虚线下划线可点，弹白话卡 */
 .gl-hl { border-bottom: 1px dashed var(--primary); cursor: pointer; }
+/* 工具分组组头（tools.js regroupToolCards） */
+.tool-group-head { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); letter-spacing: 1px; margin: 16px 0 8px; }
+.tool-group-head .dim { font-weight: 400; font-size: 11px; }
+/* 咨询页空态三入口卡（main.js appendEntryCards，对话开始后由 ai.js 统一隐藏） */
+.entry-cards { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px auto 6px; max-width: 640px; padding: 0 4px; }
+.entry-card { flex: 1; min-width: 170px; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.entry-card b { display: block; font-size: 13px; color: var(--primary); margin-bottom: 2px; }
+.entry-card span { font-size: 11.5px; color: var(--ink-2); }
+.flash { outline: 2px solid var(--primary); border-radius: 10px; }
 
 /* 术语卡英文行 */
 .gl-en { font-size: 11px; color: var(--ink-2); font-weight: 400; font-style: italic; }

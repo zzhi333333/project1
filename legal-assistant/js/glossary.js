@@ -35,7 +35,32 @@ window.GLOSSARY = (function () {
     { t: "本诉/反诉", en: "Claim / Counterclaim (tried together)", p: "被告在同一案件里反过来告原告，就是反诉；反诉与本诉一并审理。" },
     { t: "调解协议司法确认", en: "Judicial confirmation of mediation agreement - free, makes it enforceable", p: "人民调解达成的协议去法院『盖章确认』后，具有强制执行力（免费）。" },
     { t: "小额诉讼", en: "Small claims procedure - first instance final (no appeal)", p: "标的额较小的民事案件实行一审终审（不能上诉），审理更快捷。" },
-    { t: "共同被告", en: "Joint defendants (e.g. company and its shareholders) sued together", p: "把多个责任方（如公司与其股东）列为同一案被告，便于一并追责。" }
+    { t: "共同被告", en: "Joint defendants (e.g. company and its shareholders) sued together", p: "把多个责任方（如公司与其股东）列为同一案被告，便于一并追责。" },
+    { t: "自认", en: "Admission of unfavorable facts by a party; binding unless revoked for fraud/coercion/major mistake", p: "一方在诉讼中承认对自己不利的事实，法院可直接采信、对方无需再举证；除非有欺诈、胁迫等法定情形，一般不能反悔。" },
+    { t: "行为保全", en: "Conduct preservation - court order to stop/require certain acts during litigation (injunction-like)", p: "起诉前或诉讼中请求法院裁定对方「停止某行为」（如停止侵权、停止发布），类似禁令；通常也要提供担保。" },
+    { t: "医疗期", en: "Statutory medical treatment period (3-24 months by seniority) protecting the employee from dismissal", p: "员工患病非因工负伤时依法享受的停工医疗保护期（按工龄 3–24 个月）。医疗期内不得按无过失辞退/经济性裁员解除合同。" },
+    { t: "惩罚性赔偿", en: "Punitive damages - multiples of actual loss (e.g. 1-5x IP infringement, 3x consumer fraud, 10x unsafe food)", p: "在实际损失之外加倍赔偿以示惩戒：故意侵犯知识产权情节严重可主张 1–5 倍；消费欺诈 3 倍价款；不符合安全标准的食品最高 10 倍。" },
+    { t: "LPR", en: "Loan Prime Rate - baseline for interest caps (private lending capped at 4x LPR)", p: "贷款市场报价利率，每月 20 日公布。民间借贷利率超过合同成立时 LPR 四倍的部分不受法律保护。" },
+    { t: "违约金", en: "Liquidated damages - court may reduce if excessively higher than actual loss (30% rule of thumb)", p: "双方预先约定的违约赔偿额。约定过高（一般以超过实际损失 30% 为参考）的，违约方可请求法院酌减；过低可请求增加。" },
+    { t: "定金", en: "Deposit with penalty rule (max 20% of contract value); '订金' without penalty effect", p: "书面约定的担保方式：收定金一方违约双倍返还，付定金一方违约无权要回。上限为主合同标的额 20%，超出部分无定金效力。「订金/预付款」不适用定金罚则。" },
+    { t: "诉讼费", en: "Court fees - progressive by claim amount, generally borne by the losing party", p: "按诉讼请求金额分段累进计算（如 1 万以下 50 元），财产案件 10 万约 2300 元。一般由败诉方承担，调解/部分胜诉按比例分担。" },
+    { t: "失信被执行人", en: "Dishonest judgment debtor list ('blacklist') with consumption restrictions", p: "有履行能力却拒不履行生效判决的被执行人会被纳入失信名单：限制坐飞机/高铁、贷款、招投标等；履行完毕可申请移出。配套还有「限制高消费令」。" },
+    { t: "保证期间", en: "Guarantee period - default 6 months from due date; creditor must sue guarantor within it", p: "保证人承担保证责任的期限：没有约定或约定不明的为主债务履行期届满起 6 个月。债权人须在期间内依法主张（起诉/仲裁），否则保证人免责。" },
+    { t: "债权人代位权", en: "Creditor's subrogation right - sue the debtor's lazy debtor directly (Civil Code Art.535)", p: "债务人怠于行使自己的债权害及你还债的，你可以越过债务人直接起诉「他的债务人」（民法典第535条），费用由对方负担（法定情形）。" },
+    { t: "债权人撤销权", en: "Creditor's right to revoke fraudulent transfers (free/low-price dispositions, Civil Code Art.538-539)", p: "债务人无偿转让财产或明显低价卖给关联人来逃债的，你可请求法院撤销该转让行为（第538/539条），一年内行使。" },
+    { t: "买卖不破租赁", en: "Lease survives sale - new owner must honor the existing lease (Civil Code Art.725)", p: "租赁期内房东把房子卖掉，租赁合同对新买家继续有效（第725条），新房东无权赶人、涨租至期满。" },
+    { t: "承租人优先购买权", en: "Tenant's preemptive right to buy the leased home on equal terms (Civil Code Art.726)", p: "房东出卖出租房屋，应在合理期限内通知承租人，同等条件下承租人享有优先购买权（第726条）；侵犯的可请求赔偿。" },
+    { t: "居住权", en: "Right of habitation - registered right to live in another's residence (Civil Code Art.366-371)", p: "在不享有所有权的住宅上设立的用益物权（第366-371条），需书面合同+登记才设立，原则上无偿、不得转让继承。常见于离婚安置、以房养老安排。" },
+    { t: "法定继承顺位", en: "Statutory succession order: 1st spouse/children/parents; 2nd siblings/grandparents (Civil Code Art.1127)", p: "没有遗嘱时按顺序继承（第1127条）：第一顺序配偶、子女、父母；第二顺序兄弟姐妹、祖父母、外祖父母。同一顺序原则上均分；有扶养关系可多分/少分。" },
+    { t: "遗嘱形式", en: "Statutory will forms: holographic, witnessed, printed, audio-video, oral (emergency), notarized (Art.1134-1139)", p: "民法典认可的遗嘱形式（第1134-1139条）：自书、代书、打印、录音录像、口头（危急情况）、公证。形式不符可能无效；多份遗嘱以最后的为准。" },
+    { t: "代位继承", en: "Subrogated succession - heir's descendants take his share if he died before (Civil Code Art.1128)", p: "被继承人的子女（或兄弟姐妹）先于被继承人死亡的，由其晚辈直系血亲代位继承那份份额（第1128条）；2021 起侄甥也可代位继承。" },
+    { t: "遗产管理人", en: "Estate administrator - statutory duties to inventory, preserve and distribute the estate (Art.1145-1149)", p: "继承开始后负责清点、保管、处分遗产并按遗嘱/法定规则分配的人（第1145-1149条）；无人的由民政部门或法院指定。因故意/重大过失损害继承人利益的要赔偿。" },
+    { t: "一人公司", en: "One-person LLC - shareholder bears burden to prove asset separation (Company Law Art.23)", p: "只有一个股东的有限公司：股东不能证明公司财产独立于自己财产的，对公司债务承担连带责任（2023 公司法第23条第3款）。账目混同风险极高。" },
+    { t: "加速到期", en: "Acceleration of unpaid capital contribution - creditors may claim directly (Company Law Art.54)", p: "公司不能清偿到期债务的，债权人有权要求已认缴但未届出资期限的股东提前缴纳出资（2023 公司法第54条）——认缴制不再是欠债的挡箭牌。" },
+    { t: "人格否认", en: "Piercing the corporate veil - shareholder liable for company debts when abusing legal personality (Art.23)", p: "股东滥用公司法人独立地位（财产混同、脱壳经营、过度支配与控制）逃避债务的，对公司债务承担连带责任（第23条）；一人公司举证责任倒置。" },
+    { t: "商标撤三", en: "Cancellation of a registered trademark for 3 consecutive years of non-use (Trademark Law Art.49)", p: "注册商标没有正当理由连续三年不使用的，任何人可申请撤销（第49条）。被撤三的应对：提供真实使用证据（销售合同、发票、宣传记录）。" },
+    { t: "现有技术抗辩", en: "Prior art defense - accused infringer may defend that the technical solution was publicly known (Patent Law Art.67)", p: "被诉侵权人的抗辩：涉案技术方案属于申请日（优先权日）前已公开的现有技术，不落入专利权保护范围（专利法第67条），无需先去无效专利。" },
+    { t: "权利用尽", en: "Exhaustion doctrine - resale of genuine products placed on market by/with consent of the right holder is not infringement (Art.75)", p: "专利产品或经权利人许可投放市场的商品，之后他人转售、使用该正品不构成侵权（专利法第75条）；但翻新、改装再造可能构成侵权。" }
   ];
 
   function open(keyword) {

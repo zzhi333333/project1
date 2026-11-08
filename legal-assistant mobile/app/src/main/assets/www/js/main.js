@@ -415,7 +415,41 @@
     } else {
       if (!cur) window.CHATHISTORY.newSession(false);
       appendBot(welcomeHtml());
+      appendEntryCards();
     }
+  }
+
+  /* 空态三入口引导卡：让新用户第一眼知道三条路径；对话开始后由 ai.js updQuickVis 统一隐藏 */
+  function appendEntryCards() {
+    var old = document.getElementById("entry-cards");
+    if (old) old.remove();
+    var wrap = document.createElement("div");
+    wrap.id = "entry-cards";
+    wrap.className = "entry-cards";
+    wrap.innerHTML =
+      '<button class="entry-card" data-act="ask"><b>① 直接描述问题</b><span>在下方输入框描述案情，可多行粘贴</span></button>' +
+      '<button class="entry-card" data-act="scene"><b>② 从场景开始</b><span>选一个贴近的场景，引导问答出报告</span></button>' +
+      '<button class="entry-card" data-act="agent"><b>③ 深度咨询</b><span>AI 逐项追问补齐要素，一键生成可核验分析</span></button>';
+    wrap.addEventListener("click", function (e) {
+      var b = e.target && e.target.closest ? e.target.closest(".entry-card") : null;
+      if (!b) return;
+      var act = b.getAttribute("data-act");
+      if (act === "ask") {
+        var inp = document.getElementById("consult-input");
+        if (inp) inp.focus();
+      } else if (act === "scene") {
+        var q = document.getElementById("quick-scenarios");
+        if (q) {
+          q.scrollIntoView({ behavior: "smooth", block: "center" });
+          q.classList.add("flash");
+          setTimeout(function () { q.classList.remove("flash"); }, 1200);
+        }
+      } else if (act === "agent") {
+        var ib = document.getElementById("intake-btn");
+        if (ib) ib.click();
+      }
+    });
+    box.appendChild(wrap);
   }
 
   var sessionView = "main";   /* "main" = 历史 | "archived" = 归档 */
@@ -440,6 +474,7 @@
     else {
       if (!cur) window.CHATHISTORY.newSession(false);
       appendBot(welcomeHtml());
+      appendEntryCards();
     }
     window.AI.resetHistory && window.AI.resetHistory();
   }
@@ -558,6 +593,7 @@
       box.innerHTML = "";
       window.AI.resetHistory && window.AI.resetHistory();
       appendBot(welcomeHtml());
+      appendEntryCards();
       window.renderSessionList();
       scrollDown();
     });
@@ -628,6 +664,7 @@
   } else {
     if (!cur) window.CHATHISTORY.newSession(false);
     appendBot(welcomeHtml());
+    appendEntryCards();
   }
   window.renderSessionList();
 

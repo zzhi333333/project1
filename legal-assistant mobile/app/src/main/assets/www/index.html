@@ -168,11 +168,14 @@
         </div>
 
         <div class="analysis-editor">
-          <div class="mode-switch two">
-            <button id="ct-type-labor" class="mode-btn active">劳动合同</button>
-            <button id="ct-type-business" class="mode-btn">通用商业合同</button>
-          </div>
-          <textarea id="ct-input" rows="9" placeholder="粘贴合同全文（或关键条款）。劳动合同将核对九大必备条款与高危语句；商业合同核对标的/价款/违约责任/争议解决等要素。"></textarea>
+        <div class="mode-switch">
+          <button id="ct-type-labor" class="mode-btn active">劳动合同</button>
+          <button id="ct-type-business" class="mode-btn">通用商业合同</button>
+          <button id="ct-type-rent" class="mode-btn">租房合同</button>
+          <button id="ct-type-loan" class="mode-btn">借款合同</button>
+          <button id="ct-type-nda" class="mode-btn">保密协议</button>
+        </div>
+        <textarea id="ct-input" rows="9" placeholder="粘贴合同全文（或关键条款），选择上方合同类型后核对：必备条款缺失与高危语句（押金概不退还/砍头息/竞业无补偿等）。"></textarea>
           <div class="analysis-actions">
             <button id="ct-rule-run" class="primary-btn"><svg class="ico"><use href="#i-copy"/></svg> 条款核对（离线）</button>
             <button id="ct-ai-run" class="mini-btn block-btn"><svg class="ico"><use href="#i-ai"/></svg> AI 深度审查</button>
@@ -536,7 +539,7 @@
       <button class="more-item" data-view="gsearch"><span class="more-ico"><svg class="ico"><use href="#i-search"/></svg></span>全局搜索</button>
     </div>
     <div class="more-ver">
-      <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.2.8</b>（<span id="app-build">2026-11-07</span>）</div>
+      <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.2.9</b>（<span id="app-build">2026-11-07</span>）</div>
       <div class="mv-tips">
         <div class="mv-tip"><svg class=ico><use href=#i-agent></use></svg> 深度咨询：AI 逐项追问案情要素，齐全后一键生成可核验分析</div>
         <div class="mv-tip"><svg class=ico><use href=#i-list></use></svg> 一揽子请求计算器：勾选请求项→填参数→缺口自动转工作区待办</div>
