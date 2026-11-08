@@ -184,9 +184,12 @@
     if (left < 0) { status = "已过期 " + (-left) + " 天"; cls = "tool-warn"; }
     else if (left <= 30) { status = "<svg class=ico><use href=#i-warn></use></svg> 紧急：仅剩 " + left + " 天"; cls = "tool-warn"; }
     else { status = "剩余 " + left + " 天"; cls = "calc-head"; }
-    /* V8：时效倒计时环——剩余比例着色（>50% 绿 / 20-50% 橙 / ≤20% 红），只表达剩余时间不预测结果 */
-    var ringPct = left < 0 ? 0 : Math.min(1, left / days);
-    var ringSvg = window.SVGCHART ? window.SVGCHART.ring(ringPct, { size: 56, label: left < 0 ? "过期" : left + "天" }) : "";
+    /* V8：时效倒计时环——剩余比例着色（>50% 绿 / 20-50% 橙 / ≤20% 红）；
+       过期态：满圈灰红（#b06868，与紧急亮红区分）+ 环心「已过期/N天」双行 */
+    var ringPct = left < 0 ? 1 : Math.min(1, left / days);
+    var ringSvg = window.SVGCHART ? window.SVGCHART.ring(ringPct, left < 0
+      ? { size: 56, color: "#b06868", label: "已过期", sub: (-left) + "天" }
+      : { size: 56, label: left + "天" }) : "";
     function fmt(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
     out.innerHTML = '<div class="' + cls + '" style="display:flex;align-items:center;gap:12px;border-radius:8px;padding:10px 13px;font-size:14.5px">' + ringSvg + '<div>⏳ ' + status + '</div></div>' +
       '<div class="calc-detail">起算日：' + fmt(start) + '　→　时效届满：' + fmt(deadline) + '（' + days + ' 天）' + postponedNote + '<br>' +

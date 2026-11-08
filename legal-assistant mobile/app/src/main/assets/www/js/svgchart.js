@@ -12,8 +12,8 @@ window.SVGCHART = (function () {
   }
 
   /* ---------- ring(pct, opts)：圆环进度 ----------
-     pct 0–1（自动钳制）；颜色按剩余比例分档（opts.color 可覆盖）；
-     opts: { size, stroke, color, label（环心文字，默认百分比） } */
+     pct 0–1（自动钳制）；颜色按剩余比例分档（opts.color 可覆盖，过期态用灰红满圈区分紧急亮红）；
+     opts: { size, stroke, color, label（环心主文字，默认百分比）, sub（环心第二行小字） } */
   function ring(pct, opts) {
     opts = opts || {};
     var size = opts.size || 64, stroke = opts.stroke || 7;
@@ -21,12 +21,18 @@ window.SVGCHART = (function () {
     var color = opts.color || (p > 0.5 ? "#16a34a" : p > 0.2 ? "#d97706" : "#dc2626");
     var r = (size - stroke) / 2, c = 2 * Math.PI * r;
     var label = opts.label != null ? opts.label : Math.round(p * 100) + "%";
-    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" style="flex:none" role="img" aria-label="' + esc(label) + '">' +
+    var fs = Math.round(size * (opts.sub ? 0.19 : 0.22));
+    var mainY = opts.sub ? 40 : 52;
+    var subSvg = opts.sub
+      ? '<text x="50%" y="' + (mainY + 16) + '" dominant-baseline="middle" text-anchor="middle" font-size="' + Math.round(size * 0.16) + '" font-weight="600" fill="currentColor">' + esc(opts.sub) + "</text>"
+      : "";
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" style="flex:none" role="img" aria-label="' + esc(label + (opts.sub ? " " + opts.sub : "")) + '">' +
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--line,#e5e7eb)" stroke-width="' + stroke + '"/>' +
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + stroke + '" stroke-linecap="round"' +
       ' stroke-dasharray="' + (c * p).toFixed(2) + ' ' + c.toFixed(2) + '" transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>' +
-      '<text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="' + Math.round(size * 0.22) + '" font-weight="700" fill="currentColor">' + esc(label) + '</text>' +
-      '</svg>';
+      '<text x="50%" y="' + mainY + '%" dominant-baseline="middle" text-anchor="middle" font-size="' + fs + '" font-weight="700" fill="currentColor">' + esc(label) + "</text>" +
+      subSvg +
+      "</svg>";
   }
 
   /* ---------- stepper(items)：横向阶段条（flex，移动端自动换行） ----------
