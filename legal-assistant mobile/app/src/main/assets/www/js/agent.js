@@ -1123,7 +1123,6 @@ window.AGENT = (function () {
         stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
         if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
-      highlightFacts(els.answer);
         highlightFacts(els.answer);
         renderPanel(v2, full);
         appendCopyButton(els.answer, full, { verifiedCount: v2.verifiedCount, tier2Count: v2.tier2Count, totalCitations: v2.totalCitations, numbers: v2.numbers.length, flagged: v2.flaggedNumbers });
