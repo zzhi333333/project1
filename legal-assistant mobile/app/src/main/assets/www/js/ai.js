@@ -12,15 +12,15 @@ window.AI = (function () {
 
   /* ---------------- 服务商预设 ---------------- */
   var PROVIDERS = {
-    glm:      { name: "智谱 GLM（含免费模型）", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash", visionModel: "glm-4v-flash" },
-    deepseek: { name: "DeepSeek 深度求索", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
-    kimi:     { name: "月之暗面 Kimi", baseUrl: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
-    qwen:     { name: "阿里通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
-    qianfan:  { name: "百度千帆（通用 OpenAI 兼容 v2）", baseUrl: "https://qianfan.baidubce.com/v2", model: "ernie-4.5-turbo-128k" },
-    qianfanTP:{ name: "百度千帆 Token计划个人版", baseUrl: "https://qianfan.baidubce.com/v2/tokenplan/personal", model: "glm-5.3-flash" },
-    openai:   { name: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
-    ollama:   { name: "本地 Ollama（无需密钥）", baseUrl: "http://127.0.0.1:11434/v1", model: "qwen2.5:7b" },
-    custom:   { name: "自定义（OpenAI 兼容接口）", baseUrl: "", model: "" }
+    glm:      { name: "智谱 GLM（含免费模型）", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash", visionModel: "glm-4v-flash", ctxChars: 32000 },
+    deepseek: { name: "DeepSeek 深度求索", baseUrl: "https://api.deepseek.com", model: "deepseek-chat", ctxChars: 60000 },
+    kimi:     { name: "月之暗面 Kimi", baseUrl: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", ctxChars: 9000 },
+    qwen:     { name: "阿里通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus", ctxChars: 28000 },
+    qianfan:  { name: "百度千帆（通用 OpenAI 兼容 v2）", baseUrl: "https://qianfan.baidubce.com/v2", model: "ernie-4.5-turbo-128k", ctxChars: 28000 },
+    qianfanTP:{ name: "百度千帆 Token计划个人版", baseUrl: "https://qianfan.baidubce.com/v2/tokenplan/personal", model: "glm-5.3-flash", ctxChars: 32000 },
+    openai:   { name: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", ctxChars: 60000 },
+    ollama:   { name: "本地 Ollama（无需密钥）", baseUrl: "http://127.0.0.1:11434/v1", model: "qwen2.5:7b", ctxChars: 6000 },
+    custom:   { name: "自定义（OpenAI 兼容接口）", baseUrl: "", model: "", ctxChars: 12000 }
   };
 
   var DEFAULTS = { provider: "glm", baseUrl: PROVIDERS.glm.baseUrl, model: PROVIDERS.glm.model, apiKey: "", temperature: 0.5, lang: "auto", redact: true, preview: false };
@@ -350,7 +350,7 @@ window.AI = (function () {
     "⑧结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
     "使用简体中文，条理清晰，适度使用小标题与列表。";
 
-  function buildContext(text) {
+  function buildContext(text, budget) {
     var c = window.ANALYSIS.matchContext(text);
     var s = "\n\n【系统预匹配资料】（识别领域：" + c.domainName + "）";
     if (c.scenarios.length) s += "\n· 匹配场景：" + c.scenarios.map(function (x) { return x.name; }).join("、");
@@ -362,6 +362,7 @@ window.AI = (function () {
     }).join("\n");
     /* 用户技能：启用的技能追加专项分析框架（位于核验约束之后，免责声明由代码级追加） */
     if (window.SKILLS && window.SKILLS.promptBlock) s += window.SKILLS.promptBlock();
+    if (budget && s.length > budget) s = s.slice(0, budget) + "\n（系统资料过长已截断——完整条文请到法条页检索）";
     return s;
   }
 
@@ -629,6 +630,35 @@ window.AI = (function () {
     renderChatAttach();
   }
 
+  /* ---------------- 上下文预算（P1，v3.5.0）----------------
+     此前 aiHistory 按条数截 10 条、法条全文注入无预算——Kimi 8k 档数学上必溢出 400。
+     按 provider 预设 ctxChars 给 system+context+history 总预算，超限从最旧裁起。 */
+  function ctxBudget() {
+    var base = (PROVIDERS[S.provider] && PROVIDERS[S.provider].ctxChars) || 12000;
+    return Math.floor(base * 0.5);
+  }
+  function trimHistory(hist, budget) {
+    var out = [], used = 0;
+    for (var i = hist.length - 1; i >= 0; i--) {
+      var c = String(hist[i] && hist[i].content || "");
+      if (used + c.length > budget && out.length >= 2) break;   /* 至少保留最近一对问答 */
+      used += c.length;
+      out.unshift(hist[i]);
+    }
+    return out;
+  }
+
+  /* 切换会话后按持久化消息重建 AI 记忆（P2）：数据一直在，只差重建这一步 */
+  function restoreFromTranscript(msgs, budget) {
+    aiHistory = [];
+    (msgs || []).forEach(function (m) {
+      if (m.who === "user" && m.text) aiHistory.push({ role: "user", content: m.text });
+      else if (m.who === "ai" && m.text) aiHistory.push({ role: "assistant", content: m.text });
+    });
+    aiHistory = trimHistory(aiHistory, budget || ctxBudget());
+    return aiHistory.length;
+  }
+
   function aiConsult(text) {
     var box = document.getElementById("chat-box");
     window.UI.appendUser(text);
@@ -641,13 +671,13 @@ window.AI = (function () {
       return "【附件：" + d.name + "】\n" + d.text + (d.truncated ? "\n（文档过长已截断至 2 万字）" : "");
     }).join("\n\n") : "";
     var sendText = docBlock ? docBlock + "\n\n" + text : text;
-    var ctx = buildContext(sendText);
+    var ctx = buildContext(sendText, Math.floor(ctxBudget() * 0.6));
     var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
       (window.INTAKE && window.INTAKE.isActive() ? window.INTAKE.promptBlock() : "") +
       (window.INTAKE && window.INTAKE.isActive() ? "" : langPrompt()) +
       "\n【追问规则】若用户描述的关键事实明显不足（未说明时间、金额、合同状态、双方关系等核心要素），" +
       "请先合并提出最多两个关键追问，等用户补充后再给完整分析；若信息已足够，直接分析，不要为追问而追问。" }]
-      .concat(aiHistory)
+      .concat(trimHistory(aiHistory, ctxBudget()))
       .concat([{ role: "user", content: chatImg ? imageContent(chatImg[0].dataUrl, sendText) : sendText }]);
     var full = "";
     if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onUserMessage(text);
@@ -665,6 +695,18 @@ window.AI = (function () {
       if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
       if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       addCopyButton(div, full);
+      /* 重新生成（P4）：移除上一条 AI 回答记录与记忆对后重问，防新旧答案混入历史 */
+      var regen = document.createElement("button");
+      regen.className = "mini-btn";
+      regen.style.marginTop = "6px";
+      regen.innerHTML = "<svg class=ico><use href=#i-rocket></use></svg> 重新生成";
+      regen.addEventListener("click", function () {
+        if (window.CHATHISTORY && CHATHISTORY.removeLastOf) CHATHISTORY.removeLastOf("ai");
+        if (aiHistory.length >= 2) aiHistory.splice(-2);
+        div.remove();
+        aiConsult(text);
+      });
+      div.querySelector(".bubble").appendChild(regen);
       aiHistory.push({ role: "user", content: text }, { role: "assistant", content: full });
       if (aiHistory.length > 10) aiHistory = aiHistory.slice(-10);
       if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onAssistantDone(); else appendFollowUps(div, dId, fl ? fl.questions : null, full);
@@ -673,6 +715,13 @@ window.AI = (function () {
       if (/abort/i.test(msg)) {
         /* 手动停止：保留半截内容并标注未核验（此前整条丢弃） */
         finishBubble(div, full ? full + "\n\n⏹ 以上为停止前的未核验内容" : "（已停止生成）");
+        return;
+      }
+      /* 上下文溢出自救（P1）：历史减半后自动重试——逐次减半有界收敛，记忆清空后如实报错 */
+      if (/400|context|token|length|超出/i.test(msg) && aiHistory.length) {
+        aiHistory = aiHistory.slice(0, Math.floor(aiHistory.length / 2));
+        finishBubble(div, "回答超出模型上下文，已自动精简会话记忆并重试…（当前模型可容纳的上下文有限，长对话建议新开会话）");
+        setTimeout(function () { div.remove(); aiConsult(text); }, 900);
         return;
       }
       keepPartialOnError(div, full, msg, function () { aiConsult(text); });
@@ -1086,6 +1135,8 @@ window.AI = (function () {
     parseFollowupLine: parseAiFollowupLine,   /* 评测集只读访问 */
     mdLite: mdLite,                           /* 评测集只读访问（C4 白名单渲染回归） */
     imageContent: imageContent, describeImage: describeImage,   /* vision（附件升级） */
+    restoreFromTranscript: restoreFromTranscript,               /* 切会话重建 AI 记忆（P2） */
+    trimHistory: trimHistory, ctxBudget: ctxBudget,             /* 评测只读（P1 预算器） */
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

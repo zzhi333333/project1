@@ -137,6 +137,35 @@ window.CHATHISTORY = (function () {
     return s;
   }
 
+  /* 删除当前会话中最后一条指定角色的消息（「重新生成」用：重问前移除旧 AI 回答，防历史重复） */
+  function removeLastOf(who) {
+    load();
+    var s = currentId ? find(currentId) : null;
+    if (!s) return;
+    for (var i = s.messages.length - 1; i >= 0; i--) {
+      if (s.messages[i].who === who) { s.messages.splice(i, 1); break; }
+    }
+    persist();
+  }
+
+  /* 会话导出 Markdown（v3.5.0）：text 优先，bot 无 text 时回退去标签 */
+  function toMarkdown(id) {
+    load();
+    var s = find(id) || (currentId ? find(currentId) : null);
+    if (!s) return "";
+    var lines = ["# " + (s.title || "对话记录"), "",
+      "导出：" + new Date().toISOString().slice(0, 10) + "｜消息 " + s.messages.length + " 条", "",
+      "> 导出自法律咨询助手。AI 回答仅供参考，不构成法律意见；引用条文以官方现行文本为准。", ""];
+    s.messages.forEach(function (m) {
+      var who = m.who === "user" ? "🧑 我" : m.who === "ai" ? "🤖 AI 助手" : "📋 助手";
+      var body = m.text || String(m.html || "").replace(/<[^>]+>/g, " ").replace(/[ \t]+\n/g, "\n").trim();
+      if (!body) return;
+      var t = m.time ? new Date(m.time).toLocaleString("zh-CN") : "";
+      lines.push("**" + who + "**" + (t ? "（" + t + "）" : ""), "", body, "");
+    });
+    return lines.join("\n");
+  }
+
   function current() {
     load();
     return currentId ? find(currentId) : null;
@@ -157,6 +186,8 @@ window.CHATHISTORY = (function () {
     remove: remove,
     archive: archive,
     switchTo: switchTo,
+    removeLastOf: removeLastOf,   /* 重新生成：移除末条 AI 回答 */
+    toMarkdown: toMarkdown,       /* 会话导出 Markdown */
     current: current,
     list: list
   };

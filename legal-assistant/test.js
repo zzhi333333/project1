@@ -884,6 +884,46 @@ T("检索别名：无别名词不误扩（「竞业限制」正常检索且 last
   if (!n) throw new Error("常规检索异常");
   if ((sandbox.window.LAWSEARCH.lastAlias || []).length) throw new Error("常规词不应触发别名扩展");
 });
+section("AI 体验纵深测试（js/ai.js P1/P2 · js/history.js P4/P5）");
+vm.runInContext(fs.readFileSync(path.join(root, "js", "history.js"), "utf8"), sandbox, { filename: "js/history.js" });
+T("P1 trimHistory：字符预算内从新到旧保留且至少保留一对", function () {
+  const th = sandbox.window.AI.trimHistory;
+  const hist = [
+    { role: "user", content: "a".repeat(100) },
+    { role: "assistant", content: "b".repeat(100) },
+    { role: "user", content: "c".repeat(100) },
+    { role: "assistant", content: "d".repeat(100) }
+  ];
+  const out = th(hist, 250);
+  if (out.length !== 2) throw new Error("预算 250 应只保留最近一对：" + out.length);
+  if (out[0].content[0] !== "c") throw new Error("保留错误：应为最新的 c/d 对");
+  if (th(hist, 99999).length !== 4) throw new Error("宽预算应全保留");
+});
+T("P2 restoreFromTranscript：按会话消息重建 AI 记忆（user/ai 成对）", function () {
+  const n = sandbox.window.AI.restoreFromTranscript([
+    { who: "user", text: "我被公司辞退了" },
+    { who: "ai", text: "可以主张违法解除赔偿金" },
+    { who: "bot", text: "澄清问答不入记忆" },
+    { who: "user", text: "没有提前通知" }
+  ]);
+  if (n !== 3) throw new Error("应重建 3 条（bot 与无 text 项跳过）：" + n);
+});
+T("P4/P5 CHATHISTORY：removeLastOf 只删末条 AI + toMarkdown 含标题/时间/免责", function () {
+  const CH = sandbox.window.CHATHISTORY;
+  CH.newSession(false);
+  CH.record({ who: "user", text: "问：工伤怎么赔", html: "问：工伤怎么赔" });
+  CH.record({ who: "ai", text: "答：先认定工伤", html: "答：先认定工伤" });
+  CH.record({ who: "ai", text: "答：错误回答", html: "答：错误回答" });
+  CH.removeLastOf("ai");
+  const cur = CH.current();
+  const aiLeft = cur.messages.filter(m => m.who === "ai").length;
+  if (aiLeft !== 1) throw new Error("removeLastOf 后应剩 1 条 ai：" + aiLeft);
+  const md = CH.toMarkdown(cur.id);
+  if (md.indexOf("问：工伤怎么赔") === -1 || md.indexOf("答：先认定工伤") === -1) throw new Error("导出缺消息正文");
+  if (md.indexOf("不构成法律意见") === -1) throw new Error("导出缺免责声明");
+  if (md.indexOf("错误回答") !== -1) throw new Error("已删消息不应出现在导出");
+  CH.remove(cur.id);
+});
 T("工作区 v3：setCaseResult 即时刷新判决卡（P2 用户实测回归）", function () {
   WORKSPACE.setCurrent(WORKSPACE.create("P2回归案").id);
   WORKSPACE.setCaseResult({ caseNo: "（2024）京0105民初1号", court: "北京市朝阳区人民法院", judgmentDate: "2024-07-15", amount: "25000", plaintiff: "张三", defendant: "李四" }, "first");

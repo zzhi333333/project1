@@ -498,13 +498,17 @@
   function refreshChatFromCurrent() {
     box.innerHTML = "";
     var cur = window.CHATHISTORY.current();
-    if (cur && cur.messages.length) cur.messages.forEach(renderMessage);
-    else {
+    if (cur && cur.messages.length) {
+      cur.messages.forEach(renderMessage);
+      /* 切会话重建 AI 记忆（P2）：此前 resetHistory 让 AI 对刚聊过的案情失忆 */
+      if (window.AI && window.AI.restoreFromTranscript) window.AI.restoreFromTranscript(cur.messages);
+      else if (window.AI && window.AI.resetHistory) window.AI.resetHistory();
+    } else {
       if (!cur) window.CHATHISTORY.newSession(false);
       appendBot(welcomeHtml());
       appendEntryCards();
+      window.AI.resetHistory && window.AI.resetHistory();
     }
-    window.AI.resetHistory && window.AI.resetHistory();
   }
 
   function fmtTime(ts) {
@@ -513,6 +517,23 @@
     if (d.toDateString() === now.toDateString()) return hm;
     if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + "-" + d.getDate() + " " + hm;
     return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+
+  /* 会话导出 Markdown（P5）：BRIDGE.exportFile 优先（App），桌面走 Blob 下载 */
+  function exportSessionMd(s) {
+    var md = window.CHATHISTORY.toMarkdown ? window.CHATHISTORY.toMarkdown(s.id) : "";
+    if (!md) return;
+    var fname = "对话记录-" + String(s.title || "会话").slice(0, 20).replace(/[\\/:*?"<>|]/g, "_") + ".md";
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) { window.BRIDGE.exportFile(fname, md); return; }
+    try {
+      var blob = new Blob(["\ufeff" + md], { type: "text/markdown;charset=utf-8" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    } catch (e) { }
   }
 
   function openSessionMenu(moreBtn, s) {
@@ -525,6 +546,7 @@
     } else {
       actions.push({ label: "<svg class=ico><use href=#i-downtray></use></svg> 归档", act: function () { window.CHATHISTORY.archive(s.id, true); } });
     }
+    actions.push({ label: "<svg class=ico><use href=#i-file></use></svg> 导出 MD", act: function () { exportSessionMd(s); } });
     actions.push({ label: "<svg class=ico><use href=#i-trash></use></svg> 删除", danger: true, act: null });   /* 删除走两段确认 */
     actions.forEach(function (a) {
       var b = document.createElement("button");
@@ -590,8 +612,7 @@
         if (e.target.closest && e.target.closest(".session-more")) return;
         if (e.target.closest && e.target.closest(".session-menu")) return;
         window.CHATHISTORY.switchTo(s.id);
-        loadCurrentIntoBox();
-        window.AI.resetHistory && window.AI.resetHistory();
+        loadCurrentIntoBox();   /* 内部 refreshChatFromCurrent 已按会话消息重建 AI 记忆 */
         window.renderSessionList();
       });
       var more = div.querySelector(".session-more");
@@ -746,6 +767,7 @@
   var cur = window.CHATHISTORY.current();
   if (cur && cur.messages.length) {
     cur.messages.forEach(renderMessage);
+    if (window.AI && window.AI.restoreFromTranscript) window.AI.restoreFromTranscript(cur.messages);
   } else {
     if (!cur) window.CHATHISTORY.newSession(false);
     appendBot(welcomeHtml());
