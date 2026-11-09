@@ -663,6 +663,12 @@
     list = list.filter(function (x) { perTool[x.tool] = (perTool[x.tool] || 0) + 1; return perTool[x.tool] <= 3; });
     histSave(list);
   }
+  /* 删除单条历史：按 tool+inputsJson 唯一键（histRecord 同键去重，列表内唯一）。
+     不可用对象身份比较——histLoad 每次重新 JSON.parse，渲染期捕获的 item 与删除期
+     重新加载的对象是不同引用，x !== item 恒 true 导致删除失效 */
+  function histRemove(item) {
+    histSave(histLoad().filter(function (x) { return !(x.tool === item.tool && x.inputsJson === item.inputsJson); }));
+  }
   /* 历史弹窗 */
   function openHistory() {
     var old = document.getElementById("calc-history-modal");
@@ -702,7 +708,7 @@
         modal.remove();
       });
       row.querySelector(".hist-del").addEventListener("click", function () {
-        histSave(histLoad().filter(function (x) { return x !== item; }));
+        histRemove(item);
         modal.remove();
         openHistory();
       });
@@ -902,6 +908,7 @@
         haptic(10);
         return true;
       },
-      haptic: haptic
+      haptic: haptic,
+      histRemove: histRemove
   };
 })();

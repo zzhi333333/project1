@@ -413,6 +413,31 @@ T("技能：与内置 id 冲突的导入被拒绝", function () {
   if (r.ok) throw new Error("内置 id 冲突未拒绝");
 });
 
+/* ---------- 11b. 计算历史删除回归（v3.4.1 用户实测：删除后无法删除） ---------- */
+section("计算历史删除回归（js/tools.js histRemove）");
+T("计算历史：删除单条后存储确减一条（跨 JSON.parse 代际引用场景）", function () {
+  const LS_KEY = "legal-calc-history";
+  const recA = { tool: "sv", name: "经济补偿金", inputs: { y: "3" }, inputsJson: "{\"y\":\"3\"}", out: "N=3", time: "2026-11-09T08:00:00.000Z" };
+  const recB = { tool: "ot", name: "加班费", inputs: { h: "2" }, inputsJson: "{\"h\":\"2\"}", out: "200%", time: "2026-11-09T09:00:00.000Z" };
+  sandbox.localStorage.setItem(LS_KEY, JSON.stringify([recA, recB]));
+  /* 关键：渲染期 openHistory 捕获的 item 来自一次独立 JSON.parse——
+     与删除时 histLoad() 重新 parse 出来的对象不是同一引用。
+     旧实现 filter(x => x !== item) 跨代比较恒 true，删除变空操作 */
+  const itemFromRenderGen = JSON.parse(sandbox.localStorage.getItem(LS_KEY))[0];
+  if (TOOLS.histRemove === undefined) throw new Error("TOOLS.histRemove 未导出");
+  TOOLS.histRemove(itemFromRenderGen);
+  const after = JSON.parse(sandbox.localStorage.getItem(LS_KEY));
+  if (after.length !== 1) throw new Error("删除后应剩 1 条，实际 " + after.length + " 条（身份比较回归？）");
+  if (after[0].tool !== "ot") throw new Error("删错条目：应剩 ot，实际 " + after[0].tool);
+});
+T("计算历史：删除不存在的键值不误伤其余记录", function () {
+  const LS_KEY = "legal-calc-history";
+  const before = JSON.parse(sandbox.localStorage.getItem(LS_KEY));
+  TOOLS.histRemove({ tool: "nope", inputsJson: "{}" });
+  const after = JSON.parse(sandbox.localStorage.getItem(LS_KEY));
+  if (after.length !== before.length) throw new Error("删除不存在的记录不应改变存储");
+});
+
 /* ---------- 12. 核验三级制 + 隐私 + 计算器审计 ---------- */
 section("核验三级制与隐私测试（agent.js / ai.js / tools.js）");
 T("核验：本地命中且官方全文本机缓存比对一致 → 二级「原文已核对」", function () {
