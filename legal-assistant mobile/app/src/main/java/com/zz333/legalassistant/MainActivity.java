@@ -120,20 +120,16 @@ public class MainActivity extends Activity {
                 return true;
             }
 
-            /* 数据备份导入：<input type="file"> */
+            /* <input type="file">：附件/图片/备份导入通用。
+               WebView 会把 accept 里的扩展名（如 ".docx"）原样透传，直接 setType(".docx")
+               构造出无效 MIME，系统选择器解析不到任何应用——表现为「没有应用可执行此操作」。
+               这里自行把扩展名映射为合法 MIME（多类型走 EXTRA_MIME_TYPES），并以通配类型兜底。 */
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb, FileChooserParams params) {
                 if (pendingFileChooser != null) pendingFileChooser.onReceiveValue(null);
                 pendingFileChooser = cb;
-                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
-                i.addCategory(Intent.CATEGORY_OPENABLE);
-                i.setType("*/*");
                 try {
-                    String[] types = params.getAcceptTypes();
-                    if (types != null && types.length > 0 && types[0] != null && !types[0].trim().isEmpty()) {
-                        i.setType(types[0].split(",")[0].trim());
-                    }
-                    startActivityForResult(Intent.createChooser(i, "选择备份文件"), REQ_PICK_FILE);
+                    startActivityForResult(buildFileIntent(params), REQ_PICK_FILE);
                 } catch (Exception e) {
                     pendingFileChooser = null;
                     return false;
@@ -146,6 +142,48 @@ public class MainActivity extends Activity {
             public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
                 showJsDialog(message, result, false);
                 return true;
+            }
+
+            /* 文件选择 intent：把 accept 的扩展名映射为合法 MIME（docx/xlsx/csv/txt/md/图片等），
+               多类型并集走 EXTRA_MIME_TYPES，MimeTypeMap 缺失的补齐；单类型直接 setType，
+               多类型以通配类型兜底。返回已包 createChooser 的 intent——任何 JS accept 写法
+               都不会再产生解析不了的选择器。 */
+            private Intent buildFileIntent(FileChooserParams params) {
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("*/*");
+                java.util.ArrayList<String> mimes = new java.util.ArrayList<String>();
+                String[] types = params != null ? params.getAcceptTypes() : null;
+                if (types != null) {
+                    android.webkit.MimeTypeMap mtm = android.webkit.MimeTypeMap.getSingleton();
+                    for (String raw : types) {
+                        if (raw == null) continue;
+                        for (String t0 : raw.split(",")) {
+                            String t = t0.trim().toLowerCase();
+                            if (t.isEmpty()) continue;
+                            String mime;
+                            if (t.contains("/")) {
+                                mime = t;
+                            } else {
+                                String ext = t.startsWith(".") ? t.substring(1) : t;
+                                mime = mtm.getMimeTypeFromExtension(ext);
+                                if (mime == null) {
+                                    if (ext.equals("csv")) mime = "text/csv";
+                                    else if (ext.equals("md") || ext.equals("markdown")) mime = "text/plain";
+                                    else if (ext.equals("doc")) mime = "application/msword";
+                                    else if (ext.equals("xls")) mime = "application/vnd.ms-excel";
+                                    else if (ext.equals("docx")) mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                                    else if (ext.equals("xlsx")) mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                                    else if (ext.equals("json")) mime = "application/json";
+                                }
+                            }
+                            if (mime != null && !mimes.contains(mime)) mimes.add(mime);
+                        }
+                    }
+                }
+                if (mimes.size() == 1) i.setType(mimes.get(0));
+                else if (mimes.size() > 1) i.putExtra(Intent.EXTRA_MIME_TYPES, mimes.toArray(new String[0]));
+                return Intent.createChooser(i, "选择文件");
             }
 
             @Override
