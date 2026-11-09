@@ -12,6 +12,19 @@ window.WORKSPACE = (function () {
   function load() {
     var d = window.STORE ? STORE.get(KEY, {}) : {};
     if (!Array.isArray(d.list)) d.list = [];
+    /* 老数据归一化（P3）：links 缺键/notes 缺失/stage·ledger·result 缺省——
+       渲染与写入路径彻底免疫（缺字段数据在归集区 arr.length 抛 TypeError 的防御补齐） */
+    d.list.forEach(function (c) {
+      if (!c.links || typeof c.links !== "object") c.links = {};
+      ["reports", "deadlines", "cases", "docs", "sessions"].forEach(function (k) {
+        if (!Array.isArray(c.links[k])) c.links[k] = [];
+      });
+      if (!Array.isArray(c.notes)) c.notes = [];
+      if (typeof c.stage !== "number") c.stage = 0;
+      if (!c.ledger || typeof c.ledger !== "object") c.ledger = { claimTotal: null, spent: [], resultAmount: null };
+      if (!Array.isArray(c.ledger.spent)) c.ledger.spent = [];
+      if (c.result === undefined) c.result = null;
+    });
     return d;
   }
   function save(d) {
@@ -96,11 +109,13 @@ window.WORKSPACE = (function () {
       docType: String(docType || j.docType || ""),
       at: new Date().toISOString()
     };
-    return withCurrent(function (c) {
+    var ok = withCurrent(function (c) {
       c.result = r;
       c.ledger = c.ledger || { claimTotal: null, spent: [], resultAmount: null };
       if (r.amount) c.ledger.resultAmount = r.amount;   /* 判得金额自动入台账（可被后续解析覆盖） */
     }) === true;
+    if (ok) renderBody();   /* 判决卡即时刷新（P2）：与 attach 同惯例——弹层开着时不等重开才显已保存 */
+    return ok;
   }
   function getCaseResult() { var c = current(); return c && c.result ? c.result : null; }
   function clearCaseResult() {

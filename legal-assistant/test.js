@@ -867,6 +867,29 @@ T("attach：常量与图片判别（File 流程走浏览器冒烟）", function 
   if (!A || A.MAX_TEXT !== 20000) throw new Error("attach 常量异常");
   if (!A.isImage("a.JPG") || A.isImage("b.docx")) throw new Error("isImage 判别异常");
 });
+T("工作区 v3：setCaseResult 即时刷新判决卡（P2 用户实测回归）", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("P2回归案").id);
+  WORKSPACE.setCaseResult({ caseNo: "（2024）京0105民初1号", court: "北京市朝阳区人民法院", judgmentDate: "2024-07-15", amount: "25000", plaintiff: "张三", defendant: "李四" }, "first");
+  const resEl = sandbox.document.getElementById("ws-result");
+  const html = resEl ? String(resEl.innerHTML) : "";
+  if (html.indexOf("（2024）京0105民初1号") === -1 || html.indexOf("尚未保存") !== -1) throw new Error("判决卡未即时刷新，仍谎报「尚未保存」");
+});
+T("工作区 v3：老数据 links:{} 缺字段归一化——渲染与归集不炸（P3 用户实测回归）", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("P3回归案").id);
+  const d = JSON.parse(store["legal-workspaces"]);
+  const c = d.list.find(x => x.id === d.currentId);
+  c.links = {}; delete c.stage; c.ledger = null; c.result = undefined; delete c.notes;
+  store["legal-workspaces"] = JSON.stringify(d);
+  /* 缺字段状态下直接归集 + 读 current（此前 arr.length 抛 TypeError） */
+  WORKSPACE.attach("reports", { id: "r-p3", name: "回归报告", date: "2026-11-10" });
+  const cur = WORKSPACE.current();
+  if (!Array.isArray(cur.links.reports) || cur.links.reports.length !== 1) throw new Error("归一化后归集失败");
+  if (cur.stage !== 0 || !Array.isArray(cur.ledger.spent) || !Array.isArray(cur.notes) || cur.result !== null) throw new Error("stage/ledger/notes/result 归一化失败");
+  /* 渲染路径（renderBody 经 attach 内部已触发）不抛错即通过——links 五键齐备 */
+  ["reports", "deadlines", "cases", "docs", "sessions"].forEach(k => {
+    if (!Array.isArray(cur.links[k])) throw new Error("links." + k + " 未归一化");
+  });
+});
 
 T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {
   AI.settings().apiKey = "sk-v3-test";
