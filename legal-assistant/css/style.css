@@ -946,6 +946,16 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 
 /* 案件工作区：双时间线 + 证据目录 */
 .tl-meta { font-size: 12px; color: var(--ink-2); background: var(--soft); border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
+/* 案件阶段 stepper 消费端（workspace.js renderBody → svgchart.stepper） */
+.ws-stage-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }
+.ws-stage-btns .filter-chip { padding: 2px 11px; font-size: 12px; }
+/* 金额三线台账（请求 vs 已支出 vs 判得——纯记账不预测） */
+.ws-ledger-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+/* 合规日历完成/顺延小按钮（tools.js calRender） */
+.cal-done, .cal-snooze { border: none; background: transparent; color: var(--ink-2); font-size: 11.5px; min-width: 26px; height: 22px; border-radius: 5px; padding: 0 3px; }
+.cal-done:hover, .cal-snooze:hover { background: var(--soft); color: var(--primary); }
+.cal-item.is-done { opacity: .62; }
+.cal-item.is-done .cal-name { text-decoration: line-through; }
 .ev-cat-table { border-collapse: collapse; width: 100%; font-size: 12px; }
 .ev-cat-table th, .ev-cat-table td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; color: var(--ink); vertical-align: top; }
 .ev-cat-table th { background: var(--primary-soft); color: var(--primary); font-weight: 600; white-space: nowrap; }

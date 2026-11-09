@@ -727,6 +727,44 @@ T("工作区：attach 保留文书草稿正文 draft（≤4000 截断）", funct
   const d2 = WORKSPACE.current().links.docs.filter(x => x.name === "无正文草稿")[0];
   if (d2.draft !== undefined) throw new Error("无 draft 时不应写入该字段");
 });
+T("工作区 v3：案件阶段 stage 设置/钳制/老数据缺省（B1）", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("阶段测试案").id);
+  if (WORKSPACE._test.getStage(WORKSPACE.current()) !== 0) throw new Error("新案件应为阶段 0");
+  if (WORKSPACE._test.getStage({ name: "老数据无 stage 字段" }) !== 0) throw new Error("老数据缺省应为 0");
+  if (WORKSPACE._test.getStage({ stage: 99 }) !== 5) throw new Error("越界 stage 应钳制到末阶段");
+  WORKSPACE.setStage(3);
+  if (WORKSPACE.current().stage !== 3 || !WORKSPACE.current().stageAt) throw new Error("setStage 未生效或缺 stageAt");
+  WORKSPACE.setStage(-2);
+  if (WORKSPACE.current().stage !== 0) throw new Error("负数应钳制到 0");
+});
+T("工作区 v3：判决解析落盘 case.result（B2）+ 执行申请书字段齐备", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("判决落盘测试").id);
+  if (WORKSPACE.getCaseResult()) throw new Error("未解析前 result 应为空");
+  const j = WORKSPACE._test.parseJudgment("原告：张三\n被告：李四\n本院判决如下：被告于本判决生效之日起十日内支付原告赔偿款 25,000 元。\n二〇二四年七月十五日", "first");
+  if (!WORKSPACE.setCaseResult(j, "first")) throw new Error("落盘失败（无当前案件？）");
+  const r = WORKSPACE.getCaseResult();
+  if (r.plaintiff !== "张三" || r.defendant !== "李四") throw new Error("当事人未落盘");
+  if (r.amount !== "25000") throw new Error("金额未落盘：" + r.amount);
+  if (!r.judgmentDate || !r.caseNo === undefined) throw new Error("落款日/案号字段缺失");
+  if (parseFloat(WORKSPACE.current().ledger.resultAmount) !== 25000) throw new Error("判得金额未自动入台账");
+  WORKSPACE.clearCaseResult();
+  if (WORKSPACE.getCaseResult() || WORKSPACE.current().ledger.resultAmount !== null) throw new Error("清除判决信息失败");
+  const be = WORKSPACE.buildEnforce(r);
+  if (be.indexOf("张三") === -1 || be.indexOf("李四") === -1 || be.indexOf("25,000") === -1) throw new Error("执行申请书未能用已落盘信息自动填充");
+});
+T("工作区 v3：金额三线台账 claimTotal/支出记账（B4）", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("台账测试案").id);
+  WORKSPACE.setClaimTotal(58000);
+  if (WORKSPACE.current().ledger.claimTotal !== 58000) throw new Error("请求合计未记录");
+  WORKSPACE.setClaimTotal(-5);
+  if (WORKSPACE.current().ledger.claimTotal !== null) throw new Error("非法金额应置 null");
+  const e1 = WORKSPACE.addSpent("诉讼费", 2900);
+  if (!e1 || e1.amount !== 2900) throw new Error("支出未记录");
+  if (WORKSPACE.addSpent("负数", -1) !== null) throw new Error("非法支出应拒绝");
+  WORKSPACE.addSpent("保全费", 520);
+  WORKSPACE.removeSpent(0);   /* unshift 语义：后添加的在 index 0，删掉的是「保全费」 */
+  if (WORKSPACE.current().ledger.spent.length !== 1 || WORKSPACE.current().ledger.spent[0].name !== "诉讼费") throw new Error("删除支出失败");
+});
 
 T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {
   AI.settings().apiKey = "sk-v3-test";

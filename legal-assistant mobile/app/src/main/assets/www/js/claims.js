@@ -282,6 +282,7 @@ window.CLAIMS = (function () {
       if (!window.WORKSPACE || !window.WORKSPACE.current()) { hint($("cl-to-ws"), "先在工具页激活案件"); return; }
       if (!c.rows.length) { hint($("cl-to-ws"), "请先勾选并填写请求项"); return; }
       window.WORKSPACE.attach("docs", { name: "仲裁请求清单（" + fmt(c.total) + " 元）", date: new Date().toISOString().slice(0, 10), draft: c.rows.map(function (r, i) { return (i + 1) + ". " + r.name + "：" + fmt(r.amount); }).join("；") });
+      if (window.WORKSPACE.setClaimTotal) window.WORKSPACE.setClaimTotal(c.total);   /* 请求合计入台账（B4） */
       c.gaps.forEach(function (g) { window.WORKSPACE.addNote("补证据：" + g); });
       if (window.TOOLS && window.TOOLS.haptic) window.TOOLS.haptic(12);
       hint($("cl-to-ws"), "已存入（清单+缺口待办）");

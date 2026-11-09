@@ -32,7 +32,11 @@ window.WORKSPACE = (function () {
       name: String(name || "未命名案件").slice(0, 40),
       createdAt: new Date().toISOString(),
       notes: [],           /* 待确认事项 [{text, done, at}] */
-      links: { reports: [], deadlines: [], cases: [], docs: [], sessions: [] }
+      links: { reports: [], deadlines: [], cases: [], docs: [], sessions: [] },
+      stage: 0,            /* 生命周期阶段（STAGES 下标，用户自报；老数据缺省按 0=准备） */
+      stageAt: new Date().toISOString(),
+      ledger: { claimTotal: null, spent: [], resultAmount: null },   /* 金额三线台账（纯记账） */
+      result: null         /* 判决书解析落盘（案号/法院/落款日/金额，执行申请书跨会话复用） */
     };
     d.list.unshift(c);
     d.currentId = c.id;
@@ -61,6 +65,68 @@ window.WORKSPACE = (function () {
     save(d);
     return r === undefined ? true : r;
   }
+
+  /* ---------------- 案件生命周期阶段（B1） ----------------
+     阶段为用户自报的客观进程标记（准备→立案→开庭→判决→执行→结案），
+     不做任何程序进度承诺或结果预测（红线）。老数据无 stage 字段按 0 读。 */
+  var STAGES = ["准备", "立案", "开庭", "判决", "执行", "结案"];
+  function getStage(c) {
+    var s = c && typeof c.stage === "number" ? c.stage : 0;
+    return Math.max(0, Math.min(STAGES.length - 1, s));
+  }
+  function setStage(i) {
+    return withCurrent(function (c) {
+      c.stage = Math.max(0, Math.min(STAGES.length - 1, i | 0));
+      c.stageAt = new Date().toISOString();
+    }) === true;
+  }
+
+  /* ---------------- 判决结果落盘（B2） ----------------
+     parseJudgment 结果此前只存内存 lastJudg，刷新即丢，执行申请书被锁死在
+     「同一会话先解析」——落盘进 case.result 后跨会话可复用。 */
+  function setCaseResult(j, docType) {
+    if (!j) return false;
+    var r = {
+      caseNo: String(j.caseNo || "").slice(0, 40),
+      court: String(j.court || "").slice(0, 30),
+      judgmentDate: j.judgmentDate || "",
+      amount: String(j.amount || ""),
+      plaintiff: String(j.plaintiff || "").slice(0, 25),
+      defendant: String(j.defendant || "").slice(0, 25),
+      docType: String(docType || j.docType || ""),
+      at: new Date().toISOString()
+    };
+    return withCurrent(function (c) {
+      c.result = r;
+      c.ledger = c.ledger || { claimTotal: null, spent: [], resultAmount: null };
+      if (r.amount) c.ledger.resultAmount = r.amount;   /* 判得金额自动入台账（可被后续解析覆盖） */
+    }) === true;
+  }
+  function getCaseResult() { var c = current(); return c && c.result ? c.result : null; }
+  function clearCaseResult() {
+    return withCurrent(function (c) { c.result = null; if (c.ledger) c.ledger.resultAmount = null; }) === true;
+  }
+
+  /* ---------------- 金额三线台账（B4，纯记账不预测） ---------------- */
+  function setClaimTotal(n) {
+    var v = parseFloat(n);
+    return withCurrent(function (c) {
+      c.ledger = c.ledger || { claimTotal: null, spent: [], resultAmount: null };
+      c.ledger.claimTotal = isFinite(v) && v > 0 ? v : null;
+    }) === true;
+  }
+  function addSpent(name, amount) {
+    var v = parseFloat(amount);
+    if (!isFinite(v) || v <= 0) return null;
+    var e = { name: String(name || "支出").slice(0, 30), amount: v, at: new Date().toISOString() };
+    return withCurrent(function (c) {
+      c.ledger = c.ledger || { claimTotal: null, spent: [], resultAmount: null };
+      c.ledger.spent = c.ledger.spent || [];
+      c.ledger.spent.unshift(e);
+      if (c.ledger.spent.length > 50) c.ledger.spent.length = 50;
+    }) === true ? e : null;
+  }
+  function removeSpent(i) { withCurrent(function (c) { if (c.ledger && c.ledger.spent) c.ledger.spent.splice(i, 1); }); }
 
   /* 自动归集：当前案件激活时，报告存档/日历项/案例导入调用（无当前案件则忽略） */
   function attach(kind, ref) {
@@ -233,7 +299,8 @@ window.WORKSPACE = (function () {
         '<div class="tl-add"><input class="tl-date" type="date" value="' + esc(n.date) + '"><button class="mini-btn ws-tl-cal-add" data-name="' + esc(n.name) + '"><svg class=ico><use href=#i-calendar></use></svg> 加入日历</button></div></div></div>';
     });
     html += '</div><div class="calc-note">期限日期按文书落款日近似推算（法定起算点多为「送达之日」），请按实际送达日调整后再入日历；已加入日历的节点到期前 7 天会提醒。</div>';
-    lastJudg = j;   /* 供执行申请书自动填充 */
+    lastJudg = j;   /* 供执行申请书自动填充（本会话） */
+    setCaseResult(j, type);   /* 落盘进当前案件：刷新/换会话后执行申请书仍可复用（B2） */
     out.innerHTML = html;
     out.querySelectorAll(".ws-tl-cal-add").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -341,6 +408,19 @@ window.WORKSPACE = (function () {
     if (empty) empty.classList.toggle("hidden", !!c);
     if (content) content.classList.toggle("hidden", !c);
     if (!c) return;
+    /* 案件阶段 stepper（B1）：用户自报进度，节点色=已过绿/当前主色/未来灰 */
+    var stageBox = $("ws-stage");
+    if (stageBox) {
+      var si = getStage(c);
+      var stItems = STAGES.map(function (s, i) {
+        return { label: s, sub: i === si ? "当前" : (i < si ? "已过" : ""), color: i < si ? "var(--ok)" : i === si ? "var(--primary)" : "var(--line-2)" };
+      });
+      stageBox.innerHTML = (window.SVGCHART && SVGCHART.stepper ? SVGCHART.stepper(stItems) : "") +
+        '<div class="ws-stage-btns">' + STAGES.map(function (s, i) {
+          return '<button class="filter-chip ws-stage-set' + (i === si ? " active" : "") + '" data-stage="' + i + '">' + s + '</button>';
+        }).join("") +
+        '<span class="dim" style="font-size:11px;align-self:center">阶段为自行标记，非程序进度承诺</span></div>';
+    }
     /* 待确认事项 */
     var notes = $("ws-notes");
     if (notes) notes.innerHTML = c.notes.length
@@ -348,20 +428,102 @@ window.WORKSPACE = (function () {
         return '<div class="flk-item" style="padding:6px 10px"><label class="check-line" style="margin:0"><input type="checkbox" data-ws-note="' + i + '"' + (n.done ? " checked" : "") + '> <span style="' + (n.done ? "text-decoration:line-through;opacity:.6" : "") + '">' + esc(n.text) + '</span></label><button class="mini-btn" data-ws-note-del="' + i + '" style="margin-left:auto">删</button></div>';
       }).join("")
       : '<div class="dim" style="font-size:12.5px">暂无待确认事项。</div>';
-    /* 自动归集三栏 */
+    /* 金额三线台账（B4，纯记账） */
+    var lgBox = $("ws-ledger");
+    if (lgBox) {
+      var lg = c.ledger || {};
+      var spentSum = (lg.spent || []).reduce(function (s, e) { return s + (parseFloat(e.amount) || 0); }, 0);
+      var rows = [
+        ["请求合计（诉请/仲裁请求）", lg.claimTotal],
+        ["已支出（诉讼费/保全费等）", spentSum > 0 ? spentSum : null],
+        ["判决/调解确定金额", lg.resultAmount ? parseFloat(lg.resultAmount) : null]
+      ];
+      lgBox.innerHTML = '<div class="ws-ledger-grid">' + rows.map(function (r2) {
+        return '<div class="flk-item" style="padding:7px 11px"><div style="font-size:11.5px;color:var(--ink-2)">' + r2[0] + '</div><b style="font-size:15px;color:var(--ink)">' + (r2[1] == null ? "—" : fmt(r2[1]) + " 元") + '</b></div>';
+      }).join("") + '</div>' +
+        ((lg.spent || []).length ? '<div style="margin-top:6px">' + lg.spent.map(function (e, i3) {
+          return '<div style="font-size:12.5px;display:flex;gap:6px;align-items:center;padding:2px 0"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ' + esc(e.name) + '（' + fmt(e.amount) + ' 元）</span><button class="mini-btn" data-ws-spent-del="' + i3 + '">删</button></div>';
+        }).join("") + '</div>' : "") +
+        '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><input id="ws-spent-name" maxlength="30" placeholder="费用名（如 诉讼费）" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;flex:1;min-width:120px;background:var(--bg);color:var(--ink)"><input id="ws-spent-amt" type="number" min="0" placeholder="金额" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:92px;background:var(--bg);color:var(--ink)"><button class="mini-btn" id="ws-spent-add">记一笔支出</button></div>' +
+        '<div class="calc-note">纯记账：只汇总你录入与判决解析出的数字，不预测结果、不推算「能拿回多少」。</div>';
+    }
+    /* 判决信息卡（B2） */
+    var resBox = $("ws-result");
+    if (resBox) {
+      var rj = c.result;
+      resBox.innerHTML = rj
+        ? '<div class="flk-item" style="padding:8px 12px"><div style="font-size:12.5px;color:var(--ink)">案号：' + esc(rj.caseNo || "—") + ' · 法院：' + esc(rj.court || "—") + '</div>' +
+          '<div style="font-size:12.5px;color:var(--ink-2);margin-top:3px">落款日：' + esc(rj.judgmentDate || "—") + (rj.amount ? ' · 履行金额：' + esc(rj.amount) + ' 元' : '') + '（' + esc(rj.docType === "second" ? "二审" : rj.docType === "mediation" ? "调解书" : "一审") + '，' + (rj.at || "").slice(0, 10) + ' 保存）</div>' +
+          '<button class="mini-btn" data-ws-result-clear style="margin-top:6px">清除判决信息</button></div>'
+        : '<div class="dim" style="font-size:12.5px">（尚未保存——在下方解析判决书后自动保存，执行申请书跨会话可复用）</div>';
+    }
+    /* 自动归集区（B5：渲染时校验源数据存在性，悬空引用明示；+ 关联已有 支持逆向绑定） */
     var links = $("ws-links");
     if (!links) return;
     var lk = c.links;
-    var sec = function (title, arr, empty) {
-      return '<div><b style="font-size:13px">' + title + '（' + arr.length + '）</b><div style="font-size:12.5px;color:var(--ink-2);margin-top:4px">' +
-        (arr.length ? arr.map(function (r) { return "· " + esc(r.name) + (r.date ? "（" + esc(r.date) + "）" : ""); }).join("<br>") : empty) + '</div></div>';
+    var idSets = {
+      reports: (function () { try { var m = {}; (JSON.parse(localStorage.getItem("legal-agent-reports") || "[]")).forEach(function (x) { m[x.id] = 1; }); return m; } catch (e) { return {}; } })(),
+      sessions: (function () { try { var m2 = {}; if (window.CHATHISTORY) CHATHISTORY.list(false).concat(CHATHISTORY.list(true)).forEach(function (s2) { m2[s2.id] = 1; }); return m2; } catch (e) { return {}; } })(),
+      cases: (function () { try { var m3 = {}; (JSON.parse(localStorage.getItem("legal-case-imports") || "[]")).forEach(function (x) { m3[x.id] = 1; }); return m3; } catch (e) { return {}; } })()
+    };
+    var sec = function (title, arr, empty, kind) {
+      var addBtn = (kind && (kind === "reports" || kind === "cases" || kind === "sessions" || kind === "deadlines"))
+        ? ' <button class="mini-btn ws-link-add" data-kind="' + kind + '" style="font-size:11px;padding:2px 9px;vertical-align:1px">＋ 关联已有</button>' : "";
+      return '<div><b style="font-size:13px">' + title + '（' + arr.length + '）</b>' + addBtn +
+        '<div style="font-size:12.5px;color:var(--ink-2);margin-top:4px">' +
+        (arr.length ? arr.map(function (r) {
+          var dead = kind && idSets[kind] && r.id && !idSets[kind][r.id];
+          return "· " + esc(r.name) + (r.date ? "（" + esc(r.date) + "）" : "") + (dead ? ' <span style="color:var(--warn)">已失效——源数据已删除/被清理</span>' : "");
+        }).join("<br>") : empty) + '</div></div>';
     };
     links.innerHTML =
-      sec("关联分析报告", lk.reports, "（激活案件后，深度分析「存入报告库」自动归集）") +
+      sec("关联分析报告", lk.reports, "（激活案件后，深度分析「存入报告库」自动归集）", "reports") +
       sec("文书草稿", lk.docs || [], "（生成文书后点「存入案件工作区」）") +
-      sec("期限与提醒", lk.deadlines, "（激活案件后，合规日历添加自动归集）") +
-      sec("关联案例", lk.cases, "（激活案件后，案例粘贴导入自动归集）") +
-      sec("关联会话", lk.sessions || [], "（激活案件后，咨询会话自动绑定，点击下方回看）");
+      sec("期限与提醒", lk.deadlines, "（激活案件后，合规日历添加自动归集）", "deadlines") +
+      sec("关联案例", lk.cases, "（激活案件后，案例粘贴导入自动归集）", "cases") +
+      sec("关联会话", lk.sessions || [], "（激活案件后，咨询会话自动绑定，点击下方回看）", "sessions");
+  }
+
+  /* ---------------- 逆向关联选择器（B5）：把存量报告/案例/会话/日历事后绑进当前案件 ---------------- */
+  function linkPicker(kind) {
+    var c = current();
+    if (!c) return;
+    var src = [];
+    if (kind === "reports") {
+      try { (JSON.parse(localStorage.getItem("legal-agent-reports") || "[]")).forEach(function (r) { src.push({ id: r.id, name: String(r.q || "（无题报告）").slice(0, 60), date: String(r.date || "").slice(0, 10) }); }); } catch (e) { }
+    } else if (kind === "cases") {
+      try { (JSON.parse(localStorage.getItem("legal-case-imports") || "[]")).forEach(function (r) { src.push({ id: r.id, name: r.title || "（无题案例）", date: "" }); }); } catch (e) { }
+    } else if (kind === "sessions") {
+      if (window.CHATHISTORY) CHATHISTORY.list(false).concat(CHATHISTORY.list(true)).forEach(function (s) { src.push({ id: s.id, name: s.title || "（无题会话）", date: "" }); });
+    } else if (kind === "deadlines") {
+      try { (JSON.parse(localStorage.getItem("legal-deadlines") || "[]")).forEach(function (r) { src.push({ id: null, name: r.name, date: r.date }); }); } catch (e) { }
+    }
+    var linked = c.links[kind === "deadlines" ? "deadlines" : kind] || [];
+    var fresh = src.filter(function (s) {
+      return !linked.some(function (x) { return s.id ? x.id === s.id : (x.name === s.name && x.date === s.date); });
+    });
+    var old = document.getElementById("ws-link-picker");
+    if (old) old.remove();
+    var modal = document.createElement("div");
+    modal.id = "ws-link-picker";
+    modal.className = "modal";
+    modal.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="width:min(520px,calc(100vw - 32px));max-height:80vh;overflow-y:auto">' +
+      '<div class="modal-title">关联已有' + (kind === "reports" ? "报告" : kind === "cases" ? "案例" : kind === "sessions" ? "会话" : "日历事项") + '</div>' +
+      '<div class="modal-body" id="ws-lp-body">' +
+      (fresh.length ? fresh.map(function (s, i) {
+        return '<button class="exp-opt ws-link-pick" data-i="' + i + '"><b>' + esc(s.name) + '</b><span>' + esc(s.date || "") + '</span></button>';
+      }).join("") : '<div class="empty" style="font-size:13px">没有可关联的项——都已关联或源数据为空。</div>') +
+      '</div><div class="modal-foot"><button id="ws-lp-close">关闭</button></div></div>';
+    document.body.appendChild(modal);
+    modal.querySelector(".modal-mask").addEventListener("click", function () { modal.remove(); });
+    modal.querySelector("#ws-lp-close").addEventListener("click", function () { modal.remove(); });
+    modal.querySelectorAll(".ws-link-pick").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var s = fresh[parseInt(b.getAttribute("data-i"), 10)];
+        if (s) attach(kind, s);
+        modal.remove();
+      });
+    });
   }
 
   function renderAll() { renderSelect(); renderBody(); }
@@ -530,15 +692,17 @@ window.WORKSPACE = (function () {
       if (tab) tab.click();
       closeModal();
     });
-    /* 执行阶段工具（方向二）：基于最近一次判决书解析生成文书/清单 */
+    /* 执行阶段工具（方向二）：优先本会话解析结果，其次案件落盘的判决信息（B2 解耦同会话依赖） */
     var execEnforce = $("ws-exec-enforce");
     if (execEnforce) execEnforce.addEventListener("click", function () {
-      if (!lastJudg) {
+      var j = lastJudg, fromSaved = false;
+      if (!j) { j = getCaseResult(); fromSaved = !!j; }
+      if (!j) {
         var out = $("ws-exec-out");
-        if (out) out.innerHTML = '<div class="tool-warn">请先在上方粘贴判决书并解析生成双时间线。</div>';
+        if (out) out.innerHTML = '<div class="tool-warn">请先在上方粘贴判决书并解析生成双时间线；解析结果会自动保存到案件，下次打开无需重新粘贴。</div>';
         return;
       }
-      docWinModal("执行申请书（自动填充）", buildEnforce(lastJudg));
+      docWinModal("执行申请书（自动填充" + (fromSaved ? "·已保存判决信息" : "") + "）", buildEnforce(j));
     });
     var execList = $("ws-exec-list");
     if (execList) execList.addEventListener("click", function () {
@@ -546,15 +710,38 @@ window.WORKSPACE = (function () {
     });
     var printBtn = $("ws-onepager");
     if (printBtn) printBtn.addEventListener("click", printOnePager);
+    /* ---- B1/B2/B4/B5 控件：事件委托挂 #ws-body，renderBody 重建 DOM 后仍生效 ---- */
+    var wsBodyEl = $("ws-body");
+    if (wsBodyEl) wsBodyEl.addEventListener("click", function (e) {
+      if (!e.target || !e.target.closest) return;
+      var stageBtn = e.target.closest(".ws-stage-set");
+      if (stageBtn) { setStage(parseInt(stageBtn.getAttribute("data-stage"), 10)); renderBody(); return; }
+      var spentDel = e.target.closest("[data-ws-spent-del]");
+      if (spentDel) { removeSpent(parseInt(spentDel.getAttribute("data-ws-spent-del"), 10)); renderBody(); return; }
+      if (e.target.closest("[data-ws-result-clear]")) { clearCaseResult(); renderBody(); return; }
+      var linkAdd = e.target.closest(".ws-link-add");
+      if (linkAdd) { linkPicker(linkAdd.getAttribute("data-kind")); return; }
+      if (e.target.closest("#ws-spent-add")) {
+        var nameEl = $("ws-spent-name"), amtEl = $("ws-spent-amt");
+        var v = amtEl ? parseFloat(amtEl.value) : NaN;
+        if (!nameEl || !nameEl.value.trim() || !isFinite(v) || v <= 0) return;
+        addSpent(nameEl.value.trim(), v);
+        renderBody();
+        if (window.TOOLS && TOOLS.haptic) TOOLS.haptic(10);
+      }
+    });
   }
 
   return {
     list: list, current: current, currentId: currentId,
     create: create, rename: rename, remove: remove, setCurrent: setCurrent,
     attach: attach, purgeReports: purgeReports, addNote: addNote, toggleNote: toggleNote, removeNote: removeNote,
+    /* B1/B2/B4：阶段/判决落盘/台账 */
+    setStage: setStage, STAGES: STAGES, setCaseResult: setCaseResult, getCaseResult: getCaseResult, clearCaseResult: clearCaseResult,
+    setClaimTotal: setClaimTotal, addSpent: addSpent, removeSpent: removeSpent,
     toMarkdown: toMarkdown, init: init, openModal: openModal,
     buildEnforce: buildEnforce, PROPERTY_LIST: PROPERTY_LIST,   /* 评测与验证用 */
     /* 测试钩子（不进 UI，无副作用）：test.js 日期管线回归用（同 claims.collectForTest 先例） */
-    _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates, buildEnforce: buildEnforce }
+    _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates, buildEnforce: buildEnforce, getStage: getStage }
   };
 })();

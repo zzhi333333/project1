@@ -314,19 +314,54 @@
       return;
     }
     box.innerHTML = list.map(function (it, i) {
+      var done = !!it.done;
       var left = Math.ceil((new Date(it.date + "T00:00:00").getTime() - today.getTime()) / 86400000);
-      var status = left < 0 ? '<span style="color:var(--danger)">已过期 ' + (-left) + ' 天</span>'
+      var status = done ? '<span style="color:var(--ok)">✓ 已完成</span>'
+        : left < 0 ? '<span style="color:var(--danger)">已过期 ' + (-left) + ' 天</span>'
         : left <= 7 ? '<span style="color:var(--danger)">仅剩 ' + left + ' 天</span>'
-        : left <= 30 ? '<span style="color:#b45309">' + left + ' 天</span>'
+        : left <= 30 ? '<span style="color:var(--warn)">' + left + ' 天</span>'
         : '<span>' + left + ' 天</span>';
-      return '<div class="cal-item"><div class="cal-name">' + esc(it.name) + '</div>' +
+      return '<div class="cal-item' + (done ? " is-done" : "") + '"><div class="cal-name">' + esc(it.name) + '</div>' +
         '<div class="cal-meta">' + it.date + ' · ' + status + '</div>' +
+        '<div style="position:absolute;right:32px;top:50%;transform:translateY(-50%);display:flex;gap:2px">' +
+        '<button class="cal-done" data-i="' + i + '" title="' + (done ? "恢复为未完成" : "标记完成") + '">' + (done ? "↺" : "✓") + '</button>' +
+        (done ? "" : '<button class="cal-snooze" data-i="' + i + '" data-days="7" title="顺延 7 天">+7</button>' +
+          '<button class="cal-snooze" data-i="' + i + '" data-days="30" title="顺延 30 天">+30</button>') +
+        '</div>' +
         '<button class="cal-del" data-i="' + i + '" title="删除">✕</button></div>';
     }).join("");
     box.querySelectorAll(".cal-del").forEach(function (b) {
       b.addEventListener("click", function () {
         var list2 = calLoad();
         list2.splice(parseInt(b.getAttribute("data-i"), 10), 1);
+        calSave(list2);
+        calRender();
+      });
+    });
+    /* 完成/恢复：期限闭环的最小动作——到期事项不再永久挂在「仅剩 N 天」 */
+    box.querySelectorAll(".cal-done").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var list2 = calLoad();
+        var it = list2[parseInt(b.getAttribute("data-i"), 10)];
+        if (!it) return;
+        it.done = !it.done;
+        if (it.done) it.doneAt = new Date().toISOString(); else delete it.doneAt;
+        calSave(list2);
+        calRender();
+        haptic(10);
+      });
+    });
+    /* 顺延：日期整体后移 N 天（实际送达/履行日以官方文书为准，可再手动调整） */
+    box.querySelectorAll(".cal-snooze").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var list2 = calLoad();
+        var it = list2[parseInt(b.getAttribute("data-i"), 10)];
+        var days = parseInt(b.getAttribute("data-days"), 10);
+        if (!it || !isFinite(days)) return;
+        var d = new Date(it.date + "T00:00:00");
+        if (isNaN(d.getTime())) return;
+        d.setDate(d.getDate() + days);
+        it.date = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
         calSave(list2);
         calRender();
       });
