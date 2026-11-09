@@ -210,7 +210,15 @@ window.CONTRACT = (function () {
         box.appendChild(row);
       }
     }).catch(function (e) {
-      box.innerHTML = '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + (e && e.message || e) + "</div>";
+      var msg = (e && e.message || String(e));
+      if (/abort/i.test(msg)) { box.innerHTML = '<div class="tool-warn">已停止生成。</div>'; return; }
+      box.innerHTML = '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + msg + '</div>';
+      var rbtn = document.createElement("button");
+      rbtn.className = "mini-btn";
+      rbtn.style.marginTop = "8px";
+      rbtn.textContent = "🔄 重试";
+      rbtn.addEventListener("click", function () { aiReview(text, type); });
+      box.appendChild(rbtn);
     });
   }
 

@@ -340,6 +340,10 @@ window.ONLINE = (function () {
       }
       caseBtn.addEventListener("click", doCase);
       caseInput.addEventListener("keydown", function (e) { if (e.key === "Enter") doCase(); });
+      /* C2c：精读页签内的独立搜索框——此前 renderGuiding 只被在线页签的 case-input 触发，
+         切到精读页签后输入框随 online 块隐藏，26+ 条精读案例在页签内无法搜索 */
+      var gsInput = document.getElementById("guiding-search");
+      if (gsInput) gsInput.addEventListener("input", function () { renderGuiding(gsInput.value); });
       renderOfficialSources();
       renderGuiding("");
     });

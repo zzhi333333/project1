@@ -4,7 +4,7 @@
 (function () {
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-  /* ---------- 视图切换 ---------- */
+  /* ---------- 视图切换（C5：hash 路由——刷新保持页签、可分享定位） ---------- */
   var views = ["consult", "agent", "contract", "laws", "tools", "cases", "faq"];
   function switchView(name) {
     views.forEach(function (v) {
@@ -15,11 +15,20 @@
       t.classList.toggle("active", t.getAttribute("data-view") === name);
     });
     window.scrollTo(0, 0);
+    try { if (("#" + name) !== location.hash) history.replaceState(null, "", "#" + name); } catch (e) { }
   }
   window.APP = { switchView: switchView };
   document.querySelectorAll(".nav-tab").forEach(function (t) {
     t.addEventListener("click", function () { switchView(t.getAttribute("data-view")); });
   });
+  /* 启动时按 hash 恢复页签（file:// 与 WebView 均安全，非法值回退咨询页） */
+  (function () {
+    var h = (location.hash || "").replace("#", "");
+    if (views.indexOf(h) > -1 && h !== "consult") {
+      var t = document.querySelector('.nav-tab[data-view="' + h + '"]');
+      if (t) t.click();
+    }
+  })();
 
   /* ---------- 聊天 UI（供 consult.js / ai.js 调用） ---------- */
   var box = document.getElementById("chat-box");
@@ -561,10 +570,13 @@
     var listEl = document.getElementById("session-list");
     if (!listEl) return;
     var cur = window.CHATHISTORY.current();
-    var items = window.CHATHISTORY.list(sessionView === "archived");
+    var q = (window.__sessionQuery || "").trim().toLowerCase();
+    var items = window.CHATHISTORY.list(sessionView === "archived").filter(function (s) {
+      return !q || String(s.title || "").toLowerCase().indexOf(q) > -1;
+    });
     listEl.innerHTML = "";
     if (!items.length) {
-      listEl.innerHTML = '<div class="session-empty">' + (sessionView === "archived" ? "暂无归档对话" : "暂无历史对话") + '</div>';
+      listEl.innerHTML = '<div class="session-empty">' + (q ? "无匹配会话" : (sessionView === "archived" ? "暂无归档对话" : "暂无历史对话")) + '</div>';
       return;
     }
     items.forEach(function (s) {
@@ -602,6 +614,12 @@
     closeSessionMenus();
     window.renderSessionList();
   }
+  /* 会话标题搜索（C2a）：几十个会话不再只能肉眼扫 */
+  var sSearch = document.getElementById("session-search");
+  if (sSearch) sSearch.addEventListener("input", function () {
+    window.__sessionQuery = sSearch.value;
+    window.renderSessionList();
+  });
   if (tabMain) tabMain.addEventListener("click", function () { setSessionView("main"); });
   if (tabArc) tabArc.addEventListener("click", function () { setSessionView("archived"); });
 
@@ -652,28 +670,76 @@
     });
   });
 
-  /* ---------- 知识讲堂 FAQ ---------- */
+  /* ---------- 知识讲堂 FAQ（C2b：搜索 + 领域 chips + 超长答案展开全文） ---------- */
   var faqBox = document.getElementById("faq-list");
   if (faqBox) {
-    window.DomainRegistry.ids().forEach(function (dom) {
-      var faqs = window.FAQ.filter(function (f) { return f.domain === dom; });
-      if (!faqs.length) return;
-      var d = window.DOMAINS[dom];
-      var group = document.createElement("div");
-      group.className = "faq-group";
-      group.innerHTML = '<div class="faq-group-title" style="color:' + d.color + '">' + window.DomainRegistry.iconSvg(d.id) + ' ' + d.name + '</div>';
-      faqs.forEach(function (f) {
-        var item = document.createElement("div");
-        item.className = "faq-item";
-        item.innerHTML = '<div class="faq-q">' + esc(f.q) + '<span class="faq-toggle">展开</span></div><div class="faq-a">' + f.a + '</div>';
-        item.querySelector(".faq-q").addEventListener("click", function () {
-          var open = item.classList.toggle("open");
-          item.querySelector(".faq-toggle").textContent = open ? "收起" : "展开";
-        });
-        group.appendChild(item);
+    var faqQuery = "", faqDomain = "";
+    /* 展开态的答案超过 1200px 时被 CSS 静默裁剪——检测后补「展开全文」按钮 */
+    function maybeExpand(item) {
+      var a = item.querySelector(".faq-a");
+      if (!a || a.dataset.expanded || a.scrollHeight <= 1150) return;
+      var b = document.createElement("button");
+      b.className = "mini-btn";
+      b.style.margin = "6px 0 12px";
+      b.textContent = "展开全文（答案较长，默认截断显示）";
+      b.addEventListener("click", function () {
+        a.style.maxHeight = "none";
+        a.dataset.expanded = "1";
+        b.remove();
       });
-      faqBox.appendChild(group);
-    });
+      a.appendChild(b);
+    }
+    function renderFaq() {
+      faqBox.innerHTML = "";
+      var q = faqQuery.trim().toLowerCase();
+      var any = false;
+      window.DomainRegistry.ids().forEach(function (dom) {
+        if (faqDomain && dom !== faqDomain) return;
+        var faqs = window.FAQ.filter(function (f) {
+          if (f.domain !== dom) return false;
+          if (!q) return true;
+          return (String(f.q) + " " + String(f.a) + " " + (f.tags || []).join(" ")).toLowerCase().indexOf(q) > -1;
+        });
+        if (!faqs.length) return;
+        any = true;
+        var d = window.DOMAINS[dom];
+        var group = document.createElement("div");
+        group.className = "faq-group";
+        group.innerHTML = '<div class="faq-group-title" style="color:' + d.color + '">' + window.DomainRegistry.iconSvg(d.id) + ' ' + d.name + '</div>';
+        faqs.forEach(function (f) {
+          var item = document.createElement("div");
+          item.className = "faq-item";
+          item.innerHTML = '<div class="faq-q">' + esc(f.q) + '<span class="faq-toggle">展开</span></div><div class="faq-a">' + f.a + '</div>';
+          item.querySelector(".faq-q").addEventListener("click", function () {
+            var open = item.classList.toggle("open");
+            item.querySelector(".faq-toggle").textContent = open ? "收起" : "展开";
+            if (open) maybeExpand(item);
+          });
+          group.appendChild(item);
+        });
+        faqBox.appendChild(group);
+      });
+      if (!any) faqBox.innerHTML = '<div class="empty">没有匹配的问答——换个关键词，或清除筛选试试。</div>';
+    }
+    var chipsBox = document.getElementById("faq-chips");
+    if (chipsBox) {
+      chipsBox.innerHTML = ['<button class="filter-chip active" data-dom="">全部</button>'].concat(
+        window.DomainRegistry.ids().map(function (dom) {
+          var d = window.DOMAINS[dom];
+          return d ? '<button class="filter-chip" data-dom="' + dom + '">' + esc(d.name) + '</button>' : "";
+        })
+      ).join("");
+      chipsBox.addEventListener("click", function (e) {
+        var b = e.target.closest ? e.target.closest(".filter-chip") : null;
+        if (!b) return;
+        chipsBox.querySelectorAll(".filter-chip").forEach(function (x) { x.classList.toggle("active", x === b); });
+        faqDomain = b.getAttribute("data-dom") || "";
+        renderFaq();
+      });
+    }
+    var fq = document.getElementById("faq-search");
+    if (fq) fq.addEventListener("input", function () { faqQuery = fq.value; renderFaq(); });
+    renderFaq();
   }
 
   /* ---------- 启动：恢复当前会话或开新会话 ---------- */

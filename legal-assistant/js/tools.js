@@ -332,10 +332,17 @@
     }).join("");
     box.querySelectorAll(".cal-del").forEach(function (b) {
       b.addEventListener("click", function () {
+        var idx = parseInt(b.getAttribute("data-i"), 10);
         var list2 = calLoad();
-        list2.splice(parseInt(b.getAttribute("data-i"), 10), 1);
-        calSave(list2);
-        calRender();
+        var it = list2[idx];
+        var doDel = function () {
+          var list3 = calLoad();
+          if (list3[idx] && it && list3[idx].name === it.name && list3[idx].date === it.date) list3.splice(idx, 1);
+          calSave(list3);
+          calRender();
+        };
+        if (window.UIKIT && UIKIT.confirmModal) UIKIT.confirmModal("删除日历事项", "「" + (it ? it.name : "") + "」将从本机日历删除；已归集进案件工作区的记录不受影响。", "删除").then(function (ok) { if (ok) doDel(); });
+        else doDel();
       });
     });
     /* 完成/恢复：期限闭环的最小动作——到期事项不再永久挂在「仅剩 N 天」 */

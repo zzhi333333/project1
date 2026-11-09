@@ -101,6 +101,10 @@ window.AI = (function () {
     s = s.replace(/\b\d{6}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/g, "【身份证号已脱敏】");
     /* 手机号（前后非数字，兼容旧 WebView 不用 lookbehind） */
     s = s.replace(/(^|[^0-9])(1[3-9]\d{9})(?=[^0-9]|$)/g, "$1【手机号已脱敏】");
+    /* 银行卡号 13-19 位（前后非数字；身份证已先行替换不会误伤） */
+    s = s.replace(/(^|[^0-9])(\d{13,19})(?=[^0-9]|$)/g, "$1【银行卡号已脱敏】");
+    /* 电子邮箱 */
+    s = s.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "【邮箱已脱敏】");
     return s;
   }
   function maybePreview(messages) {
@@ -187,37 +191,139 @@ window.AI = (function () {
       });
     });
 
+    /* ---- 请求健康度（C1）：连接/流式 90 秒无进展自动中断（此前直连挂死永久转圈）----
+       AbortController 与停止按钮共享；超时置 timedOut 标志，catch 里翻译成人话 */
+    var timedOut = false, toId = null;
+    function armTimeout() {
+      clearTimeout(toId);
+      toId = setTimeout(function () { timedOut = true; try { ctrl.abort(); } catch (e) { } }, 90000);
+    }
+    function disarm() { clearTimeout(toId); }
+    function statusHint(status, body) {
+      if (status === 401 || status === 403) return "API Key 无效或无权限——请点右上角「AI 模型」核对密钥（注意首尾空格）。";
+      if (status === 402) return "账户余额不足——请到服务商控制台充值，或改用免费模型（如智谱 glm-4-flash）。";
+      if (status === 404) return "模型名或接口地址不存在——请核对模型名称拼写与 Base URL。";
+      if (status === 429) return "请求过于频繁（限流）——稍等十几秒再点重试，或检查服务商并发限制。";
+      if (status === 400) {
+        if (/context|token|length|maximum/i.test(body || "")) return "本次内容超出模型上下文长度——新开会话、减少粘贴篇幅，或换更大上下文的模型。";
+        return "请求被拒绝（400）——多为模型名错误或参数不支持，请核对设置。";
+      }
+      if (status >= 500) return "模型服务端暂时故障（" + status + "）——稍后重试即可。";
+      return "";
+    }
     function post(url, b) {
+      armTimeout();
       return fetch(url, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(b), signal: ctrl.signal
       }).then(function (r) {
-        if (!r.ok) return r.text().then(function (t) {
-          throw new Error("上游返回 " + r.status + "：" + t.slice(0, 300));
-        });
-        return readStream(r, emit);
-      });
+        if (!r.ok) { disarm(); return r.text().then(function (t) {
+          var hint = statusHint(r.status, t);
+          throw new Error(hint || ("上游返回 " + r.status + "：" + t.slice(0, 300)));
+        }); }
+        return readStream(r, function (d) { armTimeout(); emit(d); }).then(disarm, function (e) { disarm(); throw e; });
+      }, function (e) { disarm(); throw e; });
     }
     function postDirect(cfg, b) {
+      armTimeout();
       return fetch(cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.apiKey },
         body: JSON.stringify({ model: cfg.model, messages: b.messages, temperature: b.temperature, stream: true }),
         signal: ctrl.signal
       }).then(function (r) {
-        if (!r.ok) return r.text().then(function (t) {
-          throw new Error("直连返回 " + r.status + "：" + t.slice(0, 300));
-        });
-        return readStream(r, emit);
-      });
+        if (!r.ok) { disarm(); return r.text().then(function (t) {
+          var hint = statusHint(r.status, t);
+          throw new Error(hint || ("直连返回 " + r.status + "：" + t.slice(0, 300)));
+        }); }
+        return readStream(r, function (d) { armTimeout(); emit(d); }).then(disarm, function (e) { disarm(); throw e; });
+      }, function (e) { disarm(); throw e; });
     }
     function friendly(e1, e2) {
       var a = String(e1 && e1.message || e1), b2 = String(e2 && e2.message || e2);
+      if (timedOut) return "连接超时：模型 90 秒无响应或传输中断——请检查网络后重试。";
       if (/Failed to fetch|NetworkError|TypeError/i.test(b2)) {
         return "无法连接模型接口：本地代理未启动且浏览器直连被跨域策略拦截。\n解决：①在项目目录运行 node server.js（或 python server.py）后重试；或 ②改用支持浏览器直连的服务商（如智谱 GLM）。\n（代理诊断：" + a + "）";
       }
       return e2 && e2.message ? b2 : a;
     }
+  }
+
+  /* ---------------- 轻量 Markdown 渲染（C4）----------------
+     AI 回答完成时渲染：**粗体** / 行内代码 / # 小标题 / - 列表 / 1. 有序列表 / > 引用。
+     esc-then-transform：先整体转义再按白名单结构重建，绝不引入原生 HTML；流式阶段保持纯文本性能。 */
+  function mdLite(src) {
+    var lines = String(src == null ? "" : src).split(/\r?\n/);
+    var out = [], inUl = false, inOl = false;
+    function inline(s) {
+      s = esc(s);
+      s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+      s = s.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+      return s;
+    }
+    function closeLists() {
+      if (inUl) { out.push("</ul>"); inUl = false; }
+      if (inOl) { out.push("</ol>"); inOl = false; }
+    }
+    lines.forEach(function (ln) {
+      var t = ln.trim();
+      if (!t) { closeLists(); return; }
+      var hm = t.match(/^#{1,4}\s+(.*)$/);
+      if (hm) { closeLists(); out.push("<div style=\"font-weight:700;margin:10px 0 4px\">" + inline(hm[1]) + "</div>"); return; }
+      if (/^[-*]\s+/.test(t)) {
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        if (!inUl) { out.push("<ul>"); inUl = true; }
+        out.push("<li>" + inline(t.replace(/^[-*]\s+/, "")) + "</li>");
+        return;
+      }
+      var om = t.match(/^\d{1,3}[.、]\s+(.*)$/);
+      if (om) {
+        closeLists();
+        if (!inOl) { out.push("<ol>"); inOl = true; }
+        out.push("<li>" + inline(om[1]) + "</li>");
+        return;
+      }
+      if (/^>\s?/.test(t)) {
+        closeLists();
+        out.push("<div style=\"border-left:3px solid var(--primary-border);padding-left:10px;color:var(--ink-2);margin:6px 0\">" + inline(t.replace(/^>\s?/, "")) + "</div>");
+        return;
+      }
+      closeLists();
+      out.push("<div style=\"margin:4px 0\">" + inline(t) + "</div>");
+    });
+    closeLists();
+    return out.join("");
+  }
+  /* 完成时的 Markdown 版 finishBubble：先走原 finishBubble（光标/停止按钮清理），再替换为渲染 HTML */
+  function finishMd(div, full) {
+    finishBubble(div, full);
+    var b = div.querySelector(".bubble");
+    if (b) b.innerHTML = mdLite(full);
+  }
+
+  /* ---------------- 统一失败呈现（C1）----------------
+     保留已流出的半截内容（标注未核验）+ 人话错误条 + 一键重试——此前仅 aiConsult 有重试，
+     其余入口失败要重走整个入口操作；流中断时半截内容被错误条整体覆盖丢弃。 */
+  function keepPartialOnError(div, full, msg, retryFn) {
+    var bubble = div.querySelector(".bubble");
+    if (full && bubble) {
+      finishBubble(div, full + "\n\n—— 以上为中断前已生成内容（未经核验）");
+      bubble = div.querySelector(".bubble");
+    } else {
+      finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + esc(msg));
+    }
+    if (!bubble) return;
+    var err = document.createElement("div");
+    err.className = "tool-warn";
+    err.style.marginTop = "8px";
+    err.innerHTML = "<svg class=ico><use href=#i-warn></use></svg> " + esc(msg);
+    bubble.appendChild(err);
+    var rbtn = document.createElement("button");
+    rbtn.className = "mini-btn";
+    rbtn.style.margin = "8px 8px 0 0";
+    rbtn.textContent = "🔄 重试";
+    rbtn.addEventListener("click", function () { div.remove(); retryFn(); });
+    bubble.appendChild(rbtn);
   }
 
   /* ---------------- 系统提示词与上下文 ---------------- */
@@ -359,8 +465,9 @@ window.AI = (function () {
   }
   function setText(div, text) {
     div.querySelector(".ai-text").textContent = text;
+    /* 滚动跟随（C5）：仅当用户本来就在底部附近才拽底——上翻查看历史不再被反复拉回 */
     var box = document.getElementById("chat-box");
-    box.scrollTop = box.scrollHeight;
+    if (box.scrollHeight - box.scrollTop - box.clientHeight < 80) box.scrollTop = box.scrollHeight;
   }
   /* 输出语言指令（设置：auto 跟随提问 / zh / en / bi 中英对照） */
   function langPrompt() {
@@ -426,7 +533,7 @@ window.AI = (function () {
       /* 解析 AI 推荐追问行：从正文剥离，问题贴合本次回答 */
       var fl = parseAiFollowupLine(full);
       if (fl) full = fl.cleaned;
-      finishBubble(div, full);
+      finishMd(div, full);
       if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
       if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       addCopyButton(div, full);
@@ -435,14 +542,12 @@ window.AI = (function () {
       if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onAssistantDone(); else appendFollowUps(div, dId, fl ? fl.questions : null, full);
     }).catch(function (e) {
       var msg = (e && e.message || String(e));
-      if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
-      finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
-      var rbtn = document.createElement("button");
-      rbtn.className = "mini-btn";
-      rbtn.style.marginTop = "8px";
-      rbtn.textContent = "🔄 重试";
-      rbtn.addEventListener("click", function () { div.remove(); aiConsult(text); });
-      div.querySelector(".bubble").appendChild(rbtn);
+      if (/abort/i.test(msg)) {
+        /* 手动停止：保留半截内容并标注未核验（此前整条丢弃） */
+        finishBubble(div, full ? full + "\n\n⏹ 以上为停止前的未核验内容" : "（已停止生成）");
+        return;
+      }
+      keepPartialOnError(div, full, msg, function () { aiConsult(text); });
     });
   }
 
@@ -468,14 +573,14 @@ window.AI = (function () {
     var full = "";
     aiChat(messages, function (delta) { full += delta; setText(div, full); })
       .then(function () {
-        finishBubble(div, full || "（模型未返回内容。）");
+        if (full) finishMd(div, full); else finishBubble(div, "（模型未返回内容。）");
         if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, content);
         if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
       })
       .catch(function (e) {
         var msg = (e && e.message || String(e));
-        if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
-        finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
+        if (/abort/i.test(msg)) { finishBubble(div, full ? full + "\n\n⏹ 以上为停止前的未核验内容" : "（已停止生成）"); return; }
+        keepPartialOnError(div, full, msg, function () { aiDeepResult(rid); });
       });
   }
   /* 集成③（案情分析 AI 深度分析）已并入「深度分析」页 AI 模式，见 agent.js */
@@ -498,7 +603,7 @@ window.AI = (function () {
     var full = "";
     aiChat(messages, function (d) { full += d; setText(div, full); })
       .then(function () {
-        finishBubble(div, full || "（模型未返回内容。）");
+        if (full) finishMd(div, full); else finishBubble(div, "（模型未返回内容。）");
         if (window.AGENT) window.AGENT.attachVerification(div.querySelector(".bubble"), full, ctx);
         if (window.CHATHISTORY) window.CHATHISTORY.record({ who: "ai", html: div.querySelector(".bubble").innerHTML, text: full });
         addCopyButton(div, full);
@@ -507,8 +612,8 @@ window.AI = (function () {
       })
       .catch(function (e) {
         var msg = (e && e.message || String(e));
-        if (/abort/i.test(msg)) { finishBubble(div, "（已停止生成）"); return; }
-        finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + msg);
+        if (/abort/i.test(msg)) { finishBubble(div, full ? full + "\n\n⏹ 以上为停止前的未核验内容" : "（已停止生成）"); return; }
+        keepPartialOnError(div, full, msg, function () { aiFollowUp(rid, question); });
       });
   }
 
@@ -757,7 +862,7 @@ window.AI = (function () {
     a.download = "legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json";
     a.click();
     URL.revokeObjectURL(a.href);
-    setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出到下载目录", "ok");
+    setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出（不含 API Key，换设备需重新填写；文件含明文案情，请妥善保管）", "ok");
   }
   /* 反馈清单导出（维护者评测闭环）：记录结构 {scene, domain, verdict: like|bad, comment, time}；差评优先，md 便于筛选进金问题 */
   function exportFeedback() {
@@ -835,6 +940,7 @@ window.AI = (function () {
     exportData: exportData, importData: importData, buildBackup: buildBackup, restoreBackup: restoreBackup, redactPII: redactPII,
     systemPromptText: function () { return SYSTEM_PROMPT; },
     parseFollowupLine: parseAiFollowupLine,   /* 评测集只读访问 */
+    mdLite: mdLite,                           /* 评测集只读访问（C4 白名单渲染回归） */
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

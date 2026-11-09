@@ -118,6 +118,7 @@
         <button id="new-chat" class="new-chat-btn">＋ 新对话</button>
         <div class="session-tabs">
           <button id="session-tab-main" class="filter-chip active">历史</button>
+          <input id="session-search" type="text" placeholder="搜索会话标题…" style="flex:1;min-width:0;padding:4px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:var(--bg);color:var(--ink)">
           <button id="session-tab-archived" class="filter-chip">归档</button>
         </div>
         <div id="session-list" class="session-list"></div>
@@ -497,6 +498,7 @@
     </div>
 
     <div id="case-block-guiding" class="hidden">
+      <input id="guiding-search" type="text" placeholder="搜索指导性案例关键词，如：劳动关系 / 侵权 / 商标…" style="width:100%;box-sizing:border-box;padding:9px 13px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;margin-bottom:10px;background:var(--card);color:var(--ink)">
       <div id="guiding-list" class="case-results"></div>
     </div>
 
@@ -511,6 +513,10 @@
       <h2>知识讲堂</h2>
       <p>三大领域高频问题一页读懂，点击展开</p>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <input id="faq-search" type="text" placeholder="搜索问答关键词，如：2N / 冷静期 / 押金 / 撤三…" style="flex:1;min-width:200px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;background:var(--card);color:var(--ink)">
+    </div>
+    <div id="faq-chips" class="filter-chips"></div>
     <div id="faq-list" class="faq-list"></div>
   </section>
 
@@ -810,6 +816,7 @@
 <script src="js/templates.js"></script>
 <script src="js/gsearch.js"></script>
 <script src="js/fold.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 <script>
 /* 主题切换：默认跟随系统，手动选择存 localStorage 覆盖 */

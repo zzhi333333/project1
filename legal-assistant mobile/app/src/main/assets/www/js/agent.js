@@ -535,9 +535,14 @@ window.AGENT = (function () {
       });
       card.querySelector(".rep-export").addEventListener("click", function () { exportReportHtml(r); });
       card.querySelector(".rep-del").addEventListener("click", function () {
-        saveReports(loadReports().filter(function (x) { return x.id !== r.id; }));
-        modal.remove();
-        openReportArchive();
+        var doDel = function () {
+          saveReports(loadReports().filter(function (x) { return x.id !== r.id; }));
+          if (window.WORKSPACE && WORKSPACE.purgeReports) WORKSPACE.purgeReports([r.id]);   /* 删除同步解除工作区关联 */
+          modal.remove();
+          openReportArchive();
+        };
+        if (window.UIKIT && UIKIT.confirmModal) UIKIT.confirmModal("删除报告存档", "删除后不可恢复（不影响案件工作区中的关联条目，仅标记失效）。", "删除").then(function (ok) { if (ok) doDel(); });
+        else doDel();
       });
     });
   }

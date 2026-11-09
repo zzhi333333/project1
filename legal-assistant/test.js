@@ -765,6 +765,24 @@ T("工作区 v3：金额三线台账 claimTotal/支出记账（B4）", function 
   WORKSPACE.removeSpent(0);   /* unshift 语义：后添加的在 index 0，删掉的是「保全费」 */
   if (WORKSPACE.current().ledger.spent.length !== 1 || WORKSPACE.current().ledger.spent[0].name !== "诉讼费") throw new Error("删除支出失败");
 });
+T("AI mdLite：白名单渲染与 XSS 转义（C4）", function () {
+  const md = sandbox.window.AI.mdLite;
+  const html = md("**结论**：支持。\n\n- 要点一\n- 要点二\n\n1. 第一步\n2. 第二步\n\n### 小标题\n> 引用原文");
+  if (html.indexOf("<b>结论</b>") === -1) throw new Error("粗体未渲染");
+  if ((html.match(/<li>/g) || []).length !== 4) throw new Error("列表项数异常：" + html);
+  if (html.indexOf("小标题</div>") === -1 || html.indexOf("<h") > -1) throw new Error("标题应为 div 白名单结构");
+  if (html.indexOf("<ul>") === -1 || html.indexOf("<ol>") === -1) throw new Error("无序/有序列表缺失");
+  const xss = md("**a** <img src=x onerror=alert(1)> `code`");
+  if (xss.indexOf("<img") !== -1 || xss.indexOf("onerror") === -1 || xss.indexOf("&lt;img") === -1) throw new Error("HTML 未被转义");
+  if (xss.indexOf("<code>code</code>") === -1) throw new Error("行内代码未渲染");
+});
+T("AI redactPII：银行卡与邮箱扩充（C5）", function () {
+  const r = sandbox.window.AI.redactPII("卡号6222020200112233445，邮箱 a.b@test.cn，身份证11010519491231002X");
+  if (r.indexOf("622202") !== -1) throw new Error("银行卡号未脱敏：" + r);
+  if (r.indexOf("a.b@test.cn") !== -1) throw new Error("邮箱未脱敏：" + r);
+  if (r.indexOf("11010519491231002X") !== -1) throw new Error("身份证未脱敏：" + r);
+  if (r.indexOf("【银行卡号已脱敏】") === -1 || r.indexOf("【邮箱已脱敏】") === -1) throw new Error("脱敏占位符缺失");
+});
 
 T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {
   AI.settings().apiKey = "sk-v3-test";

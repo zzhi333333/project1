@@ -492,6 +492,7 @@
         </div>
 
         <div id="case-block-guiding" class="hidden">
+          <input id="guiding-search" type="text" placeholder="搜索指导性案例关键词…" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--line);border-radius:12px;font-size:15px;margin-bottom:10px;background:var(--card);color:var(--ink)">
           <div id="guiding-list" class="case-results"></div>
         </div>
 
@@ -508,6 +509,8 @@
           <h2>知识讲堂</h2>
           <p>高频问题一页读懂，点击展开</p>
         </div>
+        <input id="faq-search" type="text" placeholder="搜索问答关键词，如：2N / 冷静期 / 押金…" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--line);border-radius:12px;font-size:15px;margin-bottom:10px;background:var(--card);color:var(--ink)">
+        <div id="faq-chips" class="filter-chips"></div>
         <div id="faq-list" class="faq-list"></div>
         <div class="m-disclaimer">
           <b><svg class="ico"><use href="#i-warn"/></svg> 免责声明</b>
@@ -560,6 +563,7 @@
     <div class="session-tabs">
       <button id="session-tab-main" class="filter-chip active">历史</button>
       <button id="session-tab-archived" class="filter-chip">归档</button>
+      <input id="session-search" type="text" placeholder="搜索会话标题…" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--bg);color:var(--ink)">
     </div>
   </div>
   <div class="drawer-scroll">
@@ -859,6 +863,7 @@
 <script src="js/templates.js"></script>
 <script src="js/gsearch.js"></script>
 <script src="js/fold.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 <script src="js/mobile.js"></script>
 </body>
