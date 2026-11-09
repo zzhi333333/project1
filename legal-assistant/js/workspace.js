@@ -70,12 +70,32 @@ window.WORKSPACE = (function () {
       if (!arr) return false;
       var dup = arr.some(function (x) { return (ref.id && x.id === ref.id) || (!ref.id && x.name === ref.name && x.date === ref.date); });
       if (dup) return true;
-      arr.unshift({ id: ref.id || null, name: String(ref.name || "").slice(0, 60), date: ref.date || null, at: new Date().toISOString() });
+      var item = { id: ref.id || null, name: String(ref.name || "").slice(0, 60), date: ref.date || null, at: new Date().toISOString() };
+      /* 文书草稿正文（claims/main.js/contract 传入；此前被丢弃导致草稿只有标题无内容） */
+      if (ref.draft) item.draft = String(ref.draft).slice(0, 4000);
+      arr.unshift(item);
       if (arr.length > 50) arr.length = 50;
       return true;
     }) === true;
     if (ok) renderBody();   /* 弹层开着时即时刷新归集区 */
     return ok;
+  }
+
+  /* 反向清理：报告被删除/超上限截断时，解除所有案件 links.reports 中的悬空引用 */
+  function purgeReports(ids) {
+    if (!ids || !ids.length) return false;
+    var set = {};
+    ids.forEach(function (id) { if (id) set[id] = 1; });
+    var d = load();
+    var touched = false;
+    d.list.forEach(function (c) {
+      if (!c.links || !c.links.reports) return;
+      var before = c.links.reports.length;
+      c.links.reports = c.links.reports.filter(function (x) { return !x.id || !set[x.id]; });
+      if (c.links.reports.length !== before) touched = true;
+    });
+    if (touched) { save(d); renderBody(); }
+    return touched;
   }
 
   /* 待确认事项 */
@@ -531,7 +551,7 @@ window.WORKSPACE = (function () {
   return {
     list: list, current: current, currentId: currentId,
     create: create, rename: rename, remove: remove, setCurrent: setCurrent,
-    attach: attach, addNote: addNote, toggleNote: toggleNote, removeNote: removeNote,
+    attach: attach, purgeReports: purgeReports, addNote: addNote, toggleNote: toggleNote, removeNote: removeNote,
     toMarkdown: toMarkdown, init: init, openModal: openModal,
     buildEnforce: buildEnforce, PROPERTY_LIST: PROPERTY_LIST,   /* 评测与验证用 */
     /* 测试钩子（不进 UI，无副作用）：test.js 日期管线回归用（同 claims.collectForTest 先例） */

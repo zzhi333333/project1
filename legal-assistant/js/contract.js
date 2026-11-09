@@ -121,6 +121,25 @@ window.CONTRACT = (function () {
 
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
+  /* ---------------- 存入案件工作区（文书草稿） ----------------
+     此前审查结果只能页内看、刷新即丢（FEATURES 曾宣称自动归集但未实现）。
+     草稿正文存 wsDrafts 按下标引用，避免长文塞进 DOM 属性。 */
+  var wsDrafts = [];
+  function ruleToText(res) {
+    return "合同审查报告（" + res.name + " · 规则引擎 · 离线）\n生成：" + new Date().toLocaleString("zh-CN") +
+      "\n\n【已包含条款】\n" + (res.found.join("、") || "未识别到") +
+      "\n\n【疑似缺失条款】\n" + (res.missing.join("、") || "无") +
+      "\n\n【高危语句】\n" + (res.risks.map(function (r) { return "「" + r.snippet + "」— " + r.warn; }).join("\n") || "未命中已知模式") +
+      "\n\n—— 规则核对基于关键词与已知模式，仅供参考，不构成法律意见。";
+  }
+  function wsSaveBtnHtml(name, draft) {
+    var has = !!(window.WORKSPACE && WORKSPACE.current && WORKSPACE.current());
+    var key = String(wsDrafts.length);
+    wsDrafts.push({ name: String(name).slice(0, 60), draft: String(draft || "").slice(0, 4000) });
+    return '<button class="mini-btn ws-save-btn" data-ws-key="' + key + '"' + (has ? "" : " disabled title=\"未激活案件：工具页 → 案件工作区 新建/选择案件后可存\"") + '>' +
+      '<svg class=ico><use href=#i-save></use></svg> 存入案件工作区</button>';
+  }
+
   function ruleReview(text, type) {
     var cl = CHECKLISTS[type];
     var found = [], missing = [], risks = [];
@@ -140,9 +159,9 @@ window.CONTRACT = (function () {
       '<div class="report-head-title"><svg class=ico><use href=#i-copy></use></svg> 合同条款核对报告（' + esc(res.name) + ' · 规则引擎 · 离线）</div>' +
       '<div>必备/要素条款：命中 ' + res.found.length + ' 项 · 缺失 ' + res.missing.length + ' 项 · 风险语句 ' + res.risks.length + ' 处</div></div>';
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-checkc></use></svg> 已包含条款</div><div class="report-facts">' +
-      (res.found.length ? res.found.map(function (f) { return '<span class="fact-chip" style="color:#047857">✓ ' + esc(f) + '</span>'; }).join("") : '<span class="fact-chip dim">未识别到（可能因文本片段不全或用语差异）</span>') + '</div></div>';
+      (res.found.length ? res.found.map(function (f) { return '<span class="fact-chip" style="color:var(--ok)">✓ ' + esc(f) + '</span>'; }).join("") : '<span class="fact-chip dim">未识别到（可能因文本片段不全或用语差异）</span>') + '</div></div>';
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 疑似缺失条款</div><div class="report-facts">' +
-      (res.missing.length ? res.missing.map(function (f) { return '<span class="fact-chip" style="color:#b45309">✗ ' + esc(f) + '</span>'; }).join("") : '<span class="fact-chip" style="color:#047857">核心条款齐全</span>') + '</div></div>';
+      (res.missing.length ? res.missing.map(function (f) { return '<span class="fact-chip" style="color:var(--warn)">✗ ' + esc(f) + '</span>'; }).join("") : '<span class="fact-chip" style="color:var(--ok)">核心条款齐全</span>') + '</div></div>';
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 高危语句识别</div>';
     if (res.risks.length) {
       html += '<ul class="report-list risk">' + res.risks.map(function (r) {
@@ -151,7 +170,8 @@ window.CONTRACT = (function () {
     } else {
       html += '<div class="dim">未命中已知高危模式（不等于无风险，AI 审查可进一步分析）。</div>';
     }
-    html += '</div><div class="result-disclaimer" style="padding:8px 20px">规则核对基于关键词与已知模式，仅供参考 · AI 深度审查可获得逐条意见</div></div>';
+    html += '</div><div class="result-disclaimer" style="padding:8px 20px">规则核对基于关键词与已知模式，仅供参考 · AI 深度审查可获得逐条意见</div>' +
+      '<div style="padding:0 20px 14px">' + wsSaveBtnHtml("合同审查：" + res.name + " " + new Date().toISOString().slice(0, 10), ruleToText(res)) + '</div></div>';
     return html;
   }
 
@@ -183,6 +203,12 @@ window.CONTRACT = (function () {
       var bubble = box.querySelector(".bubble");
       box.querySelector(".ai-cursor") && box.querySelector(".ai-cursor").remove();
       if (window.AGENT && full) window.AGENT.attachVerification(bubble, full, ctxText + (rule.found.join("") || ""));
+      if (full) {
+        var row = document.createElement("div");
+        row.style.marginTop = "8px";
+        row.innerHTML = wsSaveBtnHtml("合同审查（AI）：" + (CHECKLISTS[type] || CHECKLISTS.business).name + " " + new Date().toISOString().slice(0, 10), full);
+        box.appendChild(row);
+      }
     }).catch(function (e) {
       box.innerHTML = '<div class="tool-warn"><svg class=ico><use href=#i-warn></use></svg> ' + (e && e.message || e) + "</div>";
     });
@@ -216,6 +242,17 @@ window.CONTRACT = (function () {
       if (text.length < 20) { document.getElementById("ct-ai-result").innerHTML = '<div class="tool-warn">请先粘贴合同文本（至少20字）。</div>'; return; }
       aiReview(text, currentType);
       document.getElementById("ct-ai-result").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    /* 存入案件工作区（事件委托：规则/AI 两处结果共用） */
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".ws-save-btn") : null;
+      if (!b || b.disabled) return;
+      var d = wsDrafts[parseInt(b.getAttribute("data-ws-key"), 10)];
+      if (!d || !window.WORKSPACE || !WORKSPACE.attach) return;
+      var ok = WORKSPACE.attach("docs", { name: d.name, date: new Date().toISOString().slice(0, 10), draft: d.draft });
+      if (ok && window.TOOLS && window.TOOLS.haptic) window.TOOLS.haptic(12);
+      b.innerHTML = ok ? "✓ 已存入案件工作区" : "未激活案件，未存入";
+      setTimeout(function () { b.innerHTML = '<svg class=ico><use href=#i-save></use></svg> 存入案件工作区'; }, 1800);
     });
   }
 

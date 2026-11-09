@@ -438,9 +438,11 @@ window.AGENT = (function () {
         verify: els.panel ? (els.panel.textContent || "").replace(/\s+/g, " ").trim().slice(0, 200) : "",
         vstats: vstats || null
       });
-      saveBtn.innerHTML = saved
-        ? "<svg class=ico><use href=#i-checkc></use></svg> 已存入报告库"
-        : "<svg class=ico><use href=#i-warn></use></svg> 存储空间不足";
+      saveBtn.innerHTML = saved === "trimmed"
+        ? "<svg class=ico><use href=#i-warn></use></svg> 已存入；空间不足已清理最旧报告"
+        : saved
+          ? "<svg class=ico><use href=#i-checkc></use></svg> 已存入报告库"
+          : "<svg class=ico><use href=#i-warn></use></svg> 存储空间不足";
       if (saved && window.TOOLS && window.TOOLS.haptic) window.TOOLS.haptic(12);
       setTimeout(function () { saveBtn.innerHTML = "<svg class=ico><use href=#i-save></use></svg> 存入报告库"; }, 1800);
     });
@@ -453,9 +455,20 @@ window.AGENT = (function () {
     try { return JSON.parse(localStorage.getItem(REPORT_KEY) || "[]"); } catch (e) { return []; }
   }
   function saveReports(list) {
-    try { localStorage.setItem(REPORT_KEY, JSON.stringify(list.slice(0, 30))); return true; }
-    catch (e) { /* 配额溢出：删最旧再试一次 */
-      try { localStorage.setItem(REPORT_KEY, JSON.stringify(list.slice(0, 10))); return true; } catch (e2) { return false; }
+    /* 超 30 份与配额溢出两种截断都会静默丢最旧报告——被砍掉的同步解除工作区关联，避免悬空引用 */
+    var trimmed = list.slice(30);
+    try {
+      localStorage.setItem(REPORT_KEY, JSON.stringify(list.slice(0, 30)));
+      if (trimmed.length && window.WORKSPACE && WORKSPACE.purgeReports) {
+        try { WORKSPACE.purgeReports(trimmed.map(function (r) { return r.id; })); } catch (e3) { }
+      }
+      return trimmed.length ? "trimmed" : true;
+    } catch (e) { /* 配额溢出：砍到 10 份再试一次 */
+      var quotaTrimmed = list.slice(10);
+      if (quotaTrimmed.length && window.WORKSPACE && WORKSPACE.purgeReports) {
+        try { WORKSPACE.purgeReports(quotaTrimmed.map(function (r) { return r.id; })); } catch (e3) { }
+      }
+      try { localStorage.setItem(REPORT_KEY, JSON.stringify(list.slice(0, 10))); return quotaTrimmed.length ? "trimmed" : true; } catch (e2) { return false; }
     }
   }
   function saveReport(entry) {

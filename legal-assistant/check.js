@@ -365,6 +365,64 @@ head("对比度可达性（W3 · WCAG AA）");
   if (!badCount) ok("对比度达标（light/dark × " + combos.length + " 组合全部 ≥ 4.5:1）");
 })();
 
+/* ---------- 13. CSS 完整性（令牌自引用 / var() 非法拼接 / 暗色失明浅底） ----------
+   三类历史缺陷的防复发门禁（2026-11-10 修复批次引入）：
+   ① --x: var(--x) 自引用循环 → 该令牌在浅色模式整组失效（暗色块重定义真值，仅浅色坏，极隐蔽）
+   ② background: var(--card)beb 类 var() 后直接拼字符 → 非法值整条声明被浏览器静默丢弃
+   ③ 令牌块之外 background 使用高亮度 hex（亮度 ≥0.85）→ 暗色模式下近白底+浅字不可读
+     （@media print 块豁免：打印目标是白纸，与暗色模式无关） */
+head("CSS 完整性（令牌循环 / 非法拼接 / 暗色浅底）");
+(function () {
+  function lumHex(hex) {
+    var h = hex.replace("#", "");
+    if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
+    var rgb = [0, 1, 2].map(function (i) {
+      var v = parseInt(h.substr(i * 2, 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+  }
+  var files = [
+    { rel: "web css/style.css", p: path.join(root, "css", "style.css") },
+    { rel: "mobile css/style.css", p: path.join(root, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "css", "style.css") }
+  ];
+  files.forEach(function (f) {
+    var css;
+    try { css = fs.readFileSync(f.p, "utf8"); } catch (e) { bad(f.rel + " 不可读：" + e.message); return; }
+    var errs = [];
+    /* ① 自引用循环 */
+    var selfRefs = (css.match(/--[a-z0-9-]+\s*:\s*var\(--[a-z0-9-]+\)/g) || []).filter(function (d) {
+      var mm = d.match(/--([a-z0-9-]+)\s*:\s*var\(--([a-z0-9-]+)\)/);
+      return mm && mm[1] === mm[2];
+    });
+    if (selfRefs.length) errs.push("令牌自引用循环 ×" + selfRefs.length + "（" + selfRefs.slice(0, 2).join("；") + "）");
+    /* ② var() 后直接拼字母数字 → 非法值 */
+    var junk = css.match(/var\(--[a-z0-9-]+\)\s*[a-zA-Z0-9]/g) || [];
+    if (junk.length) errs.push("var() 后非法拼接 ×" + junk.length + "（如 " + junk[0] + "）");
+    /* ③ 令牌块外浅色背景（跟踪选择器栈，:root/data-theme/prefers-color-scheme/print 块豁免） */
+    var stack = [], lightHits = [];
+    css.split("\n").forEach(function (line, i) {
+      var opens = (line.match(/\{/g) || []).length, closes = (line.match(/\}/g) || []).length;
+      var inExempt = stack.some(function (s) { return /:root|data-theme|prefers-color-scheme|print/.test(s); });
+      if (!inExempt) {
+        /* 只取 background 属性值段内的 hex——同行的 color:#fff（深底白字）是合法配对，不算浅底 */
+        var bm = line.match(/background(?:-color)?\s*:([^;]*)/);
+        if (bm) {
+          (bm[1].match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g) || []).forEach(function (hx) {
+            if (lumHex(hx) >= 0.85) lightHits.push("L" + (i + 1) + " " + hx);
+          });
+        }
+      }
+      var selHead = line.slice(0, line.indexOf("{")).trim();
+      for (var k = 0; k < opens; k++) stack.push(selHead || stack[stack.length - 1] || "?");
+      for (var c = 0; c < closes; c++) stack.pop();
+    });
+    if (lightHits.length) errs.push("令牌块外浅色背景 hex ×" + lightHits.length + "（" + lightHits.slice(0, 3).join("、") + "）——请收敛进语义令牌");
+    if (errs.length) errs.forEach(function (e2) { bad(f.rel + "：" + e2); });
+    else ok(f.rel + "：无自引用 / 非法拼接 / 暗色失明浅底");
+  });
+})();
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(failures === 0

@@ -26,10 +26,18 @@ window.CHATHISTORY = (function () {
       localStorage.setItem(KEY, JSON.stringify(sessions));
       if (currentId) localStorage.setItem(CUR, currentId);
     } catch (e) {
-      /* 容量超限等：保留内存态，提示一次 */
+      /* 容量超限等：保留内存态，页面级提示一次（此前仅 console.warn，用户以为已保存实则丢失） */
       if (!window.__histWarned) {
         window.__histWarned = true;
-        console.warn("对话历史保存失败（本地存储容量不足），本次对话不会被持久化");
+        try {
+          var b = document.createElement("div");
+          b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);top:10px;z-index:2000;" +
+            "background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:8px 14px;border-radius:8px;" +
+            "font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.18);max-width:86vw;line-height:1.6";
+          b.textContent = "⚠ 本机存储空间不足：新对话将不会被持久化。请在 设置 → 隐私与数据 中清理旧数据或导出备份";
+          document.body.appendChild(b);
+          setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 8000);
+        } catch (e2) { }
       }
     }
   }

@@ -692,6 +692,41 @@ T("清除：分项清除经键注册表生效（sessions 组）", function () {
   if (store["legal-chat-sessions"] || store["legal-chat-current"]) throw new Error("sessions 组未清除");
   if (!store["legal-agent-reports"]) throw new Error("reports 组不应被波及");
 });
+T("清除：「清除案例收藏」不再连带删光案件工作区（v3.4.3 数据丢失缺陷回归）", function () {
+  store["legal-workspaces"] = JSON.stringify({ list: [{ id: "w-keep", name: "我的案件", links: { reports: [], deadlines: [], cases: [], docs: [], sessions: [] } }], currentId: "w-keep" });
+  store["legal-case-imports"] = JSON.stringify([{ id: "ci-x", title: "旧案例" }]);
+  STORE.clearGroup("cases");
+  if (!store["legal-workspaces"]) throw new Error("案件工作区被连带删除");
+  if (store["legal-case-imports"]) throw new Error("案例收藏未被清除");
+  const ws = JSON.parse(store["legal-workspaces"]);
+  if (!ws.list.some(c => c.id === "w-keep")) throw new Error("工作区案件丢失");
+});
+T("清除：「清除全部案件数据」覆盖工作区组（clearCaseData 语义）", function () {
+  store["legal-workspaces"] = JSON.stringify({ list: [{ id: "w1", name: "x", links: {} }], currentId: "w1" });
+  STORE.clearCaseData();
+  if (store["legal-workspaces"]) throw new Error("clearCaseData 未覆盖工作区组");
+});
+T("工作区：purgeReports 解除悬空报告引用（截断/删除联动）", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("悬空引用测试").id);
+  WORKSPACE.attach("reports", { id: "r-gone", name: "将被清理的报告", date: "2026-11-10" });
+  WORKSPACE.attach("reports", { id: "r-stay", name: "保留的报告", date: "2026-11-10" });
+  const touched = WORKSPACE.purgeReports(["r-gone", "r-unknown"]);
+  if (!touched) throw new Error("purgeReports 未报告 touched");
+  const cur = WORKSPACE.current();
+  if (cur.links.reports.some(r => r.id === "r-gone")) throw new Error("悬空引用未解除");
+  if (!cur.links.reports.some(r => r.id === "r-stay")) throw new Error("误删了无关引用");
+  if (WORKSPACE.purgeReports(["r-unknown"]) !== false) throw new Error("无命中时应返回 false");
+});
+T("工作区：attach 保留文书草稿正文 draft（≤4000 截断）", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("草稿保留测试").id);
+  const long = "甲".repeat(5000);
+  WORKSPACE.attach("docs", { name: "测试草稿", date: "2026-11-10", draft: long });
+  const d = WORKSPACE.current().links.docs[0];
+  if (!d.draft || d.draft.length !== 4000) throw new Error("draft 未保留或未按 4000 截断：" + (d.draft || "").length);
+  WORKSPACE.attach("docs", { name: "无正文草稿", date: "2026-11-10" });
+  const d2 = WORKSPACE.current().links.docs.filter(x => x.name === "无正文草稿")[0];
+  if (d2.draft !== undefined) throw new Error("无 draft 时不应写入该字段");
+});
 
 T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {
   AI.settings().apiKey = "sk-v3-test";

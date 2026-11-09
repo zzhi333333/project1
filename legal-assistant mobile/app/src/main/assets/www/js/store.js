@@ -20,7 +20,7 @@ window.STORE = (function () {
     { key: "legal-chat-sessions", name: "对话历史", group: "sessions", backup: true },
     { key: "legal-chat-current",  name: "当前会话", group: "sessions", backup: true },
     { key: "legal-agent-reports", name: "报告存档", group: "reports",  backup: true },
-    { key: "legal-workspaces",    name: "案件工作区", group: "cases",  backup: true },
+    { key: "legal-workspaces",    name: "案件工作区", group: "workspace", backup: true },
     { key: "legal-case-imports",  name: "案例收藏", group: "cases",    backup: true },
     { key: "legal-ev-checks",     name: "证据三性勾选", group: "evhist", backup: false },
     { key: "legal-calc-history",  name: "计算历史", group: "evhist",   backup: false },
@@ -71,7 +71,8 @@ window.STORE = (function () {
     REGISTRY.forEach(function (r) { if (r.group === group) remove(r.key); });
   }
   function clearCaseData() {
-    ["sessions", "reports", "cases", "evhist"].forEach(clearGroup);
+    /* workspace 与 cases 分组独立：清案例收藏不再连带删光案件工作区（曾为同组数据丢失缺陷） */
+    ["sessions", "reports", "cases", "workspace", "evhist"].forEach(clearGroup);
   }
 
   /* 诊断：各键占用估算（KB）与版本 */
