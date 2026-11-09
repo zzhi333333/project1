@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
     private final Map<String, HttpURLConnection> active = new ConcurrentHashMap<>(); /* 进行中的请求，支持「⏹ 停止」 */
     private long lastBackAt = 0;
+    private volatile int jsOverlayCount = 0;   /* JS 侧推送的浮层数（返回键先关层再退出，G6） */
 
     private static final int REQ_EXPORT = 1001;   /* 数据备份另存为 */
     private static final int REQ_PICK_FILE = 1002; /* 数据备份导入选择 */
@@ -206,7 +207,7 @@ public class MainActivity extends Activity {
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
         } else {
-            web.loadUrl(START_URL);
+            web.loadUrl(launchUrl(getIntent()));
         }
     }
 
@@ -219,6 +220,11 @@ public class MainActivity extends Activity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            /* G6：浮层开着时先关最上层（JS 端 MutationObserver 回推准确数量；偶发陈旧标志最多多按一次） */
+            if (jsOverlayCount > 0) {
+                jsCall("window.__brCloseTopOverlay && window.__brCloseTopOverlay()");
+                return true;
+            }
             if (web.canGoBack()) {
                 web.goBack();
                 return true;
@@ -355,11 +361,48 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() { return "1.0"; }
+
+        /** 返回键语义（G6）：JS 端 MutationObserver 推送当前浮层数量 */
+        @JavascriptInterface
+        public void overlayCount(int n) { jsOverlayCount = n; }
     }
 
     /* ---------- 语音识别（原生 SpeechRecognizer，替代 WebView 缺失的网页 API） ---------- */
     private void jsCall(String js) {
         ui.post(() -> { if (web != null) web.evaluateJavascript(js, null); });
+    }
+
+    /* ---------- G4/G5：分享接收与桌面快捷方式 ---------- */
+
+    /* 启动 URL：shortcut intent 带 hash extra（冷启动）；分享文本经 handleShareIntent 注入 */
+    private String launchUrl(Intent intent) {
+        String url = START_URL;
+        if (intent != null && intent.getStringExtra("hash") != null) {
+            String h = intent.getStringExtra("hash").trim();
+            if (h.matches("[a-z]+")) url += "#" + h;
+        }
+        return url;
+    }
+
+    /* 系统分享接收（G4）：微信/浏览器「分享到」→ 文本注入咨询输入框（不自动发送，让用户补案情） */
+    private void handleShareIntent(Intent intent) {
+        if (intent == null) return;
+        String hash = intent.getStringExtra("hash");
+        if (hash != null && hash.trim().matches("[a-z]+")) {
+            jsCall("window.APP && window.APP.switchView && window.APP.switchView('" + hash.trim() + "')");
+        }
+        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (text != null && !text.trim().isEmpty()) {
+            String safe = text.replace("\\", "\\\\").replace("'", "\\'").replace("\r", "").replace("\n", "\\n");
+            jsCall("window.__brShare && window.__brShare('" + safe + "')");
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        /* singleTask：热启动时 shortcut/分享经 onNewIntent 到达；页面可能尚未稳定，稍候注入 */
+        ui.postDelayed(() -> handleShareIntent(intent), 600);
     }
 
     private void doStartSpeech() {

@@ -202,4 +202,48 @@
       console.log("[mobile] 原生桥已连接，App 版本 " + window.BRIDGE.version());
     }
   });
+
+  /* ---------- ⑨ 系统分享接收 + 返回键关弹层（v3.5.2 批次 G，原生经 jsCall 调用） ---------- */
+  /* __brShare：微信/浏览器「分享到」文本 → 咨询输入框（清洗链接行与空行，不自动发送） */
+  window.__brShare = function (text) {
+    try {
+      if (window.APP && APP.switchView) APP.switchView("consult");
+      var input = document.getElementById("consult-input");
+      if (!input) return;
+      var t = String(text || "").split("\n")
+        .filter(function (l) { return l.trim() && !/^https?:\/\//i.test(l.trim()); })
+        .join("\n").trim();
+      input.value = t.slice(0, 1800);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+      if (window.UIKIT) UIKIT.toast("已带入分享内容——请补充案情后发送", "ok");
+    } catch (e) { }
+  };
+  /* __brCloseTopOverlay：返回键触发——关最上层浮层（modal > 更多弹层 > 抽屉） */
+  window.__brCloseTopOverlay = function () {
+    var open = document.querySelectorAll(".modal:not(.hidden)");
+    if (open.length) {
+      var m = open[open.length - 1].querySelector(".modal-mask");
+      if (m) { m.click(); return; }
+    }
+    if (moreSheet && moreSheet.classList.contains("open")) {
+      moreSheet.classList.remove("open");
+      if (moreMask) moreMask.classList.add("hidden");
+      return;
+    }
+    if (drawer && drawer.classList.contains("open")) closeDrawer();
+  };
+  /* 浮层数量推送：原生返回键据此决定「先关层」还是「双击退出」 */
+  function pushOverlayCount() {
+    var n = document.querySelectorAll(".modal:not(.hidden)").length;
+    if (moreSheet && moreSheet.classList.contains("open")) n++;
+    if (drawer && drawer.classList.contains("open")) n++;
+    try { if (window.AndroidBridge && AndroidBridge.overlayCount) AndroidBridge.overlayCount(n); } catch (e) { }
+  }
+  try {
+    new MutationObserver(pushOverlayCount).observe(document.body, {
+      childList: true, subtree: true, attributes: true, attributeFilter: ["class"]
+    });
+  } catch (e) { }
+  setTimeout(pushOverlayCount, 1500);
 })();

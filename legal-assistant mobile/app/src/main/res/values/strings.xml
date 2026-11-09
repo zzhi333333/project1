@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">法律咨询助手</string>
+    <string name="shortcut_consult">新咨询</string>
+    <string name="shortcut_consult_long">发起智能咨询</string>
+    <string name="shortcut_laws">法条</string>
+    <string name="shortcut_laws_long">检索法条</string>
+    <string name="shortcut_tools">工具</string>
+    <string name="shortcut_tools_long">计算器与合规日历</string>
 </resources>

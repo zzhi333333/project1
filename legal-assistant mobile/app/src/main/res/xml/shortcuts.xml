@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App Shortcuts（G5，v3.5.2）：长按图标三项直达；hash extra 由 MainActivity.launchUrl/onNewIntent 消费 -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut-consult"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_consult"
+        android:shortcutLongLabel="@string/shortcut_consult_long">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.zz333.legalassistant"
+            android:targetClass="com.zz333.legalassistant.MainActivity">
+            <extra android:name="hash" android:value="consult" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="shortcut-laws"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_laws"
+        android:shortcutLongLabel="@string/shortcut_laws_long">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.zz333.legalassistant"
+            android:targetClass="com.zz333.legalassistant.MainActivity">
+            <extra android:name="hash" android:value="laws" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="shortcut-tools"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_tools"
+        android:shortcutLongLabel="@string/shortcut_tools_long">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.zz333.legalassistant"
+            android:targetClass="com.zz333.legalassistant.MainActivity">
+            <extra android:name="hash" android:value="tools" />
+        </intent>
+    </shortcut>
+</shortcuts>

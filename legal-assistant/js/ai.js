@@ -1033,15 +1033,68 @@ window.AI = (function () {
     }
     return payload;
   }
+  /* ---------------- 备份可选加密（G2，v3.5.2，WebCrypto 零依赖）----------------
+     PBKDF2(SHA-256, 150000 次迭代, 随机盐) → AES-GCM(96 位 IV)。
+     口令在设置「加密口令」框填写：非空导出即加密（口令丢失不可恢复，UI 已明示）；
+     导入加密包须填同一口令。旧明文备份永远可导入（向后兼容）。 */
+  function encAvailable() { return !!(window.crypto && crypto.subtle && crypto.subtle.deriveKey && window.TextEncoder); }
+  function bakPwd() { var el = document.getElementById("bak-pwd"); return el ? el.value : ""; }
+  function b64(bytes) { var s = ""; new Uint8Array(bytes).forEach(function (b) { s += String.fromCharCode(b); }); return btoa(s); }
+  function unb64(str) { var s = atob(str); var out = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; }
+  function deriveKey(pwd, salt, iterations, usage) {
+    return crypto.subtle.importKey("raw", new TextEncoder().encode(pwd), "PBKDF2", false, ["deriveKey"])
+      .then(function (key) {
+        return crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: iterations, hash: "SHA-256" }, key, { name: "AES-GCM", length: 256 }, false, [usage]);
+      });
+  }
+  function encryptJson(obj, pwd) {
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    var ITER = 150000;
+    return deriveKey(pwd, salt, ITER, "encrypt").then(function (key) {
+      return crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+    }).then(function (enc) {
+      return { app: "legal-assistant", version: 3, enc: "AES-GCM-PBKDF2v1-" + ITER, salt: b64(salt), iv: b64(iv), data: b64(enc) };
+    });
+  }
+  function decryptJson(str, pwd) {
+    var parsed = JSON.parse(str);
+    if (!parsed || !parsed.enc) return Promise.resolve(parsed);
+    if (!encAvailable()) return Promise.reject(new Error("当前环境不支持解密（缺少 WebCrypto）"));
+    if (!pwd) return Promise.reject(new Error("该备份已加密——请在「加密口令」框填入导出时设置的口令后重新导入"));
+    var ITER = parseInt((String(parsed.enc).match(/-(\d+)$/) || [])[1] || "150000", 10);
+    var salt = unb64(parsed.salt), iv = unb64(parsed.iv), data = unb64(parsed.data);
+    return deriveKey(pwd, salt, ITER, "decrypt").then(function (key) {
+      return crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+    }).then(function (plain) {
+      var out = JSON.parse(new TextDecoder().decode(plain));
+      if (!out || out.app !== "legal-assistant") throw new Error("解密成功但内容校验失败——口令可能不对");
+      return out;
+    }).catch(function (e) {
+      if (e && (e.name === "OperationError" || /operation error|decrypt|口令/i.test(String(e.message || e)))) throw new Error("解密失败：口令不正确（或文件已损坏）");
+      throw e;
+    });
+  }
   function exportData() {
     var payload = buildBackup();
-    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json";
-    a.click();
-    URL.revokeObjectURL(a.href);
-    setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出（不含 API Key，换设备需重新填写；文件含明文案情，请妥善保管）", "ok");
+    var pwd = bakPwd();
+    var fname = "legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    var write = function (json) {
+      var blob = new Blob([json], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出" + (pwd ? "（已加密）" : "（不含 API Key，文件含明文案情，请妥善保管；填写加密口令可加密）"), "ok");
+    };
+    if (pwd) {
+      if (!encAvailable()) { setStatus("当前环境不支持加密（缺少 WebCrypto）——请留空口令导出明文"); return; }
+      encryptJson(payload, pwd).then(function (enc) { write(JSON.stringify(enc, null, 2)); })
+        .catch(function (e) { setStatus("❌ 加密导出失败：" + (e && e.message || e)); });
+      return;
+    }
+    write(JSON.stringify(payload, null, 2));
   }
   /* 反馈清单导出（维护者评测闭环）：记录结构 {scene, domain, verdict: like|bad, comment, time}；差评优先，md 便于筛选进金问题 */
   function exportFeedback() {
@@ -1098,16 +1151,15 @@ window.AI = (function () {
   function importData(file) {
     var reader = new FileReader();
     reader.onload = function () {
-      try {
-        var d = JSON.parse(reader.result);
+      decryptJson(reader.result, bakPwd()).then(function (d) {
         if (!d || d.app !== "legal-assistant") throw new Error("不是本工具的备份文件");
         if (!confirm("导入将覆盖当前的对话历史、案件工作区、报告存档、案例收藏、日历与 AI 设置，是否继续？")) return;
         var n = restoreBackup(d);
         setStatus("<svg class=ico><use href=#i-checkc></use></svg> 导入成功（" + n + " 项数据），页面即将刷新", "ok");
         setTimeout(function () { location.reload(); }, 800);
-      } catch (e) {
+      }).catch(function (e) {
         setStatus("❌ 导入失败：" + (e && e.message || e));
-      }
+      });
     };
     reader.readAsText(file);
   }
@@ -1123,6 +1175,7 @@ window.AI = (function () {
     imageContent: imageContent, describeImage: describeImage,   /* vision（附件升级） */
     restoreFromTranscript: restoreFromTranscript,               /* 切会话重建 AI 记忆（P2） */
     trimHistory: trimHistory, ctxBudget: ctxBudget,             /* 评测只读（P1 预算器） */
+    encryptJson: encryptJson, decryptJson: decryptJson, encAvailable: encAvailable,   /* 备份加密（G2） */
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

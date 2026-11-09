@@ -339,7 +339,13 @@ function serveStatic(req, res, pathname) {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
       return res.end("404 Not Found: " + pathname);
     }
-    res.writeHead(200, { "Content-Type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream", "Cache-Control": "no-cache" });
+    res.writeHead(200, {
+      "Content-Type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream",
+      "Cache-Control": "no-cache",
+      /* 安全响应头（v3.5.2）：CSP 收紧脚本/连接来源（AI 直连 http/https 已放行）；nosniff 防误解析 */
+      "Content-Security-Policy": "default-src 'self'; connect-src 'self' http: https:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:",
+      "X-Content-Type-Options": "nosniff"
+    });
     res.end(data);
   });
 }

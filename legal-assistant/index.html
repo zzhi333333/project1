@@ -573,6 +573,7 @@
       <label class="check-line" style="margin:6px 0"><input id="ai-privacy-redact" type="checkbox" checked> 发送前自动脱敏（身份证号 / 手机号替换为占位符）</label>
       <label class="check-line" style="margin:6px 0"><input id="ai-privacy-preview" type="checkbox"> 每次发送前显示实际发送内容（敏感案情建议开启）</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="ghost-btn" id="diag-copy" title="复制版本/存储占用/最近错误，报障时粘贴给维护者">复制诊断信息</button>
         <button class="ghost-btn" data-label="清除对话历史" data-clear="sessions">清除对话历史</button>
         <button class="ghost-btn" data-label="清除报告存档" data-clear="reports">清除报告存档</button>
         <button class="ghost-btn" data-label="清除案例收藏" data-clear="cases">清除案例收藏</button>
@@ -581,9 +582,10 @@
       </div>
       <div class="modal-note" style="margin-top:6px">清除仅影响本机数据且不可恢复；API Key 与技能库不在清除范围（技能库可在技能管理中删除）。</div>
       <div class="modal-section-title"><svg class="ico"><use href="#i-save"/></svg> 数据备份</div>
-      <div style="display:flex;gap:10px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button id="data-export" class="ghost-btn">导出备份（对话+设置）</button>
         <button id="data-import" class="ghost-btn">导入备份</button>
+        <input id="bak-pwd" type="password" placeholder="加密口令（留空=明文；导入加密包需填同一口令）" style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:13px;background:var(--bg);color:var(--ink)">
         <input id="data-import-file" type="file" accept="application/json,.json" class="hidden">
       </div>
       <div style="margin-top:6px"><button id="fb-export" class="ghost-btn" style="font-size:12px">导出反馈清单（维护者评测用）</button></div>
@@ -827,6 +829,7 @@
 <script src="js/gsearch.js"></script>
 <script src="js/fold.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/diag.js"></script>
 <script src="js/zipread.js"></script>
 <script src="js/attach.js"></script>
 <script src="js/main.js"></script>

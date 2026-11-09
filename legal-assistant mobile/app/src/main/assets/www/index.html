@@ -548,7 +548,7 @@
       <button class="more-item" data-view="gsearch"><span class="more-ico"><svg class="ico"><use href="#i-search"/></svg></span>全局搜索</button>
     </div>
     <div class="more-ver">
-      <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.5.1</b>（<span id="app-build">2026-11-10</span>）</div>
+      <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.5.2</b>（<span id="app-build">2026-11-10</span>）</div>
       <div class="mv-tips">
         <div class="mv-tip"><svg class=ico><use href=#i-agent></use></svg> 深度咨询：AI 逐项追问案情要素，齐全后一键生成可核验分析</div>
         <div class="mv-tip"><svg class=ico><use href=#i-list></use></svg> 一揽子请求计算器：勾选请求项→填参数→缺口自动转工作区待办</div>
@@ -630,6 +630,7 @@
       <label class="check-line" style="margin:6px 0"><input id="ai-privacy-redact" type="checkbox" checked> 发送前自动脱敏（身份证号 / 手机号替换为占位符）</label>
       <label class="check-line" style="margin:6px 0"><input id="ai-privacy-preview" type="checkbox"> 每次发送前显示实际发送内容（敏感案情建议开启）</label>
       <div class="backup-row" style="flex-wrap:wrap;gap:6px">
+        <button class="mini-btn" id="diag-copy">复制诊断信息</button>
         <button class="mini-btn" data-label="清除对话历史" data-clear="sessions">清除对话历史</button>
         <button class="mini-btn" data-label="清除报告存档" data-clear="reports">清除报告存档</button>
         <button class="mini-btn" data-label="清除案例收藏" data-clear="cases">清除案例收藏</button>
@@ -641,6 +642,7 @@
       <div class="backup-row">
         <button id="data-export" class="mini-btn">导出备份（对话+设置）</button>
         <button id="data-import" class="mini-btn">导入备份</button>
+        <input id="bak-pwd" type="password" placeholder="加密口令（留空=明文；导入加密包需填同一口令）" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--bg);color:var(--ink)">
         <input id="data-import-file" type="file" accept="application/json,.json" class="hidden">
       </div>
       <div style="margin-top:6px"><button id="fb-export" class="mini-btn" style="font-size:12px">导出反馈清单（评测用）</button></div>
@@ -874,6 +876,7 @@
 <script src="js/gsearch.js"></script>
 <script src="js/fold.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/diag.js"></script>
 <script src="js/zipread.js"></script>
 <script src="js/attach.js"></script>
 <script src="js/main.js"></script>
