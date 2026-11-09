@@ -520,6 +520,7 @@ window.AI = (function () {
      仅走支持视觉的模型（glm 预设自动换 glm-4v-flash 免费档；其余服务商需手动改模型名）。
      图片以 dataURL 随消息发送（OpenAI 兼容 content 数组）；发送前预览会明示「图片随消息发送」。 */
   var chatImages = [];   /* 咨询页待发图片 [{name, dataUrl}] */
+  var chatDocs = [];     /* 咨询页待发文档 [{name, text, truncated}]——提取正文随下一条 AI 消息发送 */
   function visionModel() {
     return (PROVIDERS[S.provider] && PROVIDERS[S.provider].visionModel) || null;
   }
@@ -535,62 +536,122 @@ window.AI = (function () {
     ];
     return aiChat(messages, null, vm ? { model: vm } : undefined);
   }
-  function renderChatImages() {
+  function renderChatAttach() {
     var row = document.getElementById("chat-img-row");
     if (!row) return;
-    row.innerHTML = chatImages.map(function (im, i) {
+    var html = chatImages.map(function (im, i) {
       return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:9px;padding:3px 6px;font-size:11.5px">' +
         '<img src="' + im.dataUrl + '" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:5px">' +
         esc(im.name.slice(0, 14)) +
         '<button type="button" data-chat-img-del="' + i + '" style="border:none;background:none;cursor:pointer;color:var(--ink-2);font-size:12px">✕</button></span>';
     }).join("");
-    row.classList.toggle("hidden", !chatImages.length);
-    var btn = document.getElementById("chat-img-btn");
-    if (btn) btn.classList.toggle("hidden", chatImages.length >= 2);   /* 每条消息最多 2 张 */
+    html += chatDocs.map(function (d, i) {
+      return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--primary-border);border-radius:9px;padding:3px 6px;font-size:11.5px;color:var(--primary);max-width:220px">' +
+        '📄 ' + esc(d.name.slice(0, 16)) + (d.truncated ? "（截断）" : "") +
+        '<button type="button" data-chat-doc-del="' + i + '" style="border:none;background:none;cursor:pointer;color:var(--ink-2);font-size:12px">✕</button></span>';
+    }).join("");
+    row.innerHTML = html;
+    row.classList.toggle("hidden", !chatImages.length && !chatDocs.length);
+    var btn = document.getElementById("chat-add-btn");
+    if (btn) btn.classList.toggle("hidden", chatImages.length >= 2 && chatDocs.length >= 2);
   }
-  function bindChatImage() {
-    var btn = document.getElementById("chat-img-btn");
+  /* ＋添加菜单：用户自选图片（vision）或文档（提取正文随下一条 AI 消息发送） */
+  function bindAttachMenu() {
+    var btn = document.getElementById("chat-add-btn");
     if (!btn) return;
-    btn.addEventListener("click", function () {
-      if (!(window.ATTACH && ATTACH.pick)) return;
+    var menu = null;
+    function closeMenu() {
+      if (menu) { menu.remove(); menu = null; document.removeEventListener("click", onDocClick, true); }
+    }
+    function onDocClick(e) {
+      if (menu && !menu.contains(e.target) && !btn.contains(e.target)) closeMenu();
+    }
+    function openMenu() {
+      if (menu) { closeMenu(); return; }
+      menu = document.createElement("div");
+      menu.style.cssText = "position:fixed;z-index:1300;display:flex;flex-direction:column;min-width:210px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(15,23,42,.16);overflow:hidden";
+      menu.innerHTML =
+        '<button type="button" data-att-kind="image" style="text-align:left;padding:11px 14px;border:none;background:var(--card);font-size:13.5px;color:var(--ink);cursor:pointer">🖼 图片　<span style="color:var(--ink-2);font-size:11.5px">AI 读图回答</span></button>' +
+        '<button type="button" data-att-kind="doc" style="text-align:left;padding:11px 14px;border:none;background:var(--card);font-size:13.5px;color:var(--ink);cursor:pointer;border-top:1px solid var(--line)">📄 文档　<span style="color:var(--ink-2);font-size:11.5px">Word / 表格 / 文本</span></button>';
+      document.body.appendChild(menu);
+      var r = btn.getBoundingClientRect();
+      var left = Math.min(r.left, window.innerWidth - 226);
+      var top = r.top - 100;
+      if (top < 8) top = r.bottom + 8;
+      menu.style.left = Math.max(8, left) + "px";
+      menu.style.top = Math.max(8, top) + "px";
+      setTimeout(function () { document.addEventListener("click", onDocClick, true); }, 0);
+      menu.querySelectorAll("[data-att-kind]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var kind = b.getAttribute("data-att-kind");
+          closeMenu();
+          if (kind === "image") pickImage(); else pickDoc();
+        });
+      });
+    }
+    function pickImage() {
       ATTACH.pick("image/*").then(function (f) {
         if (!f) return null;
         return ATTACH.extractFile(f).then(function (res) {
           if (!res || res.error) { if (window.UIKIT) UIKIT.toast((res && res.error) || "图片读取失败", "warn"); return null; }
           if (chatImages.length >= 2) { if (window.UIKIT) UIKIT.toast("每条消息最多 2 张图片", "warn"); return null; }
           chatImages.push({ name: res.name, dataUrl: res.dataUrl });
-          renderChatImages();
+          renderChatAttach();
           return null;
         });
       }).catch(function () { });
+    }
+    function pickDoc() {
+      ATTACH.pick(".docx,.xlsx,.csv,.txt,.md").then(function (f) {
+        if (!f) return null;
+        return ATTACH.extractFile(f).then(function (res) {
+          if (!res || res.error) { if (window.UIKIT) UIKIT.toast((res && res.error) || "提取失败", "warn"); return null; }
+          if (chatDocs.length >= 2) { if (window.UIKIT) UIKIT.toast("每条消息最多 2 个文档", "warn"); return null; }
+          chatDocs.push({ name: res.name, text: res.text, truncated: res.truncated });
+          renderChatAttach();
+          var aiOn = !!(document.getElementById("ai-mode") || {}).checked;
+          if (window.UIKIT) UIKIT.toast("文档已附加，将随下一条 AI 回答一起发送" + (aiOn ? "" : "（当前未开 AI，请先开启 AI 开关）"), "ok");
+          return null;
+        });
+      }).catch(function () { });
+    }
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (!(window.ATTACH && ATTACH.pick)) return;
+      openMenu();
     });
     document.addEventListener("click", function (e) {
       var d = e.target.closest ? e.target.closest("[data-chat-img-del]") : null;
-      if (!d) return;
-      chatImages.splice(parseInt(d.getAttribute("data-chat-img-del"), 10), 1);
-      renderChatImages();
+      if (d) { chatImages.splice(parseInt(d.getAttribute("data-chat-img-del"), 10), 1); renderChatAttach(); return; }
+      var dd = e.target.closest ? e.target.closest("[data-chat-doc-del]") : null;
+      if (dd) { chatDocs.splice(parseInt(dd.getAttribute("data-chat-doc-del"), 10), 1); renderChatAttach(); }
     });
-    renderChatImages();
+    renderChatAttach();
   }
 
   function aiConsult(text) {
     var box = document.getElementById("chat-box");
     window.UI.appendUser(text);
     var div = streamBubble(box);
-    var ctx = buildContext(text);
-    /* 待发图片：取出并清空 chips，随本条消息走 vision 模型 */
+    /* 待发附件：取出并清空 chips——图片走 vision 模型；文档提取正文并入消息文本（同走脱敏/预览管线） */
     var chatImg = chatImages.length ? chatImages.slice() : null;
-    if (chatImg) { chatImages.length = 0; renderChatImages(); }
+    var chatDocList = chatDocs.length ? chatDocs.slice() : null;
+    if (chatImg || chatDocList) { chatImages.length = 0; chatDocs.length = 0; renderChatAttach(); }
+    var docBlock = chatDocList ? chatDocList.map(function (d) {
+      return "【附件：" + d.name + "】\n" + d.text + (d.truncated ? "\n（文档过长已截断至 2 万字）" : "");
+    }).join("\n\n") : "";
+    var sendText = docBlock ? docBlock + "\n\n" + text : text;
+    var ctx = buildContext(sendText);
     var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
       (window.INTAKE && window.INTAKE.isActive() ? window.INTAKE.promptBlock() : "") +
       (window.INTAKE && window.INTAKE.isActive() ? "" : langPrompt()) +
       "\n【追问规则】若用户描述的关键事实明显不足（未说明时间、金额、合同状态、双方关系等核心要素），" +
       "请先合并提出最多两个关键追问，等用户补充后再给完整分析；若信息已足够，直接分析，不要为追问而追问。" }]
       .concat(aiHistory)
-      .concat([{ role: "user", content: chatImg ? imageContent(chatImg[0].dataUrl, text) : text }]);
+      .concat([{ role: "user", content: chatImg ? imageContent(chatImg[0].dataUrl, sendText) : sendText }]);
     var full = "";
     if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onUserMessage(text);
-    var dId = (window.ANALYSIS.matchContext(text) || {}).domain;
+    var dId = (window.ANALYSIS.matchContext(sendText) || {}).domain;
     var vmOpt = chatImg && visionModel() ? { model: visionModel() } : undefined;
     aiChat(messages, function (delta) {
       full += delta;
@@ -716,7 +777,7 @@ window.AI = (function () {
     /* 设置按钮与弹窗 */
     var gear = document.getElementById("ai-gear");
     if (gear) gear.addEventListener("click", openModal);
-    bindChatImage();   /* 咨询页图片附件（vision） */
+    bindAttachMenu();   /* 咨询页＋添加附件菜单（图片 vision / 文档随消息） */
     var modal = document.getElementById("ai-modal");
     if (!modal) return;
     modal.querySelector(".modal-mask").addEventListener("click", function () { modal.classList.add("hidden"); });
