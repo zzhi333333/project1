@@ -674,6 +674,23 @@ window.WORKSPACE = (function () {
       if (!text.trim()) { $("ws-judg-out").innerHTML = '<div class="tool-warn">请先粘贴判决书/调解书全文或尾部。</div>'; return; }
       renderJudgmentTL(text, $("ws-judg-type").value);
     });
+    /* 判决书 docx 直传（v3.4.5）：裁判文书网下载的判决书免复制粘贴，提取后自动解析并落盘 */
+    var judgDocx = $("ws-judg-docx");
+    if (judgDocx) judgDocx.addEventListener("click", function () {
+      if (!(window.ATTACH && ATTACH.pick)) return;
+      ATTACH.pick(".docx").then(function (f) {
+        if (!f) return null;
+        return ATTACH.extractFile(f).then(function (res) {
+          if (!res || res.error) { $("ws-judg-out").innerHTML = '<div class="tool-warn">' + ((res && res.error) || "提取失败") + "</div>"; return null; }
+          $("ws-judg-input").value = res.text + (res.truncated ? "\n（附件过长已截断至 2 万字）" : "");
+          renderJudgmentTL($("ws-judg-input").value, $("ws-judg-type").value);
+          return null;
+        });
+      }).catch(function (e) {
+        var out = $("ws-judg-out");
+        if (out) out.innerHTML = '<div class="tool-warn">' + (e && e.message || e) + "</div>";
+      });
+    });
     /* 证据目录生成 */
     $("ws-ev-gen").addEventListener("click", function () {
       renderCatalog(buildCatalog($("ws-ev-input").value));

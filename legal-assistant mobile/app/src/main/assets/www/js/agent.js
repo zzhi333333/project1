@@ -983,6 +983,28 @@ window.AGENT = (function () {
       runAgent();
       return;
     }
+    /* 图片附件预步骤：AI 读图描述并入案情后重新进入（描述自带「未经核验」标注；规则模式忽略图片） */
+    if (agentImages.length) {
+      var imgs = agentImages.slice();
+      var token0 = runToken;
+      Promise.all(imgs.map(function (im) {
+        stepState(0, "run", "AI 读图中：" + im.name);
+        return window.AI.describeImage(im.dataUrl, im.name).then(function (desc) {
+          return "【图片：" + im.name + "（AI 读图描述，未经核验）】\n" + String(desc || "").trim();
+        }).catch(function (e) {
+          stepState(0, "warn", "读图失败：" + im.name + "（" + (e && e.message || e) + "）——已跳过该图");
+          return "";
+        });
+      })).then(function (parts) {
+        if (runToken !== token0) return;
+        agentImages.length = 0;
+        renderAgentImages();
+        var ok = parts.filter(Boolean).join("\n\n");
+        if (ok && els.input) els.input.value = (els.input.value || "") + "\n\n" + ok;
+        runAgent();
+      });
+      return;
+    }
     var useOnline = els.online.checked;
 
     /* 步骤①：资料检索（领域/场景/法条/案例 + 联网官方全文） */
@@ -1297,6 +1319,19 @@ window.AGENT = (function () {
   }
 
   /* ============ 初始化 ============ */
+  /* 图片附件队列（AI 分析时读图并入案情；登记证据目录在加入时即完成） */
+  var agentImages = [];
+  function renderAgentImages() {
+    var row = document.getElementById("agent-img-row");
+    if (!row) return;
+    row.innerHTML = agentImages.map(function (im, i) {
+      return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:9px;padding:3px 6px;font-size:11.5px">' +
+        '<img src="' + im.dataUrl + '" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:5px">' +
+        esc(im.name.slice(0, 16)) +
+        '<button type="button" data-agent-img-del="' + i + '" style="border:none;background:none;cursor:pointer;color:var(--ink-2);font-size:12px">✕</button></span>';
+    }).join("");
+    row.classList.toggle("hidden", !agentImages.length);
+  }
   function init() {
     els = {
       input: document.getElementById("agent-input"),
@@ -1316,6 +1351,44 @@ window.AGENT = (function () {
     if (archBtn) archBtn.addEventListener("click", openReportArchive);
     els.input.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runAgent();
+    });
+    /* 附件上传（v3.4.5）：文本类提取后追加进案情；图片进待读队列（AI 分析时读图并入） */
+    var atBtn = document.getElementById("agent-attach");
+    if (atBtn) atBtn.addEventListener("click", function () {
+      if (!(window.ATTACH && ATTACH.pick)) return;
+      ATTACH.pick(".docx,.xlsx,.csv,.txt,.md,.doc,.xls").then(function (f) {
+        if (!f) return null;
+        return ATTACH.extractFile(f).then(function (res) {
+          if (!res || res.error) { if (window.UIKIT) UIKIT.toast((res && res.error) || "提取失败", "warn"); return null; }
+          ATTACH.appendCaseText(els.input, res);
+          if (window.UIKIT) UIKIT.toast("附件已并入案情：" + res.name + (res.truncated ? "（已截断 2 万字）" : ""), "ok");
+          return null;
+        });
+      }).catch(function () { });
+    });
+    var imgBtn = document.getElementById("agent-img-attach");
+    if (imgBtn) imgBtn.addEventListener("click", function () {
+      if (!(window.ATTACH && ATTACH.pick)) return;
+      ATTACH.pick("image/*").then(function (f) {
+        if (!f) return null;
+        return ATTACH.extractFile(f).then(function (res) {
+          if (!res || res.error) { if (window.UIKIT) UIKIT.toast((res && res.error) || "图片读取失败", "warn"); return null; }
+          if (agentImages.length >= 3) { if (window.UIKIT) UIKIT.toast("最多 3 张图片", "warn"); return null; }
+          agentImages.push({ name: res.name, dataUrl: res.dataUrl });
+          renderAgentImages();
+          /* 同步登记进工作区证据目录（每行一条，证明目的人工补充） */
+          var ev = document.getElementById("ws-ev-input");
+          if (ev) ev.value += (ev.value ? "\n" : "") + "图片证据-" + res.name + "（本地上传，证明目的待补充）";
+          if (window.UIKIT) UIKIT.toast("图片已加入（AI 分析时自动读图，并已登记证据目录）", "ok");
+          return null;
+        });
+      }).catch(function () { });
+    });
+    document.addEventListener("click", function (e) {
+      var d = e.target.closest ? e.target.closest("[data-agent-img-del]") : null;
+      if (!d) return;
+      agentImages.splice(parseInt(d.getAttribute("data-agent-img-del"), 10), 1);
+      renderAgentImages();
     });
     var btnR = document.getElementById("agent-mode-report");
     var btnA = document.getElementById("agent-mode-ai");

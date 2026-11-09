@@ -121,6 +121,8 @@ vm.runInContext(fs.readFileSync(path.join(root, "js", "agent.js"), "utf8"), sand
 vm.runInContext(fs.readFileSync(path.join(root, "js", "consult.js"), "utf8"), sandbox, { filename: "js/consult.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "intake.js"), "utf8"), sandbox, { filename: "js/intake.js" });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "analysis.js"), "utf8"), sandbox, { filename: "js/analysis.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "zipread.js"), "utf8"), sandbox, { filename: "js/zipread.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "attach.js"), "utf8"), sandbox, { filename: "js/attach.js" });
 try {
   vm.runInContext(fs.readFileSync(path.join(root, "js", "ai.js"), "utf8"), sandbox, { filename: "js/ai.js" });
 } catch (e) {
@@ -782,6 +784,88 @@ T("AI redactPII：银行卡与邮箱扩充（C5）", function () {
   if (r.indexOf("a.b@test.cn") !== -1) throw new Error("邮箱未脱敏：" + r);
   if (r.indexOf("11010519491231002X") !== -1) throw new Error("身份证未脱敏：" + r);
   if (r.indexOf("【银行卡号已脱敏】") === -1 || r.indexOf("【邮箱已脱敏】") === -1) throw new Error("脱敏占位符缺失");
+});
+section("附件解析测试（js/zipread.js · 零依赖 docx/xlsx）");
+const nodeZlib = require("zlib");
+const ZR = sandbox.window.ZIPREAD;
+if (!ZR || !ZR.inflateRaw) { console.error("❌ zipread.js 未暴露 window.ZIPREAD"); process.exit(1); }
+/* 手写最小 stored-mode zip 构建器（夹具）：files=[{name, content(Utf8 串)}] → Uint8Array */
+function buildStoredZip(files) {
+  const enc = s => Buffer.from(s, "utf8");
+  const chunks = [], central = [];
+  let offset = 0;
+  files.forEach(f => {
+    const name = enc(f.name), data = enc(f.content), crc = nodeZlib.crc32(data) >>> 0;
+    const lh = Buffer.alloc(30);
+    lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(0x0800, 6);
+    lh.writeUInt16LE(0, 8); lh.writeUInt16LE(0x21, 10); lh.writeUInt32LE(crc, 14);
+    lh.writeUInt32LE(data.length, 18); lh.writeUInt32LE(data.length, 22);
+    lh.writeUInt16LE(name.length, 26); lh.writeUInt16LE(0, 28);
+    chunks.push(lh, name, data);
+    const ch = Buffer.alloc(46);
+    ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(20, 4); ch.writeUInt16LE(20, 6);
+    ch.writeUInt16LE(0x0800, 8); ch.writeUInt16LE(0, 10); ch.writeUInt16LE(0x21, 12);
+    ch.writeUInt32LE(crc, 16); ch.writeUInt32LE(data.length, 20); ch.writeUInt32LE(data.length, 24);
+    ch.writeUInt16LE(name.length, 28);
+    ch.writeUInt32LE(offset, 42);
+    central.push(ch, name);
+    offset += 30 + name.length + data.length;
+  });
+  const cdBuf = Buffer.concat(central);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(files.length, 8); eocd.writeUInt16LE(files.length, 10);
+  eocd.writeUInt32LE(cdBuf.length, 12); eocd.writeUInt32LE(offset, 16);
+  return new Uint8Array(Buffer.concat([...chunks, cdBuf, eocd]));
+}
+T("zipread：纯 JS inflate 对 Node zlib deflateRaw 输出往返一致", function () {
+  const src = Buffer.from("劳动争议：申请人某某于2020年入职，被申请人未缴纳社会保险，请求经济补偿。".repeat(30), "utf8");
+  const comp = new Uint8Array(nodeZlib.deflateRawSync(src));
+  const out = Buffer.from(ZR.inflateRaw(comp)).toString("utf8");
+  if (out !== src.toString("utf8")) throw new Error("inflate 往返不一致（长度 " + out.length + " vs " + src.length + "）");
+});
+T("zipread：docx 提取——段落换行/表格行/实体还原", function () {
+  const xml = '<?xml version="1.0"?><w:document><w:body>' +
+    '<w:p><w:r><w:t>原告：张三</w:t></w:r></w:p>' +
+    '<w:p><w:r><w:t>被告：李四&amp;王五</w:t></w:r></w:p>' +
+    '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>诉讼请求</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>金额25000元</w:t></w:r></w:p></w:tc></w:tr></w:tbl>' +
+    '<w:p><w:r><w:t>二〇二四年七月十五日</w:t></w:r><w:r><w:br/><w:t>落款</w:t></w:r></w:p>' +
+    '</w:body></w:document>';
+  const zip = buildStoredZip([{ name: "word/document.xml", content: xml }, { name: "[Content_Types].xml", content: "<Types/>" }]);
+  const text = ZR.docxToText(zip);
+  if (text.indexOf("原告：张三") === -1 || text.indexOf("被告：李四&王五") === -1) throw new Error("段落文本缺失：" + text);
+  if (text.indexOf("诉讼请求\t金额25000元") === -1) throw new Error("表格行未转制表符：" + text);
+  if (text.indexOf("落款") === -1 || text.indexOf("二〇二四年七月十五日\n落款") === -1) throw new Error("w:br 换行未生效");
+  if (ZR.unzip(zip, "word/document.xml") === null || ZR.unzip(zip, "不存在.xml") !== null) throw new Error("unzip 按名提取异常");
+});
+T("zipread：xlsx 提取——sharedStrings 引用与 TSV 行列", function () {
+  const ss = '<sst><si><t>姓名</t></si><si><t>基本工资</t></si><si><t>加班费</t></si></sst>';
+  const sheet = '<worksheet><sheetData>' +
+    '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
+    '<row r="2"><c r="A2" t="s"><v>0</v></c><c r="B2"><v>5000</v></c><c r="C2"><v>1300</v></c></row>' +
+    '<row r="3"><c r="A3"><v>6.5</v></c><c r="B3" t="inlineStr"><is><t>备注甲</t></is></c></row>' +
+    '</sheetData></worksheet>';
+  const zip = buildStoredZip([
+    { name: "xl/sharedStrings.xml", content: ss },
+    { name: "xl/worksheets/sheet1.xml", content: sheet }
+  ]);
+  const tsv = ZR.xlsxToTsv(zip);
+  const rows = tsv.split("\n");
+  if (rows[0] !== "姓名\t基本工资\t加班费") throw new Error("表头行异常：" + rows[0]);
+  if (rows[1] !== "姓名\t5000\t1300") throw new Error("数据行异常：" + rows[1]);
+  if (rows[2] !== "6.5\t备注甲") throw new Error("行内字符串/缺列补位异常：" + rows[2]);
+});
+T("zipread：extract 分发与旧版二进制拒绝", function () {
+  if (ZR.extract("工资表.xlsx", buildStoredZip([{ name: "xl/sharedStrings.xml", content: "<sst/>" }, { name: "xl/worksheets/sheet1.xml", content: "<worksheet/>" }])).kind !== "xlsx") throw new Error("xlsx 分发异常");
+  let threw = "";
+  try { ZR.extract("判决书.doc", new Uint8Array(8)); } catch (e) { threw = String(e.message || e); }
+  if (threw.indexOf(".doc") === -1) throw new Error("旧版 .doc 未拒绝：" + threw);
+  if (ZR.extract("记录.txt", new TextEncoder ? new TextEncoder().encode("纯文本内容") : Buffer.from("纯文本内容", "utf8")).text.indexOf("纯文本") === -1) throw new Error("文本分发异常");
+});
+T("attach：常量与图片判别（File 流程走浏览器冒烟）", function () {
+  const A = sandbox.window.ATTACH;
+  if (!A || A.MAX_TEXT !== 20000) throw new Error("attach 常量异常");
+  if (!A.isImage("a.JPG") || A.isImage("b.docx")) throw new Error("isImage 判别异常");
 });
 
 T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {

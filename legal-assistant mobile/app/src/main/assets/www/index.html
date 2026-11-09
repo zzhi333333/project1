@@ -114,7 +114,9 @@
               <input id="ai-mode" type="checkbox"><span><svg class="ico"><use href="#i-ai"/></svg> AI</span>
             </label>
             <button id="intake-btn" class="intake-entry" title="AI 引导式深度咨询：逐项收集案件要素后生成可核验分析"><svg class="ico"><use href="#i-agent"/></svg> 深度咨询</button>
+            <button id="chat-img-btn" class="intake-entry" title="添加图片附件（AI 读图回答，需支持视觉的模型如 glm-4v-flash）"><svg class="ico"><use href="#i-file"/></svg> 图片</button>
           </div>
+          <div id="chat-img-row" class="hidden" style="display:flex;gap:6px;flex-wrap:wrap"></div>
           <div class="input-main">
             <textarea id="consult-input" rows="1" maxlength="2000" placeholder="描述您的问题，可多行输入案情（最多 2000 字；可用输入法的语音输入）…"></textarea>
             <button id="consult-send" class="send-btn hidden">发送</button>
@@ -138,8 +140,11 @@
 
         <div class="analysis-editor">
           <textarea id="agent-input" rows="7" placeholder="请尽量完整描述案情：时间线、当事人与关系、发生了什么、涉及金额、您的诉求。"></textarea>
+          <div id="agent-img-row" class="hidden" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"></div>
           <div class="analysis-actions">
             <button id="agent-run" class="primary-btn"><svg class="ico"><use href="#i-rocket"/></svg> 开始分析</button>
+            <button id="agent-attach" class="mini-btn block-btn" title="上传 Word/表格/文本附件，提取正文并入案情"><svg class="ico"><use href="#i-file"/></svg> 添加附件（Word/表格/文本）</button>
+            <button id="agent-img-attach" class="mini-btn block-btn" title="上传图片：AI 分析时自动读图并入案情，同时登记证据目录"><svg class="ico"><use href="#i-file"/></svg> 添加图片（AI 读图）</button>
             <button id="agent-stop" class="mini-btn block-btn hidden" title="停止本次分析"><svg class="ico"><use href="#i-stop"/></svg> 停止分析</button>
             <button id="agent-archive" class="mini-btn block-btn"><svg class="ico"><use href="#i-save"/></svg> 报告存档</button>
             <button id="agent-export" class="mini-btn block-btn"><svg class="ico"><use href="#i-file"/></svg> 导出 PDF / Word</button>
@@ -177,6 +182,7 @@
         </div>
         <textarea id="ct-input" rows="9" placeholder="粘贴合同全文（或关键条款），选择上方合同类型后核对：必备条款缺失与高危语句（押金概不退还/砍头息/竞业无补偿等）。"></textarea>
           <div class="analysis-actions">
+            <button id="ct-attach" class="mini-btn block-btn" title="上传合同 docx/txt，自动提取正文"><svg class="ico"><use href="#i-file"/></svg> 上传合同（docx/txt）</button>
             <button id="ct-rule-run" class="primary-btn"><svg class="ico"><use href="#i-copy"/></svg> 条款核对（离线）</button>
             <button id="ct-ai-run" class="mini-btn block-btn"><svg class="ico"><use href="#i-ai"/></svg> AI 深度审查</button>
           </div>
@@ -718,6 +724,7 @@
             <option value="mediation">调解书</option>
           </select>
           <button id="ws-judg-parse" class="mini-btn block-btn">解析生成双时间线</button>
+          <button id="ws-judg-docx" class="mini-btn block-btn" title="上传裁判文书网下载的判决书 docx，自动提取并解析"><svg class="ico"><use href="#i-file"/></svg> 上传判决书 docx</button>
         </div>
         <div id="ws-judg-out" style="margin-top:8px"></div>
         <div class="modal-section-title" style="margin-top:14px">证据目录生成（Word 表格）</div>
@@ -864,6 +871,8 @@
 <script src="js/gsearch.js"></script>
 <script src="js/fold.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/zipread.js"></script>
+<script src="js/attach.js"></script>
 <script src="js/main.js"></script>
 <script src="js/mobile.js"></script>
 </body>

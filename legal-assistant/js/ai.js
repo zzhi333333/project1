@@ -12,7 +12,7 @@ window.AI = (function () {
 
   /* ---------------- 服务商预设 ---------------- */
   var PROVIDERS = {
-    glm:      { name: "智谱 GLM（含免费模型）", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash" },
+    glm:      { name: "智谱 GLM（含免费模型）", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash", visionModel: "glm-4v-flash" },
     deepseek: { name: "DeepSeek 深度求索", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
     kimi:     { name: "月之暗面 Kimi", baseUrl: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
     qwen:     { name: "阿里通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
@@ -121,7 +121,13 @@ window.AI = (function () {
       if (!modal || !ta || !btnSend || !btnCancel) return resolve(messages);
       ta.value = messages.map(function (m) {
         var tag = m.role === "system" ? "系统提示（核验约束规则，不含案情）" : m.role === "user" ? "发送内容（含案情/资料）" : "AI 历史回复";
-        return "──── " + tag + " ────\n" + String(m.content || "").slice(0, 4000);
+        /* 图片消息 content 为数组：预览中显示文本部分并明示图片随消息发送 */
+        var body = typeof m.content === "string"
+          ? m.content
+          : (Array.isArray(m.content)
+            ? "[本条含图片附件（原图随消息发送给模型）]\n" + m.content.filter(function (p) { return p.type === "text"; }).map(function (p) { return p.text; }).join("")
+            : String(m.content || ""));
+        return "──── " + tag + " ────\n" + body.slice(0, 4000);
       }).join("\n\n");
       if (cbSkip) cbSkip.checked = false;
       modal.classList.remove("hidden");
@@ -152,7 +158,8 @@ window.AI = (function () {
     if (isNaN(temp)) temp = 0.5;
     /* 隐私：发送前脱敏（默认开）+ 发送前预览（默认关，可在设置开启） */
     messages = messages.map(function (m) {
-      return m.role === "user" && cfg.redact ? Object.assign({}, m, { content: redactPII(m.content) }) : m;
+      /* 脱敏仅作用于字符串消息；图片消息 content 为数组（图片本体不经脱敏，预览中明示） */
+      return m.role === "user" && cfg.redact && typeof m.content === "string" ? Object.assign({}, m, { content: redactPII(m.content) }) : m;
     });
     var proceed = maybePreview(messages);
     var ctrl = new AbortController();
@@ -510,25 +517,86 @@ window.AI = (function () {
     div.querySelector(".bubble").appendChild(cp);
   }
 
+  /* ---------------- 图片附件 / Vision 读图（v3.4.5 批次二）----------------
+     仅走支持视觉的模型（glm 预设自动换 glm-4v-flash 免费档；其余服务商需手动改模型名）。
+     图片以 dataURL 随消息发送（OpenAI 兼容 content 数组）；发送前预览会明示「图片随消息发送」。 */
+  var chatImages = [];   /* 咨询页待发图片 [{name, dataUrl}] */
+  function visionModel() {
+    return (PROVIDERS[S.provider] && PROVIDERS[S.provider].visionModel) || null;
+  }
+  function imageContent(dataUrl, text) {
+    return [{ type: "text", text: String(text || "") }, { type: "image_url", image_url: { url: String(dataUrl) } }];
+  }
+  function describeImage(dataUrl, name) {
+    if (!isConfigured()) return Promise.reject(new Error("AI 未配置——读图需要先配置 AI，并在支持视觉的模型下使用（如智谱 glm-4v-flash）"));
+    var vm = visionModel();
+    var messages = [
+      { role: "system", content: "你是法律案件助理。请客观转写/描述图片中的内容：合同或文书照片逐段转写关键文字（当事人、金额、日期、条款要点）；聊天记录截图转写对话双方与关键消息；伤情/票据/现场照片描述可见事实。只描述可见内容，不要推测、不要给法律结论。" },
+      { role: "user", content: imageContent(dataUrl, "请完整描述这张图片（" + String(name || "附件") + "）中与案件相关的内容。") }
+    ];
+    return aiChat(messages, null, vm ? { model: vm } : undefined);
+  }
+  function renderChatImages() {
+    var row = document.getElementById("chat-img-row");
+    if (!row) return;
+    row.innerHTML = chatImages.map(function (im, i) {
+      return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:9px;padding:3px 6px;font-size:11.5px">' +
+        '<img src="' + im.dataUrl + '" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:5px">' +
+        esc(im.name.slice(0, 14)) +
+        '<button type="button" data-chat-img-del="' + i + '" style="border:none;background:none;cursor:pointer;color:var(--ink-2);font-size:12px">✕</button></span>';
+    }).join("");
+    row.classList.toggle("hidden", !chatImages.length);
+    var btn = document.getElementById("chat-img-btn");
+    if (btn) btn.classList.toggle("hidden", chatImages.length >= 2);   /* 每条消息最多 2 张 */
+  }
+  function bindChatImage() {
+    var btn = document.getElementById("chat-img-btn");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (!(window.ATTACH && ATTACH.pick)) return;
+      ATTACH.pick("image/*").then(function (f) {
+        if (!f) return null;
+        return ATTACH.extractFile(f).then(function (res) {
+          if (!res || res.error) { if (window.UIKIT) UIKIT.toast((res && res.error) || "图片读取失败", "warn"); return null; }
+          if (chatImages.length >= 2) { if (window.UIKIT) UIKIT.toast("每条消息最多 2 张图片", "warn"); return null; }
+          chatImages.push({ name: res.name, dataUrl: res.dataUrl });
+          renderChatImages();
+          return null;
+        });
+      }).catch(function () { });
+    });
+    document.addEventListener("click", function (e) {
+      var d = e.target.closest ? e.target.closest("[data-chat-img-del]") : null;
+      if (!d) return;
+      chatImages.splice(parseInt(d.getAttribute("data-chat-img-del"), 10), 1);
+      renderChatImages();
+    });
+    renderChatImages();
+  }
+
   function aiConsult(text) {
     var box = document.getElementById("chat-box");
     window.UI.appendUser(text);
     var div = streamBubble(box);
     var ctx = buildContext(text);
+    /* 待发图片：取出并清空 chips，随本条消息走 vision 模型 */
+    var chatImg = chatImages.length ? chatImages.slice() : null;
+    if (chatImg) { chatImages.length = 0; renderChatImages(); }
     var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
       (window.INTAKE && window.INTAKE.isActive() ? window.INTAKE.promptBlock() : "") +
       (window.INTAKE && window.INTAKE.isActive() ? "" : langPrompt()) +
       "\n【追问规则】若用户描述的关键事实明显不足（未说明时间、金额、合同状态、双方关系等核心要素），" +
       "请先合并提出最多两个关键追问，等用户补充后再给完整分析；若信息已足够，直接分析，不要为追问而追问。" }]
       .concat(aiHistory)
-      .concat([{ role: "user", content: text }]);
+      .concat([{ role: "user", content: chatImg ? imageContent(chatImg[0].dataUrl, text) : text }]);
     var full = "";
     if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onUserMessage(text);
     var dId = (window.ANALYSIS.matchContext(text) || {}).domain;
+    var vmOpt = chatImg && visionModel() ? { model: visionModel() } : undefined;
     aiChat(messages, function (delta) {
       full += delta;
       setText(div, full);
-    }).then(function () {
+    }, vmOpt).then(function () {
       if (!full) full = "（模型未返回内容，请检查模型名称与服务商设置。）";
       /* 解析 AI 推荐追问行：从正文剥离，问题贴合本次回答 */
       var fl = parseAiFollowupLine(full);
@@ -649,6 +717,7 @@ window.AI = (function () {
     /* 设置按钮与弹窗 */
     var gear = document.getElementById("ai-gear");
     if (gear) gear.addEventListener("click", openModal);
+    bindChatImage();   /* 咨询页图片附件（vision） */
     var modal = document.getElementById("ai-modal");
     if (!modal) return;
     modal.querySelector(".modal-mask").addEventListener("click", function () { modal.classList.add("hidden"); });
@@ -941,6 +1010,7 @@ window.AI = (function () {
     systemPromptText: function () { return SYSTEM_PROMPT; },
     parseFollowupLine: parseAiFollowupLine,   /* 评测集只读访问 */
     mdLite: mdLite,                           /* 评测集只读访问（C4 白名单渲染回归） */
+    imageContent: imageContent, describeImage: describeImage,   /* vision（附件升级） */
     settings: function () { return S; },
     isConfigured: function () { return !!S.apiKey || S.provider === "ollama"; }
   };

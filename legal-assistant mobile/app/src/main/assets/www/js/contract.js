@@ -251,6 +251,20 @@ window.CONTRACT = (function () {
       aiReview(text, currentType);
       document.getElementById("ct-ai-result").scrollIntoView({ behavior: "smooth", block: "start" });
     });
+    /* 合同 docx/txt 直传（v3.4.5）：提取后载入输入框，走既有五类核对/AI 审查 */
+    var ctAttach = document.getElementById("ct-attach");
+    if (ctAttach) ctAttach.addEventListener("click", function () {
+      if (!(window.ATTACH && ATTACH.pick)) return;
+      ATTACH.pick(".docx,.txt,.md").then(function (f) {
+        if (!f) return null;
+        return ATTACH.extractFile(f).then(function (res) {
+          if (!res || res.error) { if (window.UIKIT) UIKIT.toast((res && res.error) || "提取失败", "warn"); return null; }
+          input.value = res.text + (res.truncated ? "\n（附件过长已截断至 2 万字）" : "");
+          if (window.UIKIT) UIKIT.toast("合同已载入：" + res.name + (res.truncated ? "（已截断 2 万字）" : ""), "ok");
+          return null;
+        });
+      }).catch(function () { });
+    });
     /* 存入案件工作区（事件委托：规则/AI 两处结果共用） */
     document.addEventListener("click", function (e) {
       var b = e.target.closest ? e.target.closest(".ws-save-btn") : null;
