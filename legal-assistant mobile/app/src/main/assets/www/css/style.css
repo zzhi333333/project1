@@ -1002,6 +1002,10 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 /* 案件阶段 stepper 消费端（workspace.js renderBody → svgchart.stepper） */
 .ws-stage-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }
 .ws-stage-btns .filter-chip { padding: 2px 11px; font-size: 12px; }
+/* 多案件仪表盘卡（F1） */
+.ws-ov-card { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; background: var(--card); }
+.ws-ov-card:active { border-color: var(--primary-border); }
+.ws-ov-card.on { border-color: var(--primary); background: var(--primary-soft); }
 /* 金额三线台账（请求 vs 已支出 vs 判得——纯记账不预测） */
 .ws-ledger-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 /* 合规日历完成/顺延小按钮（tools.js calRender） */

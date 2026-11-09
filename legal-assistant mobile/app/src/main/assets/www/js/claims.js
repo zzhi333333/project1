@@ -156,6 +156,18 @@ window.CLAIMS = (function () {
       }).join("") +
       '<button class="mini-btn primary" id="st-gen" style="margin-top:10px">生成和解参考卡</button>' +
       '<div id="st-out" style="margin-top:10px"></div>' +
+      '<div style="margin-top:14px"><b style="font-size:13px">方案对比沙盘（纯算术重排，不预测结果）</b>' +
+        '<div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap">' +
+          '<label style="font-size:12px;flex:1;min-width:130px">方案A：一次性支付（元）<input id="sb-a" type="number" min="0" inputmode="decimal" style="width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)"></label>' +
+          '<label style="font-size:12px;flex:1;min-width:100px">方案B：分期数<input id="sb-n" type="number" min="2" max="36" inputmode="numeric" style="width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)" placeholder="如 3"></label>' +
+        '</div>' +
+        '<div style="font-size:12px;margin:4px 0">方案B 需换回的条件（勾选后写入对比）：</div>' +
+        [["离职证明与社保转移配合"], ["撤回仲裁/诉讼申请"], ["放弃逾期利息"], ["分期加速到期条款（一期迟延则全额到期）"], ["保密条款"]].map(function (f, i) {
+          return '<label style="display:flex;gap:6px;font-size:12px;margin:3px 0"><input type="checkbox" class="sb-c" value="' + f[0] + '"> ' + f[0] + '</label>';
+        }).join("") +
+        '<button class="mini-btn" id="sb-run" style="margin-top:8px">生成方案对比</button>' +
+        '<div id="sb-out" style="margin-top:8px"></div>' +
+        '<div class="calc-note">分期每期金额 = 总额÷期数（四则运算）；「换回条件」为清单式结构化，接受与否由双方协商，本工具不预测接受率。</div></div>' +
       '<div style="margin-top:12px"><b style="font-size:13px">配套文书</b>' +
         '<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">' +
           '<button class="mini-btn" id="st-agreement"><svg class=ico><use href=#i-file></use></svg> 和解协议书模板</button>' +
@@ -354,6 +366,35 @@ window.CLAIMS = (function () {
     });
     $("st-agreement").addEventListener("click", function () { docWin("和解协议书（模板）", AGREEMENT); });
     $("st-defense").addEventListener("click", function () { docWin("劳动仲裁答辩书（模板·被申请人）", DEFENSE); });
+    /* 方案对比沙盘（F4）：A 一次性 vs B 分期，纯四则重排 + 换回条件清单 */
+    $("sb-run").addEventListener("click", function () {
+      var a = parseFloat($("sb-a").value) || 0;
+      var n = parseInt($("sb-n").value, 10) || 0;
+      var conds = [];
+      document.querySelectorAll("#claims-modal .sb-c:checked").forEach(function (c) { conds.push(c.value); });
+      if (!a || n < 2) { $("sb-out").innerHTML = '<div class="tool-warn">请填写方案A金额与方案B期数（≥2）。</div>'; return; }
+      var each = Math.round(a / n * 100) / 100;
+      var condsTxt = conds.length ? conds.map(function (c, i) { return (i + 1) + ". " + c; }).join("\n") : "（未勾选——分期方案通常需至少换取一项配合条件）";
+      $("sb-out").innerHTML = '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px;line-height:1.9">' +
+        '<b>方案对比</b><br>' +
+        '方案A（一次性）：总额 ¥' + fmt(a) + "，回款时点：签署后立即<br>" +
+        '方案B（分 ' + n + ' 期）：总额 ¥' + fmt(each * n) + "，每期 ¥" + fmt(each) + "，回款时点：分 " + n + ' 期<br>' +
+        '方案B 需换回的条件：\n' + condsTxt.replace(/\n/g, "<br>") + '<br>' +
+        '<span class="dim" style="font-size:11px">分期拖长回款不确定性上升——通常以总额上浮或条件换取为对价（自行评估）。</span>' +
+        '<div style="margin-top:8px"><button class="mini-btn" id="sb-copy">复制对比文本</button> <button class="mini-btn" id="sb-ws">存入案件工作区</button></div></div>';
+      var text = "和解方案对比（谈判要素整理，不预测结果）\n\n方案A（一次性）：总额 " + fmt(a) + " 元，回款时点：签署后立即\n方案B（分 " + n + " 期）：总额 " + fmt(each * n) + " 元，每期 " + fmt(each) + " 元\n需换回的条件：\n" + conds.map(function (c, i) { return (i + 1) + ". " + c; }).join("\n") + "\n\n—— 由法律咨询助手生成，仅供参考。";
+      $("sb-copy").addEventListener("click", function () {
+        copy(text);
+        $("sb-copy").textContent = "已复制";
+        setTimeout(function () { if ($("sb-copy")) $("sb-copy").textContent = "复制对比文本"; }, 1500);
+      });
+      $("sb-ws").addEventListener("click", function () {
+        if (!window.WORKSPACE || !WORKSPACE.current()) { hint($("sb-ws"), "先在工具页激活案件"); return; }
+        window.WORKSPACE.attach("docs", { name: "和解方案对比（" + fmt(a) + " 元 / " + n + " 期）", date: new Date().toISOString().slice(0, 10), draft: text.slice(0, 4000) });
+        if (window.TOOLS && TOOLS.haptic) TOOLS.haptic(12);
+        hint($("sb-ws"), "已存入工作区");
+      });
+    });
   }
 
   var AGREEMENT =

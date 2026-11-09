@@ -274,6 +274,63 @@ window.DOCTPL = (function () {
       "※ 提示：①「一次性了结/放弃其他请求」条款影响重大，签署前建议由律师审查；②乙方为公司时务必加盖公章；③建议约定迟延付款的加速条款（未按期支付则和解作废、按原请求主张）。";
   }
 
+  /* ---------- 庭前文书（v3.5.1 批次 F）：由 51 场景争点/抗辩结构化数据生成，全模板化不预测 ---------- */
+  function insightOf(ctx) {
+    var sid = ctx.scenario && ctx.scenario.id;
+    return (window.INSIGHTS && sid) ? window.INSIGHTS.get(sid) : null;
+  }
+  function genCritique(ctx) {
+    var ins = insightOf(ctx);
+    var lines = [
+      "质证意见（草稿）\n",
+      "案件情形：" + (ctx.scenario ? ctx.scenario.name : "【案情简述】") + "\n",
+      "一、对方可能提交的证据与我方质证要点（结合实际证据逐项核对取舍）："
+    ];
+    var ds = ins && ins.defenses ? ins.defenses : [];
+    if (ds.length) {
+      ds.forEach(function (d, i) {
+        lines.push((i + 1) + ". 针对对方主张「" + d.d + "」：");
+        lines.push("   （1）真实性：【要求出示原件/原始载体，核验签名盖章——按证据填写】；");
+        lines.push("   （2）合法性：【审查取证方式，是否侵害他人合法权益——按证据填写】；");
+        lines.push("   （3）关联性：【与本案争点的对应关系——按证据填写】；");
+        lines.push("   （4）质疑方向：" + d.counter + "；");
+        lines.push("   （5）我方反驳证据（自检）：" + (d.ev || "【补充】") + "。");
+      });
+    } else {
+      lines.push("【尚未录入对方证据清单——对对方提交的每份证据，逐项从真实性/合法性/关联性三性陈述质证意见】");
+    }
+    lines.push("", "二、质证总体意见：【部分证据认可、部分不予认可——逐项说明依据】。", "",
+      "※ 注：本草稿由法律咨询助手按争议模板生成，质疑方向为程序性检查要点，不构成对证据的评判或法律意见；请结合实际证据修改并请执业律师复核。");
+    return lines.join("\n");
+  }
+  function genOutline(ctx) {
+    var ins = insightOf(ctx);
+    var lines = [
+      "庭审提纲（草稿）\n",
+      "案件情形：" + (ctx.scenario ? ctx.scenario.name : "【案情简述】") + "\n",
+      "一、陈述要点（按时间线简要陈述己方事实与依据）："
+    ];
+    var iss = ins && ins.issues ? ins.issues : [];
+    if (iss.length) {
+      iss.forEach(function (q, i) { lines.push((i + 1) + ". " + q.q + "\n   要点：" + (q.concl || "【补充】")); });
+    } else {
+      lines.push("【逐项陈述案件时间线、当事人、诉求与依据——补充】");
+    }
+    lines.push("", "二、发问清单（程序性句式模板，按庭审进度取舍）：");
+    var ds = ins && ins.defenses ? ins.defenses : [];
+    if (ds.length) {
+      ds.forEach(function (d, i) { lines.push((i + 1) + ". 对方主张「" + d.d + "」——请对方说明：该主张依据何种证据，以及如何回应我方质疑（【" + (d.counter || "补充") + "】）。"); });
+    } else {
+      lines.push("【就关键事实逐项列明程序性发问——补充】");
+    }
+    lines.push("", "三、庭前自检：证据原件与编页复印件 □｜身份材料 □｜诉求计算依据 □｜时效与期限说明 □。", "",
+      "※ 注：本提纲由法律咨询助手按争议模板生成，发问清单为程序性提示句式，不预测庭审结果、不构成法律意见；请结合实际案情修改并请执业律师复核。");
+    return lines.join("\n");
+  }
+  var ALL_SCEN = (window.INSIGHTS && window.INSIGHTS.SCEN) ? Object.keys(window.INSIGHTS.SCEN) : [];
+  reg({ id: "court-critique", name: "质证意见（草稿）", scenarios: ALL_SCEN, gen: genCritique });
+  reg({ id: "court-outline", name: "庭审提纲（草稿）", scenarios: ALL_SCEN, gen: genOutline });
+
   /* 场景 → 可用文书 */
   reg({ id: "arb-labor", name: "劳动仲裁申请书", scenarios: ["labor-dismiss", "labor-wage", "labor-no-contract", "labor-overtime", "labor-probation", "labor-noncompete", "labor-leave", "labor-transfer", "labor-injury", "labor-social"], gen: genArb });
   reg({ id: "forced-resign", name: "被迫解除劳动合同通知书", scenarios: ["labor-dismiss", "labor-wage", "labor-social", "labor-overtime", "labor-transfer"], gen: genForced });

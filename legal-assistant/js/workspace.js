@@ -423,6 +423,34 @@ window.WORKSPACE = (function () {
     if (empty) empty.classList.toggle("hidden", !!c);
     if (content) content.classList.toggle("hidden", !c);
     if (!c) return;
+    /* 多案件仪表盘（F1）：各案一卡=名称+阶段+三线台账摘要+最近未完成期限，点击切换 */
+    var ovBox = $("ws-overview");
+    if (ovBox) {
+      var dAll = load();
+      var dlAll = [];
+      try { dlAll = JSON.parse(localStorage.getItem("legal-deadlines") || "[]"); } catch (e) { }
+      var cards = dAll.list.slice().sort(function (a, b) { return (b.id === dAll.currentId ? 1 : 0) - (a.id === dAll.currentId ? 1 : 0); });
+      ovBox.innerHTML = '<b style="font-size:13px">案件概览（' + cards.length + '）</b><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:6px 0 10px">' +
+        cards.map(function (cc) {
+          var si2 = getStage(cc);
+          var lg2 = cc.ledger || {};
+          var spent2 = (lg2.spent || []).reduce(function (s2, e2) { return s2 + (parseFloat(e2.amount) || 0); }, 0);
+          var next = null;
+          (cc.links.deadlines || []).forEach(function (ld) {
+            var it = dlAll.filter(function (x) { return x.name === ld.name && x.date === ld.date; })[0];
+            if (it && it.done) return;
+            if (!next || (ld.date && ld.date < next.date)) next = { date: ld.date, name: ld.name };
+          });
+          return '<div class="ws-ov-card' + (cc.id === dAll.currentId ? " on" : "") + '" data-ws-ov="' + esc(cc.id) + '">' +
+            '<b style="font-size:12.5px">' + esc(cc.name) + (cc.id === dAll.currentId ? "（当前）" : "") + '</b>' +
+            '<div style="font-size:11px;color:var(--ink-2);margin-top:2px">阶段：' + esc(STAGES[si2]) +
+            '｜请求：' + (lg2.claimTotal != null ? fmt(lg2.claimTotal) + " 元" : "—") +
+            '｜支出：' + (spent2 ? fmt(spent2) + " 元" : "—") +
+            '｜判得：' + (lg2.resultAmount ? fmt(lg2.resultAmount) + " 元" : "—") + '</div>' +
+            (next ? '<div style="font-size:11px;color:var(--warn);margin-top:2px">最近期限：' + esc(next.date || "?") + " " + esc(next.name || "") + '</div>' : '') +
+            '</div>';
+        }).join("") + '</div>';
+    }
     /* 案件阶段 stepper（B1）：用户自报进度，节点色=已过绿/当前主色/未来灰 */
     var stageBox = $("ws-stage");
     if (stageBox) {
@@ -742,10 +770,31 @@ window.WORKSPACE = (function () {
     });
     var printBtn = $("ws-onepager");
     if (printBtn) printBtn.addEventListener("click", printOnePager);
+    /* 律师交接包（F2）：复用 pack.js 零依赖 zip 写入器，结构化给律师快速了解案情 */
+    var hvBtn = $("ws-handover");
+    if (hvBtn) hvBtn.addEventListener("click", function () {
+      var c = current();
+      if (!c) return;
+      if (!(window.PACK && PACK.download)) return;
+      var lg3 = c.ledger || {};
+      var spent3 = (lg3.spent || []).reduce(function (s3, e3) { return s3 + (parseFloat(e3.amount) || 0); }, 0);
+      var evEl = $("ws-ev-input");
+      var evText = evEl && evEl.value.trim() ? evEl.value.trim() : "（未录入）";
+      var files = [
+        { name: "00-交接说明.txt", content: "案件交接包（律师版）\n\n生成：法律咨询助手（本机），时间 " + new Date().toLocaleString("zh-CN") + "\n用途：供律师/法律援助快速了解案情；内容均为用户录入或程序从用户材料提取的客观数据。\n\n免责：本包内容仅供参考，不构成法律意见；材料真实性以原件为准，请由执业律师核验。" },
+        { name: "01-案件概要.md", content: "# 案件概要：" + c.name + "\n\n- 阶段：" + STAGES[getStage(c)] + "（自报）\n- 创建：" + c.createdAt.slice(0, 10) + "\n\n## 金额三线\n- 请求合计：" + (lg3.claimTotal != null ? fmt(lg3.claimTotal) + " 元" : "未记录") + "\n- 已支出：" + (spent3 ? fmt(spent3) + " 元" : "未记录") + "\n- 判决/调解确定：" + (lg3.resultAmount ? fmt(lg3.resultAmount) + " 元" : "未记录") + "\n\n## 判决信息\n" + (c.result ? "- 案号：" + c.result.caseNo + "\n- 法院：" + c.result.court + "\n- 落款日：" + c.result.judgmentDate + "\n- 履行金额：" + c.result.amount + " 元" : "（未保存）") + "\n\n## 待确认事项\n" + (c.notes.length ? c.notes.map(function (n) { return "- [" + (n.done ? "x" : " ") + "] " + n.text; }).join("\n") : "（无）") + "\n" },
+        { name: "02-期限与文书.txt", content: "## 期限\n" + ((c.links.deadlines || []).map(function (r) { return "- " + (r.date || "?") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 文书草稿\n" + ((c.links.docs || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联分析报告\n" + ((c.links.reports || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联案例\n" + ((c.links.cases || []).map(function (r) { return "- " + r.name; }).join("\n") || "（无）") + "\n" },
+        { name: "03-证据目录.txt", content: evText + "\n" }
+      ];
+      PACK.download("案件交接-" + c.name + ".zip", files);
+      if (window.TOOLS && TOOLS.haptic) TOOLS.haptic(12);
+    });
     /* ---- B1/B2/B4/B5 控件：事件委托挂 #ws-body，renderBody 重建 DOM 后仍生效 ---- */
     var wsBodyEl = $("ws-body");
     if (wsBodyEl) wsBodyEl.addEventListener("click", function (e) {
       if (!e.target || !e.target.closest) return;
+      var ovCard = e.target.closest("[data-ws-ov]");
+      if (ovCard) { setCurrent(ovCard.getAttribute("data-ws-ov")); renderAll(); return; }
       var stageBtn = e.target.closest(".ws-stage-set");
       if (stageBtn) { setStage(parseInt(stageBtn.getAttribute("data-stage"), 10)); renderBody(); return; }
       var spentDel = e.target.closest("[data-ws-spent-del]");

@@ -924,6 +924,28 @@ T("P4/P5 CHATHISTORY：removeLastOf 只删末条 AI + toMarkdown 含标题/时�
   if (md.indexOf("错误回答") !== -1) throw new Error("已删消息不应出现在导出");
   CH.remove(cur.id);
 });
+section("庭前文书模板测试（js/templates.js · 批次 F）");
+vm.runInContext(fs.readFileSync(path.join(root, "js", "templates.js"), "utf8"), sandbox, { filename: "js/templates.js" });
+T("庭前文书：51 场景全覆盖 + 质证草稿含三性框架与免责", function () {
+  const DOCTPL = sandbox.window.DOCTPL;
+  const docs = DOCTPL.forScenario("labor-dismiss");
+  const names = docs.map(t => t.id);
+  if (names.indexOf("court-critique") === -1 || names.indexOf("court-outline") === -1) throw new Error("庭前双模板未注册：" + names.join(","));
+  const critique = docs.filter(t => t.id === "court-critique")[0].gen({ scenario: { id: "labor-dismiss", name: "被公司辞退" }, answers: {}, result: {} });
+  ["真实性", "合法性", "关联性", "不构成对证据的评判或法律意见"].forEach(k => {
+    if (critique.indexOf(k) === -1) throw new Error("质证草稿缺少「" + k + "」");
+  });
+  const outline = docs.filter(t => t.id === "court-outline")[0].gen({ scenario: { id: "labor-dismiss", name: "被公司辞退" }, answers: {}, result: {} });
+  ["陈述要点", "发问清单", "不预测庭审结果"].forEach(k => {
+    if (outline.indexOf(k) === -1) throw new Error("庭审提纲缺少「" + k + "」");
+  });
+});
+T("庭前文书：无争点数据场景回退占位（不抛错）", function () {
+  const DOCTPL = sandbox.window.DOCTPL;
+  const t = DOCTPL.forScenario("labor-dismiss").filter(t2 => t2.id === "court-outline")[0];
+  const txt = t.gen({ scenario: null, answers: {}, result: {} });
+  if (txt.indexOf("【案情简述】") === -1) throw new Error("无场景时应回退占位");
+});
 T("工作区 v3：setCaseResult 即时刷新判决卡（P2 用户实测回归）", function () {
   WORKSPACE.setCurrent(WORKSPACE.create("P2回归案").id);
   WORKSPACE.setCaseResult({ caseNo: "（2024）京0105民初1号", court: "北京市朝阳区人民法院", judgmentDate: "2024-07-15", amount: "25000", plaintiff: "张三", defendant: "李四" }, "first");
