@@ -43,10 +43,33 @@
     return out;
   }
 
+  /* 别名扩展（v3.4.9）：口语/俗称 → 规范法律用语（词表见 js/data/alias.js）。
+     只对整段查询词匹配（不在分词碎片上匹配——否则「竞业限制」滑窗碎片「竞业」会误撞别名键）。
+     例：搜「N+1」原本命中 0 条（40 条卡文本无该字样），扩展「代通知金」后即命中。 */
+  function expandAlias(query) {
+    var used = [], expansions = [];
+    var A = window.LAW_ALIAS || {};
+    query.split(/\s+/).forEach(function (seg) {
+      if (!seg) return;
+      var a = A[seg.toLowerCase()];
+      if (a) {
+        used.push(seg + " → " + a.join("、"));
+        expansions = expansions.concat(a);
+      }
+    });
+    return { used: used, expansions: expansions };
+  }
+
   function search(query, domain) {
-    var tokens = tokenize(query.trim());
+    var raw = query.trim();
+    var ex = expandAlias(raw);
+    if (window.LAWSEARCH) window.LAWSEARCH.lastAlias = ex.used;
+    var tokens = tokenize(raw);
+    ex.expansions.forEach(function (w) {
+      tokenize(w).forEach(function (x) { if (tokens.indexOf(x) === -1) tokens.push(x); });
+    });
     var pool = window.LAWS.filter(function (l) { return !domain || l.domain === domain; });
-    if (!query.trim()) return pool;
+    if (!raw) return pool;
     var scored = pool.map(function (l) { return { l: l, s: scoreLaw(l, tokens) }; })
       .filter(function (x) { return x.s > 0; })
       .sort(function (a, b) { return b.s - a.s; });
@@ -108,9 +131,17 @@
   function renderList(container, query, domain) {
     var results = search(query, domain);
     container.innerHTML = "";
+    var aliasNote = (window.LAWSEARCH && LAWSEARCH.lastAlias || []).join("；");
     if (!results.length) {
-      container.innerHTML = '<div class="empty">未找到匹配的法条，试试其他关键词，如「经济补偿」「注册资本」「竞业限制」「赔偿」。</div>';
+      container.innerHTML = '<div class="empty">未找到匹配的法条，试试其他关键词，如「经济补偿」「注册资本」「竞业限制」「赔偿」。' +
+        (aliasNote ? '<br><span style="font-size:12px">已按别名扩展检索：' + esc(aliasNote) + '</span>' : '') + '</div>';
       return;
+    }
+    if (aliasNote) {
+      var hint = document.createElement("div");
+      hint.style.cssText = "font-size:12px;color:var(--ink-2);margin:0 0 8px";
+      hint.textContent = "已按别名扩展检索：" + aliasNote;
+      container.appendChild(hint);
     }
     var favs = getFavs();
     results.forEach(function (l) {
@@ -161,6 +192,7 @@
 
   window.LAWSEARCH = {
     refreshNow: function () { if (_refresh) _refresh(); },
+    search: search,   /* 评测与外部调用（test.js 别名金问题） */
     init: function () {
       var input = document.getElementById("law-search-input");
       var btn = document.getElementById("law-search-btn");

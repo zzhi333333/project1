@@ -13,8 +13,10 @@ window.CHATHISTORY = (function () {
   var currentId = null;
 
   function load() {
-    try { sessions = JSON.parse(localStorage.getItem(KEY) || "[]"); }
-    catch (e) { sessions = []; }
+    try {
+      if (window.STORE) sessions = STORE.get(KEY, []);
+      else sessions = JSON.parse(localStorage.getItem(KEY) || "[]");
+    } catch (e) { sessions = []; }
     if (!Array.isArray(sessions)) sessions = [];
     sessions.forEach(function (s) { if (typeof s.archived !== "boolean") s.archived = false; });
     try { currentId = localStorage.getItem(CUR) || null; } catch (e) { currentId = null; }
@@ -22,10 +24,17 @@ window.CHATHISTORY = (function () {
   }
 
   function persist() {
+    /* 经 STORE 门面写入（v3.4.9）：配额溢出时 LRU 先清可再生的法条全文缓存再重试——
+       此前直连 localStorage 使最大宗的会话键游离于配额回收之外。load 同理走门面。 */
+    var ok = false;
     try {
-      localStorage.setItem(KEY, JSON.stringify(sessions));
-      if (currentId) localStorage.setItem(CUR, currentId);
+      if (window.STORE) ok = STORE.set(KEY, sessions);
+      else { localStorage.setItem(KEY, JSON.stringify(sessions)); ok = true; }
+      if (ok && currentId) { try { localStorage.setItem(CUR, currentId); } catch (e2) { } }
     } catch (e) {
+      ok = false;
+    }
+    if (!ok) {
       /* 容量超限等：保留内存态，页面级提示一次（此前仅 console.warn，用户以为已保存实则丢失） */
       if (!window.__histWarned) {
         window.__histWarned = true;

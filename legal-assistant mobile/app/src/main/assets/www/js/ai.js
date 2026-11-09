@@ -985,10 +985,18 @@ window.AI = (function () {
   }
   function exportData() {
     var payload = buildBackup();
-    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var json = JSON.stringify(payload, null, 2);
+    var fname = "legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    /* App 内走原生 SAF 另存为（此前仍是网页 Blob 下载代码——WebView 无 DownloadListener，按钮静默失效） */
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) {
+      window.BRIDGE.exportFile(fname, json);
+      setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出到所选位置（不含 API Key；文件含明文案情，请妥善保管）", "ok");
+      return;
+    }
+    var blob = new Blob([json], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "legal-assistant-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.download = fname;
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus("<svg class=ico><use href=#i-checkc></use></svg> 备份已导出（不含 API Key，换设备需重新填写；文件含明文案情，请妥善保管）", "ok");
@@ -1010,10 +1018,17 @@ window.AI = (function () {
       lines.push("- [" + (x.verdict || "?") + "][" + (x.domain || "?") + "] " + x.scene + (x.comment ? "｜" + x.comment : "") + "｜" + (x.time || "").slice(0, 10));
     });
     lines.push("", "（本清单由本机生成；加入评测集时请匿名化处理案情信息。）");
-    var blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    var md = lines.join("\n");
+    var fname = "feedback-" + new Date().toISOString().slice(0, 10) + ".md";
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) {
+      window.BRIDGE.exportFile(fname, md);
+      setStatus("<svg class=ico><use href=#i-checkc></use></svg> 反馈清单已导出到所选位置", "ok");
+      return;
+    }
+    var blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "feedback-" + new Date().toISOString().slice(0, 10) + ".md";
+    a.download = fname;
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus("<svg class=ico><use href=#i-checkc></use></svg> 反馈清单已导出", "ok");

@@ -17,8 +17,14 @@
 
   function search(q) {
     var out = [];
+    /* 别名扩展（v3.4.9）：命中别名时，规范词任一命中即计入（如 N+1 → 代通知金） */
+    var aliasList = window.LAW_ALIAS ? (LAW_ALIAS[String(q).trim().toLowerCase()] || []) : [];
+    var qs = [q].concat(aliasList);
     window.DomainRegistry.collect("laws").forEach(function (l) {
-      if (hit(l.title, q) || hit(l.article, q) || hit(l.text, q) || (l.tags || []).some(function (t) { return hit(t, q); }))
+      var hitAny = qs.some(function (qq) {
+        return hit(l.title, qq) || hit(l.article, qq) || hit(l.text, qq) || (l.tags || []).some(function (t) { return hit(t, qq); });
+      });
+      if (hitAny)
         out.push({ g: "法条", label: l.lawShort + " " + l.article + " " + l.title, sub: l.text.slice(0, 80), act: function () {
           window.APP.switchView("laws");
           document.getElementById("law-search-input").value = l.title;

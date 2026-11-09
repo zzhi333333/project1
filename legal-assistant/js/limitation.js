@@ -104,6 +104,9 @@ window.LIMITATION = (function () {
     return d.getDay() === 0 || d.getDay() === 6;
   }
   /* 届满顺延：返回 { date, postponed } */
+  /* 某年份是否有官方放假表（供 UI 提示「未收录年份顺延仅按周末近似」） */
+  function yearCovered(y) { return !!HOLIDAY[String(y)]; }
+
   function postponeIfRest(d) {
     var r = new Date(d.getTime());
     var moved = false;
@@ -182,6 +185,6 @@ window.LIMITATION = (function () {
     init: init, openCenter: openCenter, closeCenter: closeCenter,
     rules: RULES,
     /* 供「时效倒计时」计算器调用：届满日节假日顺延 */
-    postponeIfRest: postponeIfRest, isRestDay: isRestDay, ymd: ymd
+    postponeIfRest: postponeIfRest, isRestDay: isRestDay, ymd: ymd, yearCovered: yearCovered
   };
 })();

@@ -867,6 +867,23 @@ T("attach：常量与图片判别（File 流程走浏览器冒烟）", function 
   if (!A || A.MAX_TEXT !== 20000) throw new Error("attach 常量异常");
   if (!A.isImage("a.JPG") || A.isImage("b.docx")) throw new Error("isImage 判别异常");
 });
+section("检索别名扩展测试（js/data/alias.js · search.js）");
+vm.runInContext(fs.readFileSync(path.join(root, "js", "data", "alias.js"), "utf8"), sandbox, { filename: "js/data/alias.js" });
+vm.runInContext(fs.readFileSync(path.join(root, "js", "search.js"), "utf8"), sandbox, { filename: "js/search.js" });
+T("检索别名：N+1 → 代通知金 命中劳动合同法第40条（此前 0 命中）", function () {
+  const ids = sandbox.window.LAWSEARCH.search("N+1").map(l => l.id);
+  if (!ids.includes("ht-40")) throw new Error("N+1 未命中 ht-40：" + ids.slice(0, 6).join(","));
+  if (!(sandbox.window.LAWSEARCH.lastAlias || []).length) throw new Error("lastAlias 未记录扩展");
+});
+T("检索别名：2N → 二倍 命中劳动合同法第87条；撤三 → 连续三年不使用 命中商标撤三条", function () {
+  if (!sandbox.window.LAWSEARCH.search("2N").map(l => l.id).includes("ht-87")) throw new Error("2N 未命中 ht-87");
+  if (!sandbox.window.LAWSEARCH.search("撤三").map(l => l.id).includes("bz-che3")) throw new Error("撤三 未命中 bz-che3");
+});
+T("检索别名：无别名词不误扩（「竞业限制」正常检索且 lastAlias 为空）", function () {
+  const n = sandbox.window.LAWSEARCH.search("竞业限制").length;
+  if (!n) throw new Error("常规检索异常");
+  if ((sandbox.window.LAWSEARCH.lastAlias || []).length) throw new Error("常规词不应触发别名扩展");
+});
 T("工作区 v3：setCaseResult 即时刷新判决卡（P2 用户实测回归）", function () {
   WORKSPACE.setCurrent(WORKSPACE.create("P2回归案").id);
   WORKSPACE.setCaseResult({ caseNo: "（2024）京0105民初1号", court: "北京市朝阳区人民法院", judgmentDate: "2024-07-15", amount: "25000", plaintiff: "张三", defendant: "李四" }, "first");

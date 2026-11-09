@@ -423,6 +423,25 @@ head("CSS 完整性（令牌循环 / 非法拼接 / 暗色浅底）");
   });
 })();
 
+/* ---------- 14. 资料时效门禁（内容新鲜度，v3.4.9 批次 D） ----------
+   reviewedAt 此前只是页脚展示品（registry 常量与 index.html 页脚两处手工同步，链外漂移无人知）；
+   节假日表年份缺失曾造成 2026 年顺延全年静默退化为仅周末判断——机器门禁防复发。 */
+head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
+(function () {
+  var regTxt = "";
+  try { regTxt = fs.readFileSync(path.join(root, "js", "registry.js"), "utf8"); } catch (e) { bad("registry.js 不可读"); return; }
+  var m1 = regTxt.match(/REVIEWED_AT\s*=\s*"(\d{4}-\d{2})"/);
+  var m2 = html.match(/最后系统性复核[：:]\s*(\d{4}-\d{2})/);
+  if (!m1 || !m2) bad("reviewedAt 解析失败（registry.js 常量 / index.html 页脚标记）");
+  else if (m1[1] !== m2[1]) bad("reviewedAt 不一致：registry=" + m1[1] + "，页脚=" + m2[1] + "（两处应同步更新）");
+  else ok("reviewedAt 一致：" + m1[1]);
+  var limTxt = "";
+  try { limTxt = fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"); } catch (e) { bad("limitation.js 不可读"); return; }
+  var y = String(new Date().getFullYear());
+  if (new RegExp('"' + y + '"\\s*:\\s*\\[').test(limTxt)) ok(y + " 年法定节假日表已收录");
+  else warn(y + " 年法定节假日表未收录——时效顺延仅按周末近似（宁少勿错），请对照国务院办公厅通知补充 limitation.js HOLIDAY/WORKDAY");
+})();
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(failures === 0

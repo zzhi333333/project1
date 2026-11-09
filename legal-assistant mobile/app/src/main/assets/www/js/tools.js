@@ -177,6 +177,10 @@
         deadline = pp.date;
         postponedNote = '<br><span style="color:var(--primary)">⏱ 届满日为法定节假日/休息日，已按《民事诉讼法》第85条顺延至 ' + window.LIMITATION.ymd(deadline) + '（以最新国务院放假通知为准）</span>';
       }
+      /* 当年官方放假表未收录时如实提示（v3.4.9）：顺延退化为仅按周末近似，宁少勿错的保守方向 */
+      if (!postponedNote && window.LIMITATION.yearCovered && !window.LIMITATION.yearCovered(deadline.getFullYear())) {
+        postponedNote = '<br><span style="color:var(--warn)">⚠ ' + deadline.getFullYear() + ' 年法定节假日表未收录（以国务院办公厅通知为准）：顺延仅按周末近似，请自行核对法定假日</span>';
+      }
     }
     var today = new Date(); today.setHours(0, 0, 0, 0);
     var left = Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
@@ -912,10 +916,15 @@
       var calNotifyBtn = $("cal-notify");
       if (calNotifyBtn) {
         var stateEl = $("cal-notify-state");
-        if (window.Notification && Notification.permission === "granted") {
+        /* App 内 WebView 不实现 Web Notification API（此前点「开启」永远走「不支持」死路径）——如实告知 */
+        var inApp = !!(window.BRIDGE && window.BRIDGE.available);
+        if (inApp && !window.Notification) {
+          stateEl.textContent = "App 内暂不支持系统通知——到期事项以「合规日历」列表与剩余天数为准";
+        } else if (window.Notification && Notification.permission === "granted") {
           stateEl.textContent = "已开启";
         }
         calNotifyBtn.addEventListener("click", function () {
+          if (inApp && !window.Notification) { stateEl.textContent = "App 内暂不支持系统通知——到期事项以「合规日历」列表与剩余天数为准"; return; }
           if (!window.Notification) { stateEl.textContent = "当前浏览器不支持通知"; return; }
           if (Notification.permission === "granted") { stateEl.textContent = "已开启（浏览器授权）"; return; }
           Notification.requestPermission().then(function (p) {
