@@ -969,6 +969,10 @@ window.WORKSPACE = (function () {
         if (window.TOOLS && TOOLS.haptic) TOOLS.haptic(10);
       }
     });
+    /* 页面化首帧渲染（v3.6.1 IA 回归修复）：switchView 只切页签 class 不触发渲染，
+       启动后首次点「案件」页签时 ws-empty/ws-content 均保持初始 hidden 成空白正文。
+       此处补一次启动渲染出首帧；页内后续变更均由委托回调内的 renderAll/renderBody 刷新 */
+    renderAll();
   }
 
   return {
