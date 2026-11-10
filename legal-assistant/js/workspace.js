@@ -20,10 +20,20 @@ window.WORKSPACE = (function () {
         if (!Array.isArray(c.links[k])) c.links[k] = [];
       });
       if (!Array.isArray(c.notes)) c.notes = [];
-      if (typeof c.stage !== "number") c.stage = 0;
+      /* C1 阶段迁移：旧数字索引→新字符串键（读时归一，下次 save 自愈落盘） */
+      c.stage = normStage(c.stage);
       if (!c.ledger || typeof c.ledger !== "object") c.ledger = { claimTotal: null, spent: [], resultAmount: null };
       if (!Array.isArray(c.ledger.spent)) c.ledger.spent = [];
       if (c.result === undefined) c.result = null;
+      /* C3 履行跟踪台账（归一化默认） */
+      if (!Array.isArray(c.performance)) c.performance = [];
+      c.performance.forEach(function (p) {
+        if (!p || typeof p !== "object") return;
+        p.item = String(p.item || "").slice(0, 80);
+        if (p.status !== "done" && p.status !== "overdue" && p.status !== "pending") p.status = "pending";
+      });
+      /* C4 结案归档（archived 默认 false；活跃列表=未归档） */
+      if (c.archived !== true) c.archived = false;
     });
     return d;
   }
@@ -79,20 +89,37 @@ window.WORKSPACE = (function () {
     return r === undefined ? true : r;
   }
 
-  /* ---------------- 案件生命周期阶段（B1） ----------------
-     阶段为用户自报的客观进程标记（准备→立案→开庭→判决→执行→结案），
-     不做任何程序进度承诺或结果预测（红线）。老数据无 stage 字段按 0 读。 */
-  var STAGES = ["准备", "立案", "开庭", "判决", "执行", "结案"];
-  function getStage(c) {
-    var s = c && typeof c.stage === "number" ? c.stage : 0;
-    return Math.max(0, Math.min(STAGES.length - 1, s));
+  /* ---------------- 案件生命周期阶段（B1，C1 深化：八档字符串键） ----------------
+     阶段为用户自报的客观进程标记（取证→协商→立案→仲裁→一审→二审→执行→已结案），
+     不做任何程序进度承诺或结果预测（红线）。仲裁/一审为互斥双轨：劳动案主走仲裁，
+     民事案直接一审——节点全显示，用户按自己的程序自报即可（错位一档点选即修正）。
+     旧数字索引迁移见 load()：{0:取证,1:立案,2:仲裁,3:一审,4:执行,5:已结案}。 */
+  var STAGE_KEYS = ["取证", "协商", "立案", "仲裁", "一审", "二审", "执行", "已结案"];
+  var LEGACY_STAGE_MAP = { 0: "取证", 1: "立案", 2: "仲裁", 3: "一审", 4: "执行", 5: "已结案" };
+  function normStage(v) {
+    if (typeof v === "number" && LEGACY_STAGE_MAP[v]) return LEGACY_STAGE_MAP[v];
+    if (typeof v === "string" && STAGE_KEYS.indexOf(v) > -1) return v;
+    return "取证";
   }
-  function setStage(i) {
+  function getStage(c) { return normStage(c && c.stage); }
+  function setStage(key) {
+    var k = normStage(key);
     return withCurrent(function (c) {
-      c.stage = Math.max(0, Math.min(STAGES.length - 1, i | 0));
+      c.stage = k;
       c.stageAt = new Date().toISOString();
     }) === true;
   }
+  /* C1 要点清单：切阶段自动带出该阶段常见行动要点与现有工具入口（纯参考不代改） */
+  var STAGE_CHECKLIST = {
+    "取证": ["按证据清单逐项归集（聊天记录/转账凭证/合同/考勤），原始载体保留", "关键证据做公证或时间戳固定（如需）", "点「生成证据目录表」建立编号目录"],
+    "协商": ["明确底线与让步阶梯（参考和解谈判卡）", "协商记录留痕（书面/录音），承诺期限写进协议", "注意仲裁/诉讼时效：劳动 1 年、民事 3 年（时效规则中心可查）"],
+    "立案": ["备齐申请书/起诉状+证据目录+当事人主体材料", "劳动争议先仲裁前置（仲裁申请书模板已内置）", "点「解析生成双时间线」核对手续期限"],
+    "仲裁": ["庭前按庭审提纲组织陈述与质证要点", "对方证据逐项三性质证（质证意见草稿可生成）", "裁决作出后注意 15 日起诉期（不服裁决转诉讼）"],
+    "一审": ["按庭审提纲走举证/质证/辩论三段", "新增证据注意举证期限", "不服判决 15 日内上诉（期限节点已入日历可跟踪）"],
+    "二审": ["上诉状聚焦一审法律适用与事实认定错误点", "新证据说明逾期理由", "二审判决为终审，生效后进入履行/执行"],
+    "执行": ["履行期内先催告留痕", "查财产线索：银行/房车/工资/股权（财产线索清单可生成）", "逾期未履行：点「执行申请书（自动填充）」申请强制执行"],
+    "已结案": ["核对款项全部到账（履行台账勾齐）", "文书归档：导出案件档案 + 律师交接包", "生成结案回顾留档复盘"]
+  };
 
   /* ---------------- 判决结果落盘（B2） ----------------
      parseJudgment 结果此前只存内存 lastJudg，刷新即丢，执行申请书被锁死在
@@ -113,6 +140,10 @@ window.WORKSPACE = (function () {
       c.result = r;
       c.ledger = c.ledger || { claimTotal: null, spent: [], resultAmount: null };
       if (r.amount) c.ledger.resultAmount = r.amount;   /* 判得金额自动入台账（可被后续解析覆盖） */
+      /* C3：判决落盘自动预建履行跟踪项（金额来自解析；履行期限需手填，占位待认领） */
+      if (r.amount && Array.isArray(c.performance) && !c.performance.length) {
+        c.performance.unshift({ item: "被申请人履行义务（支付 " + fmt(parseFloat(r.amount)) + " 元）", amount: parseFloat(r.amount), status: "pending", at: new Date().toISOString() });
+      }
     }) === true;
     if (ok) renderBody();   /* 判决卡即时刷新（P2）：与 attach 同惯例——弹层开着时不等重开才显已保存 */
     return ok;
@@ -147,6 +178,195 @@ window.WORKSPACE = (function () {
     }) === true ? e : null;
   }
   function removeSpent(i) { withCurrent(function (c) { if (c.ledger && c.ledger.spent) c.ledger.spent.splice(i, 1); }); }
+
+  /* ---------------- C3 履行跟踪台账（判决生效后对方履行情况，纯记录） ----------------
+     performance: [{item, amount, due, status: pending|done|overdue, doneAt}]
+     逾期=有 due 且 date(due)<今天 且仍 pending（渲染时判定）；勾选已履行累计
+     ledger.recovered（已回收第四线）。不预测能否执行到位（红线）。 */
+  function addPerf(item, amount, due) {
+    if (!item || !String(item).trim()) return null;
+    var e = { item: String(item).trim().slice(0, 80), status: "pending", at: new Date().toISOString() };
+    var v = parseFloat(amount);
+    if (isFinite(v) && v > 0) e.amount = v;
+    if (due && /^\d{4}-\d{2}-\d{2}$/.test(String(due))) e.due = String(due);
+    var created = withCurrent(function (c) {
+      c.performance = c.performance || [];
+      c.performance.unshift(e);
+      if (c.performance.length > 50) c.performance.length = 50;
+    }) === true;
+    if (created) renderBody();
+    return created ? e : null;
+  }
+  function togglePerf(i) {
+    withCurrent(function (c) {
+      c.performance = c.performance || [];
+      var p = c.performance[i];
+      if (!p) return;
+      if (p.status === "done") {
+        p.status = "pending"; p.doneAt = null;
+        if (p.amount && c.ledger) {
+          c.ledger.recovered = Math.max(0, (parseFloat(c.ledger.recovered) || 0) - p.amount);
+        }
+      } else {
+        p.status = "done"; p.doneAt = new Date().toISOString();
+        if (p.amount && c.ledger) {
+          c.ledger.recovered = (parseFloat(c.ledger.recovered) || 0) + p.amount;
+        }
+      }
+    });
+    renderBody();
+  }
+  function removePerf(i) {
+    withCurrent(function (c) {
+      c.performance = c.performance || [];
+      var p = c.performance[i];
+      if (p && p.status === "done" && p.amount && c.ledger) {
+        c.ledger.recovered = Math.max(0, (parseFloat(c.ledger.recovered) || 0) - p.amount);
+      }
+      c.performance.splice(i, 1);
+    });
+    renderBody();
+  }
+  function perfOverdue(p, todayStr) {
+    if (!p || p.status !== "pending" || !p.due) return false;
+    var d = String(p.due);
+    return d < (todayStr || new Date().toISOString().slice(0, 10));
+  }
+
+  /* ---------------- C4 结案归档 + 结案回顾（并入 C5 投入产出对比） ----------------
+     archived=true 移出活跃列表（选择器分组可找回，不删数据）；结案回顾聚合
+     全程时间线/文书清单/台账投入产出，纯事实汇总不预测。 */
+  function setArchived(id, v) {
+    var d = load();
+    var c2 = d.list.filter(function (x) { return x.id === id; })[0];
+    if (!c2) return false;
+    c2.archived = v === true;
+    if (v === true) c2.stage = "已结案";
+    save(d);
+    return true;
+  }
+  function buildClosureReport(c) {
+    var lines = ["# 结案回顾 · " + (c.name || "未命名案件"), "", "生成：" + new Date().toISOString().slice(0, 10) + "　阶段轨迹自报，非程序承诺。", ""];
+    /* 时间线：聚合各处 at/date 字段（创建/阶段/事项/判决/支出/履行/期限） */
+    var tl = [];
+    if (c.createdAt) tl.push({ d: c.createdAt.slice(0, 10), t: "案件创建" });
+    if (c.stageAt) tl.push({ d: c.stageAt.slice(0, 10), t: "阶段标记：已结案（最后更新）" });
+    (c.result && c.result.at) ? tl.push({ d: c.result.at.slice(0, 10), t: "判决/调解解析落盘（" + (c.result.caseNo || "案号见判决卡") + "）" }) : null;
+    (c.notes || []).forEach(function (n) { if (n.at) tl.push({ d: n.at.slice(0, 10), t: "待办" + (n.done ? "完成" : "") + "：" + n.text }); });
+    ((c.ledger || {}).spent || []).forEach(function (e) { tl.push({ d: (e.date || (e.at || "").slice(0, 10)), t: "支出：" + e.name + "（" + fmt(e.amount) + " 元）" }); });
+    (c.performance || []).forEach(function (p) { tl.push({ d: (p.doneAt || "").slice(0, 10), t: (p.status === "done" ? "已履行" : "未履行") + "：" + p.item + (p.amount ? "（" + fmt(p.amount) + " 元）" : "") }); });
+    tl = tl.filter(function (x) { return x.d; }).sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+    lines.push("## 全程时间线");
+    lines.push(tl.length ? tl.map(function (x) { return "- " + x.d + "　" + x.t; }).join("\n") : "（暂无可聚合的时间点）");
+    /* 文书清单 */
+    lines.push("", "## 文书与归集清单");
+    var docs = (c.links.docs || []).map(function (r) { return "- " + (r.date || "?") + "　文书：" + r.name; });
+    var reps = (c.links.reports || []).map(function (r) { return "- " + (r.date || "?") + "　报告：" + r.name; });
+    lines.push((docs.length ? docs.join("\n") : "（无文书草稿）") + "\n" + (reps.length ? reps.join("\n") : "（无关联报告）"));
+    /* 投入产出对比（C5）：请求 vs 判得 vs 已回收 vs 已支出 */
+    var lg = c.ledger || {};
+    var spentAll = (lg.spent || []).reduce(function (s, e) { return s + (parseFloat(e.amount) || 0); }, 0);
+    lines.push("", "## 台账对比（纯记录，非收益承诺）");
+    lines.push("| 项目 | 金额 |", "|---|---|");
+    lines.push("| 请求合计 | " + (lg.claimTotal != null ? fmt(lg.claimTotal) + " 元" : "—") + " |");
+    lines.push("| 判决/调解确定 | " + (lg.resultAmount ? fmt(parseFloat(lg.resultAmount)) + " 元" : "—") + " |");
+    lines.push("| 已回收（履行勾记） | " + ((parseFloat(lg.recovered) || 0) > 0 ? fmt(lg.recovered) + " 元" : "—") + " |");
+    lines.push("| 已投入（费用支出） | " + (spentAll > 0 ? fmt(spentAll) + " 元" : "—") + " |");
+    lines.push("", "---", "本回顾由本机数据自动聚合生成，仅供个人复盘留档，不构成法律意见。");
+    return lines.join("\n");
+  }
+  function closureReportCurrent() {
+    var c = current();
+    if (!c) return null;
+    var md = buildClosureReport(c);
+    wsDocWin("结案回顾（自动聚合）", md);
+    return md;
+  }
+
+  /* ---------------- C2 期限警报栏（跨案件聚合） + D7 续办卡 ----------------
+     首页顶部一条警报栏：聚合所有活跃案件的未完成期限（含合规日历全局条目），
+     红=已过期或 ≤3 天、橙=≤7 天；点击直达案件工作区（全局条目直达合规日历）。
+     续办卡=最近活跃案件一跳续办。纯聚合展示，不做任何提醒承诺（提醒见合规日历）。 */
+  function alertBarData(todayStr) {
+    var today = todayStr || new Date().toISOString().slice(0, 10);
+    var dAll = load();
+    var dlAll = [];
+    try { dlAll = JSON.parse(localStorage.getItem("legal-deadlines") || "[]"); } catch (e) { }
+    var items = [];
+    dAll.list.forEach(function (c) {
+      if (c.archived) return;
+      (c.links.deadlines || []).forEach(function (ld) {
+        if (!ld.date) return;
+        var it = dlAll.filter(function (x) { return x.name === ld.name && x.date === ld.date; })[0];
+        if (it && it.done) return;
+        items.push({ date: ld.date, name: ld.name, caseId: c.id, caseName: c.name, stage: getStage(c) });
+      });
+    });
+    dlAll.forEach(function (it) {
+      if (!it.date || it.done) return;
+      var owned = items.some(function (x) { return x.date === it.date && x.name === it.name; });
+      if (!owned) items.push({ date: it.date, name: it.name, caseId: null, caseName: null, stage: null });
+    });
+    items.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    return items.filter(function (x) {
+      var diff = Math.round((new Date(x.date + "T00:00:00") - new Date(today + "T00:00:00")) / 86400000);
+      return diff <= 7;   /* 未来 7 天内 + 已过期未标记 */
+    }).map(function (x) {
+      var diff = Math.round((new Date(x.date + "T00:00:00") - new Date(today + "T00:00:00")) / 86400000);
+      x.level = diff < 0 ? "red" : diff <= 3 ? "red" : "orange";
+      x.diff = diff;
+      return x;
+    });
+  }
+  function renderAlertBar() {
+    var view = document.getElementById("view-consult");
+    if (!view) return;
+    var host = document.getElementById("ws-alert-bar");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "ws-alert-bar";
+      view.insertBefore(host, view.firstChild);
+    }
+    var items = alertBarData();
+    var dAll = load();
+    var active = dAll.list.filter(function (c) { return !c.archived; });
+    var last = active.slice().sort(function (a, b) { return (b.stageAt || "") < (a.stageAt || "") ? -1 : 1; })[0];
+    var html = "";
+    /* D7 续办卡 */
+    if (last) {
+      var dlAll2 = [];
+      try { dlAll2 = JSON.parse(localStorage.getItem("legal-deadlines") || "[]"); } catch (e) { }
+      var next = null;
+      (last.links.deadlines || []).forEach(function (ld) {
+        var it = dlAll2.filter(function (x) { return x.name === ld.name && x.date === ld.date; })[0];
+        if (it && it.done) return;
+        if (!next || (ld.date && ld.date < next)) next = ld.date;
+      });
+      html += '<div class="flk-item ws-resume-card" data-ws-resume="' + esc(last.id) + '" style="padding:9px 12px;margin-bottom:8px;cursor:pointer;display:flex;gap:8px;align-items:center">' +
+        '<svg class=ico><use href=#i-box></use></svg>' +
+        '<div style="flex:1;min-width:0"><b style="font-size:12.5px">继续办理：' + esc(last.name) + '</b>' +
+        '<div style="font-size:11px;color:var(--ink-2)">当前阶段：' + esc(getStage(last)) +
+        (next ? '　·　最近期限：' + esc(next) : '') + '</div></div>' +
+        '<span class="dim" style="font-size:11px">进入 ›</span></div>';
+    }
+    /* C2 警报栏 */
+    if (items.length) {
+      var shown = items.filter(function (x) { return x.level === "red"; })
+        .concat(items.filter(function (x) { return x.level === "orange"; }).slice(0, 3));
+      var more = items.length - shown.length;
+      html += '<div class="flk-item" style="padding:8px 12px;margin-bottom:8px;border-left:3px solid ' + (items.some(function (x) { return x.level === "red"; }) ? "var(--danger)" : "var(--warn)") + '">' +
+        '<b style="font-size:12px;color:var(--danger)">⏰ 期限警报（' + items.length + ' 条）</b>' +
+        shown.map(function (x) {
+          return '<div data-ws-alert="' + esc(x.caseId || "") + '" data-ws-alert-date="' + esc(x.date) + '" style="font-size:12px;margin-top:4px;cursor:pointer;color:' + (x.level === "red" ? "var(--danger)" : "var(--warn)") + '">' +
+            (x.diff < 0 ? '已过 ' + (-x.diff) + ' 天' : x.diff === 0 ? '今天' : '剩 ' + x.diff + ' 天') + ' · ' + esc(x.date) + '　' + esc(x.name) +
+            (x.caseName ? '<span class="dim">　（' + esc(x.caseName) + '）</span>' : '<span class="dim">　（通用日历）</span>') + '</div>';
+        }).join("") +
+        (more > 0 ? '<div class="dim" style="font-size:11px;margin-top:4px">另有 ' + more + ' 条较宽松期限，见合规日历</div>' : '') +
+        '<div class="dim" style="font-size:11px;margin-top:5px">点击条目直达对应案件工作区（通用条目直达合规日历）</div></div>';
+    }
+    host.innerHTML = html;
+    if (!html) host.style.display = "none"; else host.style.display = "";
+  }
 
   /* 自动归集：当前案件激活时，报告存档/日历项/案例导入调用（无当前案件则忽略） */
   function attach(kind, ref) {
@@ -413,9 +633,14 @@ window.WORKSPACE = (function () {
     var sel = $("ws-select");
     if (!sel) return;
     var d = load();
-    sel.innerHTML = d.list.length
-      ? d.list.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === d.currentId ? " selected" : "") + '>' + esc(c.name) + '</option>'; }).join("")
-      : '<option value="">（尚无案件）</option>';
+    /* C4：活跃/已归档分组（归档不移出选择器，可随时找回） */
+    if (!d.list.length) { sel.innerHTML = '<option value="">（尚无案件）</option>'; return; }
+    var act = d.list.filter(function (c) { return !c.archived; });
+    var arc = d.list.filter(function (c) { return c.archived; });
+    var opt = function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === d.currentId ? " selected" : "") + '>' + esc(c.name) + '</option>'; };
+    sel.innerHTML =
+      (act.length ? '<optgroup label="活跃案件">' + act.map(opt).join("") + '</optgroup>' : "") +
+      (arc.length ? '<optgroup label="已归档">' + arc.map(opt).join("") + '</optgroup>' : "");
   }
 
   function renderBody() {
@@ -434,10 +659,12 @@ window.WORKSPACE = (function () {
     var ovBox = $("ws-overview");
     if (ovBox) {
       var dAll = load();
-      var cards = dAll.list.slice().sort(function (a, b) { return (b.id === dAll.currentId ? 1 : 0) - (a.id === dAll.currentId ? 1 : 0); });
+      /* C4：仪表盘只显示活跃案件（归档案在选择器「已归档」分组找回） */
+      var cards = dAll.list.filter(function (cc) { return !cc.archived || cc.id === dAll.currentId; })
+        .sort(function (a, b) { return (b.id === dAll.currentId ? 1 : 0) - (a.id === dAll.currentId ? 1 : 0); });
       ovBox.innerHTML = '<b style="font-size:13px">案件概览（' + cards.length + '）</b><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:6px 0 10px">' +
         cards.map(function (cc) {
-          var si2 = getStage(cc);
+          var sk2 = getStage(cc);
           var lg2 = cc.ledger || {};
           var spent2 = (lg2.spent || []).reduce(function (s2, e2) { return s2 + (parseFloat(e2.amount) || 0); }, 0);
           var next = null;
@@ -448,7 +675,7 @@ window.WORKSPACE = (function () {
           });
           return '<div class="ws-ov-card' + (cc.id === dAll.currentId ? " on" : "") + '" data-ws-ov="' + esc(cc.id) + '">' +
             '<b style="font-size:12.5px">' + esc(cc.name) + (cc.id === dAll.currentId ? "（当前）" : "") + '</b>' +
-            '<div style="font-size:11px;color:var(--ink-2);margin-top:2px">阶段：' + esc(STAGES[si2]) +
+            '<div style="font-size:11px;color:var(--ink-2);margin-top:2px">阶段：' + esc(sk2) +
             '｜请求：' + (lg2.claimTotal != null ? fmt(lg2.claimTotal) + " 元" : "—") +
             '｜支出：' + (spent2 ? fmt(spent2) + " 元" : "—") +
             '｜判得：' + (lg2.resultAmount ? fmt(lg2.resultAmount) + " 元" : "—") + '</div>' +
@@ -456,30 +683,35 @@ window.WORKSPACE = (function () {
             '</div>';
         }).join("") + '</div>';
     }
-    /* 案件阶段 stepper（B1）：用户自报进度，节点色=已过绿/当前主色/未来灰；顶部阶段建议横幅（v3.6.1，只建议不代改） */
+    /* 案件阶段 stepper（B1，C1 八档键）：用户自报进度，节点色=已过绿/当前主色/未来灰；
+       顶部阶段建议横幅（只建议不代改）+ 切阶段要点清单（STAGE_CHECKLIST 静态要点+既有工具入口） */
     var stageBox = $("ws-stage");
     var sug = "";
     if (stageBox) {
-      var si = getStage(c);
-      if (c.result && si < 3) {
-        sug = '<div class="ws-sug">📄 已解析判决书——建议推进阶段到「判决」：<button class="mini-btn ws-sug-go" data-stage="3">一键推进</button><span class="dim" style="font-size:11px">（确认文书已生效后再点，阶段始终由你自报）</span></div>';
-      } else if (si < 5 && (c.links.deadlines || []).length) {
+      var sk = getStage(c);
+      var ki = STAGE_KEYS.indexOf(sk);
+      if (c.result && ki < STAGE_KEYS.indexOf("执行")) {
+        sug = '<div class="ws-sug">📄 已解析判决书——如文书已生效，建议推进阶段到「执行」：<button class="mini-btn ws-sug-go" data-stage="执行">一键推进</button><span class="dim" style="font-size:11px">（阶段始终由你自报，履行情况请到履行台账逐项勾记）</span></div>';
+      } else if (ki < STAGE_KEYS.indexOf("已结案") && (c.links.deadlines || []).length) {
         var allDone = c.links.deadlines.every(function (ld) {
           var it = dlAll.filter(function (x) { return x.name === ld.name && x.date === ld.date; })[0];
           return it && it.done;
         });
         if (allDone) {
-          sug = '<div class="ws-sug">✅ 本案期限已全部标记完成——如案件已了结：<button class="mini-btn ws-sug-go" data-stage="5">推进阶段到「结案」</button><span class="dim" style="font-size:11px">（结案后可随时导出档案）</span></div>';
+          sug = '<div class="ws-sug">✅ 本案期限已全部标记完成——如案件已了结：<button class="mini-btn ws-sug-go" data-stage="已结案">推进阶段到「已结案」</button><span class="dim" style="font-size:11px">（结案后可生成结案回顾并归档）</span></div>';
         }
       }
-      var stItems = STAGES.map(function (s, i) {
-        return { label: s, sub: i === si ? "当前" : (i < si ? "已过" : ""), color: i < si ? "var(--ok)" : i === si ? "var(--primary)" : "var(--line-2)" };
+      var stItems = STAGE_KEYS.map(function (s, i) {
+        return { label: s, sub: s === sk ? "当前" : (i < ki ? "已过" : ""), color: i < ki ? "var(--ok)" : s === sk ? "var(--primary)" : "var(--line-2)" };
       });
+      var checklist = (STAGE_CHECKLIST[sk] || []).map(function (t) { return '<li style="margin:3px 0">' + esc(t) + '</li>'; }).join("");
       stageBox.innerHTML = sug + (window.SVGCHART && SVGCHART.stepper ? SVGCHART.stepper(stItems) : "") +
-        '<div class="ws-stage-btns">' + STAGES.map(function (s, i) {
-          return '<button class="filter-chip ws-stage-set' + (i === si ? " active" : "") + '" data-stage="' + i + '">' + s + '</button>';
+        '<div class="ws-stage-btns">' + STAGE_KEYS.map(function (s) {
+          return '<button class="filter-chip ws-stage-set' + (s === sk ? " active" : "") + '" data-stage="' + esc(s) + '">' + s + '</button>';
         }).join("") +
-        '<span class="dim" style="font-size:11px;align-self:center">阶段为自行标记，非程序进度承诺</span></div>';
+        '<span class="dim" style="font-size:11px;align-self:center">阶段为自行标记，非程序进度承诺</span></div>' +
+        '<div class="calc-detail" style="margin-top:8px"><b style="font-size:12px">「' + esc(sk) + '」阶段常见要点</b><ul style="margin:6px 0 0;padding-left:18px;font-size:12.5px;line-height:1.7">' + checklist + '</ul><div class="dim" style="font-size:11px;margin-top:5px">要点为常见参考，具体以你的案件与代理律师意见为准。</div>' +
+        (sk === "已结案" ? '<button class="mini-btn primary" id="ws-closure-btn" style="margin-top:8px">生成结案回顾（时间线+文书+台账对比）</button>' : '') + '</div>';
     }
     /* 待确认事项 */
     var notes = $("ws-notes");
@@ -496,7 +728,8 @@ window.WORKSPACE = (function () {
       var rows = [
         ["请求合计（诉请/仲裁请求）", lg.claimTotal],
         ["已支出（诉讼费/保全费等）", spentSum > 0 ? spentSum : null],
-        ["判决/调解确定金额", lg.resultAmount ? parseFloat(lg.resultAmount) : null]
+        ["判决/调解确定金额", lg.resultAmount ? parseFloat(lg.resultAmount) : null],
+        ["已回收（履行台账勾记）", (parseFloat(lg.recovered) || 0) > 0 ? parseFloat(lg.recovered) : null]
       ];
       lgBox.innerHTML = '<div class="ws-ledger-grid">' + rows.map(function (r2) {
         return '<div class="flk-item" style="padding:7px 11px"><div style="font-size:11.5px;color:var(--ink-2)">' + r2[0] + '</div><b style="font-size:15px;color:var(--ink)">' + (r2[1] == null ? "—" : fmt(r2[1]) + " 元") + '</b></div>';
@@ -508,15 +741,36 @@ window.WORKSPACE = (function () {
         '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><input id="ws-spent-name" maxlength="30" placeholder="费用名（如 诉讼费）" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;flex:1;min-width:110px;background:var(--bg);color:var(--ink)"><input id="ws-spent-amt" type="number" min="0" placeholder="金额" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:80px;background:var(--bg);color:var(--ink)"><select id="ws-spent-type" style="border:1px solid var(--line);border-radius:7px;padding:5px 6px;font-size:12.5px;background:var(--bg);color:var(--ink)"><option>诉讼费</option><option>保全费</option><option>公证费</option><option>鉴定费</option><option>律师费</option><option>差旅</option><option>其他</option></select><input id="ws-spent-date" type="date" style="border:1px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;background:var(--bg);color:var(--ink)"><input id="ws-spent-vno" maxlength="30" placeholder="凭证号(可选)" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:100px;background:var(--bg);color:var(--ink)"><button class="mini-btn" id="ws-spent-add">记一笔</button><button class="mini-btn" id="ws-ledger-word">导出台账</button></div>' +
         '<div class="calc-note">纯记账：只汇总你录入与判决解析出的数字，不预测结果、不推算「能拿回多少」。</div>';
     }
-    /* 判决信息卡（B2） */
+    /* 判决信息卡（B2）+ C3 履行跟踪台账（判决生效后对方履行情况记录） */
     var resBox = $("ws-result");
     if (resBox) {
       var rj = c.result;
-      resBox.innerHTML = rj
+      var todayStr = new Date().toISOString().slice(0, 10);
+      var perfList = (c.performance || []).map(function (p, pi) {
+        var od = perfOverdue(p, todayStr);
+        var done = p.status === "done";
+        return '<div style="font-size:12.5px;display:flex;gap:6px;align-items:center;padding:3px 0">' +
+          '<input type="checkbox" data-ws-perf="' + pi + '"' + (done ? " checked" : "") + ' title="标记已履行"> ' +
+          '<span style="flex:1;min-width:0;' + (done ? "text-decoration:line-through;opacity:.55" : od ? "color:var(--danger);font-weight:600" : "") + '">· ' + esc(p.item) +
+          (p.amount ? '（' + fmt(p.amount) + ' 元）' : '') +
+          (p.due ? '<span style="color:var(--ink-2)">　期限 ' + esc(p.due) + '</span>' : '') +
+          (od ? '<span style="color:var(--danger)">　⚠ 已逾期</span>' : done && p.doneAt ? '<span style="color:var(--ok-soft);color:var(--ok)">　✓ ' + p.doneAt.slice(0, 10) + ' 勾记</span>' : '') +
+          '</span>' +
+          '<button class="mini-btn" data-ws-perf-del="' + pi + '">删</button></div>';
+      }).join("");
+      var overdueCount = (c.performance || []).filter(function (p) { return perfOverdue(p, todayStr); }).length;
+      resBox.innerHTML = (rj
         ? '<div class="flk-item" style="padding:8px 12px"><div style="font-size:12.5px;color:var(--ink)">案号：' + esc(rj.caseNo || "—") + ' · 法院：' + esc(rj.court || "—") + '</div>' +
           '<div style="font-size:12.5px;color:var(--ink-2);margin-top:3px">落款日：' + esc(rj.judgmentDate || "—") + (rj.amount ? ' · 履行金额：' + esc(rj.amount) + ' 元' : '') + '（' + esc(rj.docType === "second" ? "二审" : rj.docType === "mediation" ? "调解书" : "一审") + '，' + (rj.at || "").slice(0, 10) + ' 保存）</div>' +
           '<button class="mini-btn" data-ws-result-clear style="margin-top:6px">清除判决信息</button></div>'
-        : '<div class="dim" style="font-size:12.5px">（尚未保存——在下方解析判决书后自动保存，执行申请书跨会话可复用）</div>';
+        : '<div class="dim" style="font-size:12.5px">（尚未保存——在下方解析判决书后自动保存，执行申请书跨会话可复用）</div>') +
+        '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)"><b style="font-size:12.5px">履行跟踪台账</b><span class="dim" style="font-size:11px">（判决/调解生效后对方履行情况，逐项勾记自动累计「已回收」）</span>' +
+        (overdueCount ? '<div class="tool-warn" style="margin-top:6px">⚠ 有 ' + overdueCount + ' 项履行已逾期——可一键生成执行申请书申请强制执行：<button class="mini-btn" data-ws-enforce-run>执行申请书（自动填充）</button></div>' : '') +
+        ((c.performance || []).length
+          ? '<div style="margin-top:6px">' + perfList + '</div>'
+          : '<div class="dim" style="font-size:12px;margin-top:6px">暂无履行项——判决/调解落盘后自动带出金额项，也可手动添加。</div>') +
+        '<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap"><input id="ws-perf-item" maxlength="80" placeholder="履行项（如 支付二倍工资差额）" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;flex:1;min-width:130px;background:var(--bg);color:var(--ink)"><input id="ws-perf-amt" type="number" min="0" placeholder="金额" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:88px;background:var(--bg);color:var(--ink)"><input id="ws-perf-due" type="date" style="border:1px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;background:var(--bg);color:var(--ink)"><button class="mini-btn" id="ws-perf-add">记一笔履行项</button></div>' +
+        '<div class="calc-note">履行台账只记录勾记事实，不预测对方是否会履行；逾期请自行评估并咨询律师。</div></div>';
     }
     /* 自动归集区（B5：渲染时校验源数据存在性，悬空引用明示；+ 关联已有 支持逆向绑定） */
     var links = $("ws-links");
@@ -919,7 +1173,7 @@ window.WORKSPACE = (function () {
       var evText = evEl && evEl.value.trim() ? evEl.value.trim() : "（未录入）";
       var files = [
         { name: "00-交接说明.txt", content: "案件交接包（律师版）\n\n生成：法律咨询助手（本机），时间 " + new Date().toLocaleString("zh-CN") + "\n用途：供律师/法律援助快速了解案情；内容均为用户录入或程序从用户材料提取的客观数据。\n\n免责：本包内容仅供参考，不构成法律意见；材料真实性以原件为准，请由执业律师核验。" },
-        { name: "01-案件概要.md", content: "# 案件概要：" + c.name + "\n\n- 阶段：" + STAGES[getStage(c)] + "（自报）\n- 创建：" + c.createdAt.slice(0, 10) + "\n\n## 金额三线\n- 请求合计：" + (lg3.claimTotal != null ? fmt(lg3.claimTotal) + " 元" : "未记录") + "\n- 已支出：" + (spent3 ? fmt(spent3) + " 元" : "未记录") + "\n- 判决/调解确定：" + (lg3.resultAmount ? fmt(lg3.resultAmount) + " 元" : "未记录") + "\n\n## 判决信息\n" + (c.result ? "- 案号：" + c.result.caseNo + "\n- 法院：" + c.result.court + "\n- 落款日：" + c.result.judgmentDate + "\n- 履行金额：" + c.result.amount + " 元" : "（未保存）") + "\n\n## 待确认事项\n" + (c.notes.length ? c.notes.map(function (n) { return "- [" + (n.done ? "x" : " ") + "] " + n.text; }).join("\n") : "（无）") + "\n" },
+        { name: "01-案件概要.md", content: "# 案件概要：" + c.name + "\n\n- 阶段：" + getStage(c) + "（自报）\n- 创建：" + c.createdAt.slice(0, 10) + "\n\n## 金额四线\n- 请求合计：" + (lg3.claimTotal != null ? fmt(lg3.claimTotal) + " 元" : "未记录") + "\n- 已支出：" + (spent3 ? fmt(spent3) + " 元" : "未记录") + "\n- 判决/调解确定：" + (lg3.resultAmount ? fmt(lg3.resultAmount) + " 元" : "未记录") + "\n- 已回收：" + ((parseFloat(lg3.recovered) || 0) > 0 ? fmt(lg3.recovered) + " 元" : "未记录") + "\n\n## 判决信息\n" + (c.result ? "- 案号：" + c.result.caseNo + "\n- 法院：" + c.result.court + "\n- 落款日：" + c.result.judgmentDate + "\n- 履行金额：" + c.result.amount + " 元" : "（未保存）") + "\n\n## 待确认事项\n" + (c.notes.length ? c.notes.map(function (n) { return "- [" + (n.done ? "x" : " ") + "] " + n.text; }).join("\n") : "（无）") + "\n" },
         { name: "02-期限与文书.txt", content: "## 期限\n" + ((c.links.deadlines || []).map(function (r) { return "- " + (r.date || "?") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 文书草稿\n" + ((c.links.docs || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联分析报告\n" + ((c.links.reports || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联案例\n" + ((c.links.cases || []).map(function (r) { return "- " + r.name; }).join("\n") || "（无）") + "\n" },
         { name: "03-证据目录.txt", content: evText + "\n" }
       ];
@@ -933,11 +1187,42 @@ window.WORKSPACE = (function () {
       var ovCard = e.target.closest("[data-ws-ov]");
       if (ovCard) { setCurrent(ovCard.getAttribute("data-ws-ov")); renderAll(); return; }
       var sugGo = e.target.closest(".ws-sug-go");
-      if (sugGo) { setStage(parseInt(sugGo.getAttribute("data-stage"), 10)); renderBody(); return; }
+      if (sugGo) { setStage(sugGo.getAttribute("data-stage")); renderBody(); return; }
       var stageBtn = e.target.closest(".ws-stage-set");
-      if (stageBtn) { setStage(parseInt(stageBtn.getAttribute("data-stage"), 10)); renderBody(); return; }
+      if (stageBtn) {
+        var sk = stageBtn.getAttribute("data-stage");
+        setStage(sk);
+        /* C4：推进到「已结案」时询问是否归档（移出活跃列表，不删数据可找回） */
+        if (sk === "已结案") {
+          var cur2 = current();
+          if (cur2 && !cur2.archived && confirm("是否同时归档本案？\n归档后移出活跃列表与仪表盘（选择器「已归档」分组可随时找回，不删除任何数据）。")) {
+            setArchived(cur2.id, true);
+            renderAll();
+            return;
+          }
+        }
+        renderBody();
+        return;
+      }
+      if (e.target.closest("#ws-closure-btn")) { closureReportCurrent(); return; }
       var spentDel = e.target.closest("[data-ws-spent-del]");
       if (spentDel) { removeSpent(parseInt(spentDel.getAttribute("data-ws-spent-del"), 10)); renderBody(); return; }
+      /* C3 履行台账：勾选/删除/添加/逾期一键执行申请书 */
+      var perfChk = e.target.closest("[data-ws-perf]");
+      if (perfChk) { togglePerf(parseInt(perfChk.getAttribute("data-ws-perf"), 10)); return; }
+      var perfDel = e.target.closest("[data-ws-perf-del]");
+      if (perfDel) { removePerf(parseInt(perfDel.getAttribute("data-ws-perf-del"), 10)); return; }
+      if (e.target.closest("#ws-perf-add")) {
+        var pi = $("ws-perf-item"), pa = $("ws-perf-amt"), pd = $("ws-perf-due");
+        var createdP = pi && pi.value.trim() ? addPerf(pi.value, pa ? pa.value : "", pd ? pd.value : "") : null;
+        if (createdP && window.TOOLS && TOOLS.haptic) TOOLS.haptic(10);
+        return;
+      }
+      if (e.target.closest("[data-ws-enforce-run]")) {
+        var execBtn = $("ws-exec-enforce");
+        if (execBtn) { execBtn.scrollIntoView({ block: "center" }); execBtn.classList.add("armed"); setTimeout(function () { execBtn.classList.remove("armed"); }, 1800); }
+        return;
+      }
       if (e.target.closest("[data-ws-result-clear]")) { clearCaseResult(); renderBody(); return; }
       var linkAdd = e.target.closest(".ws-link-add");
       if (linkAdd) { linkPicker(linkAdd.getAttribute("data-kind")); return; }
@@ -973,6 +1258,27 @@ window.WORKSPACE = (function () {
        启动后首次点「案件」页签时 ws-empty/ws-content 均保持初始 hidden 成空白正文。
        此处补一次启动渲染出首帧；页内后续变更均由委托回调内的 renderAll/renderBody 刷新 */
     renderAll();
+    /* C2/D7：首页警报栏+续办卡——启动渲染一次；回首页/工作区变更时刷新；
+       条目点击直达挂 document（警报栏在 view-consult 顶部，冒泡不到 #ws-body） */
+    renderAlertBar();
+    document.addEventListener("click", function (e) {
+      var tab = e.target.closest ? e.target.closest(".nav-tab") : null;
+      if (tab && (tab.getAttribute("data-view") === "consult" || tab.getAttribute("data-view") === "workspace")) { renderAlertBar(); return; }
+      var resume = e.target.closest ? e.target.closest("[data-ws-resume]") : null;
+      if (resume) {
+        setCurrent(resume.getAttribute("data-ws-resume"));
+        renderAll();   /* 直达后必须重渲染：此前页面可能是空态或另一案的内容 */
+        if (window.APP && APP.switchView) APP.switchView("workspace");
+        return;
+      }
+      var alertIt = e.target.closest ? e.target.closest("[data-ws-alert]") : null;
+      if (alertIt) {
+        var cid = alertIt.getAttribute("data-ws-alert");
+        if (cid && window.APP && APP.switchView) { setCurrent(cid); renderAll(); APP.switchView("workspace"); }
+        else if (window.APP && APP.switchView) APP.switchView("tools");
+        return;
+      }
+    });
   }
 
   return {
@@ -980,11 +1286,14 @@ window.WORKSPACE = (function () {
     create: create, rename: rename, remove: remove, setCurrent: setCurrent,
     attach: attach, purgeReports: purgeReports, addNote: addNote, toggleNote: toggleNote, removeNote: removeNote,
     /* B1/B2/B4：阶段/判决落盘/台账 */
-    setStage: setStage, STAGES: STAGES, setCaseResult: setCaseResult, getCaseResult: getCaseResult, clearCaseResult: clearCaseResult,
+    setStage: setStage, STAGE_KEYS: STAGE_KEYS, STAGE_CHECKLIST: STAGE_CHECKLIST, setCaseResult: setCaseResult, getCaseResult: getCaseResult, clearCaseResult: clearCaseResult,
     setClaimTotal: setClaimTotal, addSpent: addSpent, removeSpent: removeSpent,
+    /* C3 履行台账 / C4 结案归档与回顾 / C2 警报栏 / D7 续办卡 */
+    addPerf: addPerf, togglePerf: togglePerf, removePerf: removePerf, perfOverdue: perfOverdue,
+    setArchived: setArchived, buildClosureReport: buildClosureReport, renderAlertBar: renderAlertBar, alertBarData: alertBarData,
     toMarkdown: toMarkdown, init: init, openModal: openModal,
     buildEnforce: buildEnforce, PROPERTY_LIST: PROPERTY_LIST,   /* 评测与验证用 */
     /* 测试钩子（不进 UI，无副作用）：test.js 日期管线回归用（同 claims.collectForTest 先例） */
-    _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates, buildEnforce: buildEnforce, getStage: getStage }
+    _test: { addDays: addDays, extractDates: extractDates, futureNodes: futureNodes, parseJudgment: parseJudgment, buildCatalog: buildCatalog, normCnDates: normCnDates, buildEnforce: buildEnforce, getStage: getStage, normStage: normStage, LEGACY_STAGE_MAP: LEGACY_STAGE_MAP }
   };
 })();

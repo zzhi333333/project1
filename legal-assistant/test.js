@@ -729,15 +729,17 @@ T("工作区：attach 保留文书草稿正文 draft（≤4000 截断）", funct
   const d2 = WORKSPACE.current().links.docs.filter(x => x.name === "无正文草稿")[0];
   if (d2.draft !== undefined) throw new Error("无 draft 时不应写入该字段");
 });
-T("工作区 v3：案件阶段 stage 设置/钳制/老数据缺省（B1）", function () {
+T("工作区 v3：案件阶段 stage 八档字符串键/旧索引迁移/老数据缺省（B1+C1）", function () {
   WORKSPACE.setCurrent(WORKSPACE.create("阶段测试案").id);
-  if (WORKSPACE._test.getStage(WORKSPACE.current()) !== 0) throw new Error("新案件应为阶段 0");
-  if (WORKSPACE._test.getStage({ name: "老数据无 stage 字段" }) !== 0) throw new Error("老数据缺省应为 0");
-  if (WORKSPACE._test.getStage({ stage: 99 }) !== 5) throw new Error("越界 stage 应钳制到末阶段");
-  WORKSPACE.setStage(3);
-  if (WORKSPACE.current().stage !== 3 || !WORKSPACE.current().stageAt) throw new Error("setStage 未生效或缺 stageAt");
-  WORKSPACE.setStage(-2);
-  if (WORKSPACE.current().stage !== 0) throw new Error("负数应钳制到 0");
+  if (WORKSPACE._test.getStage(WORKSPACE.current()) !== "取证") throw new Error("新案件应缺省「取证」");
+  if (WORKSPACE._test.getStage({ name: "老数据无 stage 字段" }) !== "取证") throw new Error("老数据缺省应为「取证」");
+  if (WORKSPACE._test.getStage({ stage: 99 }) !== "取证") throw new Error("非法值应回落「取证」");
+  if (WORKSPACE._test.normStage(2) !== "仲裁" || WORKSPACE._test.normStage(5) !== "已结案") throw new Error("旧索引迁移映射错误");
+  if (WORKSPACE._test.normStage("二审") !== "二审") throw new Error("字符串键应原样通过");
+  WORKSPACE.setStage("仲裁");
+  if (WORKSPACE.current().stage !== "仲裁" || !WORKSPACE.current().stageAt) throw new Error("setStage(key) 未生效或缺 stageAt");
+  WORKSPACE.setStage("不存在的阶段");
+  if (WORKSPACE.current().stage !== "取证") throw new Error("无效 key 应回落「取证」");
 });
 T("工作区 v3：判决解析落盘 case.result（B2）+ 执行申请书字段齐备", function () {
   WORKSPACE.setCurrent(WORKSPACE.create("判决落盘测试").id);
@@ -963,11 +965,78 @@ T("工作区 v3：老数据 links:{} 缺字段归一化——渲染与归集不�
   WORKSPACE.attach("reports", { id: "r-p3", name: "回归报告", date: "2026-11-10" });
   const cur = WORKSPACE.current();
   if (!Array.isArray(cur.links.reports) || cur.links.reports.length !== 1) throw new Error("归一化后归集失败");
-  if (cur.stage !== 0 || !Array.isArray(cur.ledger.spent) || !Array.isArray(cur.notes) || cur.result !== null) throw new Error("stage/ledger/notes/result 归一化失败");
+  if (cur.stage !== "取证" || !Array.isArray(cur.ledger.spent) || !Array.isArray(cur.notes) || cur.result !== null) throw new Error("stage/ledger/notes/result 归一化失败");
   /* 渲染路径（renderBody 经 attach 内部已触发）不抛错即通过——links 五键齐备 */
   ["reports", "deadlines", "cases", "docs", "sessions"].forEach(k => {
     if (!Array.isArray(cur.links[k])) throw new Error("links." + k + " 未归一化");
   });
+});
+
+/* ---------- C1-C4 案件闭环四件套回归（v3.7.0） ---------- */
+section("案件闭环四件套测试（js/workspace.js C1-C4）");
+T("C1 要点清单：八档每档均有非空要点（静态数据完整性）", function () {
+  const keys = WORKSPACE.STAGE_KEYS;
+  if (keys.length !== 8 || keys[0] !== "取证" || keys[7] !== "已结案") throw new Error("八档枚举定义不符");
+  keys.forEach(k => {
+    const cl = WORKSPACE.STAGE_CHECKLIST[k];
+    if (!cl || !cl.length) throw new Error("阶段「" + k + "」缺要点清单");
+  });
+});
+T("C3 履行台账：添加/勾选已履行累计已回收/取消勾选回退/逾期判定", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("履行台账测试案").id);
+  const p = WORKSPACE.addPerf("支付二倍工资差额", "350000", "2026-11-01");
+  if (!p || p.status !== "pending") throw new Error("履行项添加失败");
+  const cur = WORKSPACE.current();
+  if (!WORKSPACE.perfOverdue(cur.performance[0], "2026-11-10")) throw new Error("到期未勾应判逾期");
+  if (WORKSPACE.perfOverdue(cur.performance[0], "2026-10-01")) throw new Error("未到期不应判逾期");
+  WORKSPACE.togglePerf(0);
+  const c2 = WORKSPACE.current();
+  if (c2.performance[0].status !== "done" || c2.ledger.recovered !== 350000) throw new Error("勾选已履行应累计已回收");
+  WORKSPACE.togglePerf(0);
+  if (WORKSPACE.current().ledger.recovered !== 0) throw new Error("取消勾选应回退已回收");
+});
+T("C3 判决落盘联动：setCaseResult 金额自动预建履行项（首次）", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("履行联动测试案").id);
+  WORKSPACE.setCaseResult({ caseNo: "（2026）京01民初1号", court: "某法院", judgmentDate: "2026-10-20", amount: "88888", plaintiff: "甲", defendant: "乙" }, "first");
+  const c = WORKSPACE.current();
+  if (!c.performance.length || c.performance[0].amount !== 88888) throw new Error("判决落盘应预建履行项");
+  WORKSPACE.setCaseResult({ caseNo: "（2026）京01民初2号", amount: "99999" }, "first");
+  if (WORKSPACE.current().performance.length !== 1) throw new Error("已有履行项时重复落盘不应重复预建");
+});
+T("C4 结案归档：archived 过滤活跃列表/选择器分组/回顾生成含投入产出行", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("归档测试案").id);
+  const cid = WORKSPACE.current().id;
+  WORKSPACE.setClaimTotal(100000);
+  WORKSPACE.addPerf("退款", "60000", "");
+  WORKSPACE.togglePerf(0);
+  WORKSPACE.setArchived(cid, true);
+  const cur = WORKSPACE.current();
+  if (cur.archived !== true || cur.stage !== "已结案") throw new Error("归档应置 archived+阶段已结案");
+  const md = WORKSPACE.buildClosureReport(cur);
+  if (md.indexOf("已回收") === -1 || md.indexOf("60,000") === -1 || md.indexOf("100,000") === -1) throw new Error("结案回顾缺投入产出行");
+  if (md.indexOf("全程时间线") === -1 || md.indexOf("不构成法律意见") === -1) throw new Error("结案回顾缺时间线/免责");
+  WORKSPACE.setArchived(cid, false);
+  if (WORKSPACE.current().archived !== false) throw new Error("取消归档应恢复活跃");
+});
+T("C2 警报栏数据：跨案聚合/分级红橙/已完成排除/归档案排除", function () {
+  const today = "2026-11-11";
+  const mkCase = (id, name, dls, archived) => ({ id, name, archived: !!archived, stage: "取证", links: { deadlines: dls }, performance: [] });
+  sandbox.localStorage.setItem("legal-workspaces", JSON.stringify({
+    list: [
+      mkCase("a1", "案A", [{ name: "上诉期", date: "2026-11-12" }, { name: "已完成项", date: "2026-11-13" }]),
+      mkCase("a2", "案B", [{ name: "举证期限", date: "2026-11-20" }]),
+      mkCase("a3", "归档案", [{ name: "过期项", date: "2026-11-01" }], true)
+    ],
+    currentId: "a1"
+  }));
+  sandbox.localStorage.setItem("legal-deadlines", JSON.stringify([{ name: "已完成项", date: "2026-11-13", done: true }]));
+  const items = WORKSPACE.alertBarData(today);
+  if (items.some(x => x.name === "已完成项")) throw new Error("已完成期限应被排除");
+  if (items.some(x => x.caseName === "归档案")) throw new Error("归档案期限应被排除");
+  const up = items.find(x => x.name === "上诉期");
+  if (!up || up.level !== "red") throw new Error("剩 1 天应红级");
+  const oy = items.find(x => x.name === "举证期限");
+  if (oy) throw new Error("剩 9 天超出 7 天窗口不应出现");
 });
 
 T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {
