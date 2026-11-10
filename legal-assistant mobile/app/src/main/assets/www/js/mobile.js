@@ -284,8 +284,9 @@
     var gh = document.getElementById("about-github");
     if (gh) gh.addEventListener("click", function () {
       try {
-        if (window.BRIDGE && BRIDGE.openUrl) BRIDGE.openUrl("https://github.com/zzhi333333/project1");
-        else window.open("https://github.com/zzhi333333/project1", "_blank");
+        /* 仅链接移动版子目录（用户指定）：web 端不在此页展示范围 */
+        if (window.BRIDGE && BRIDGE.openUrl) BRIDGE.openUrl("https://github.com/zzhi333333/project1/tree/main/legal-assistant%20mobile");
+        else window.open("https://github.com/zzhi333333/project1/tree/main/legal-assistant%20mobile", "_blank");
       } catch (e) { }
     });
   } catch (e) { }
