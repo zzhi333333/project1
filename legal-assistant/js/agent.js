@@ -1352,9 +1352,8 @@ window.AGENT = (function () {
     els.input.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runAgent();
     });
-    /* 附件上传（v3.4.5）：文本类提取后追加进案情；图片进待读队列（AI 分析时读图并入） */
-    var atBtn = document.getElementById("agent-attach");
-    if (atBtn) atBtn.addEventListener("click", function () {
+    /* 附件上传（v3.6.0）：＋菜单整合——文档提取后追加进案情；图片进待读队列（AI 分析时读图并入） */
+    function pickAgentDoc() {
       if (!(window.ATTACH && ATTACH.pick)) return;
       ATTACH.pick(".docx,.xlsx,.csv,.txt,.md,.doc,.xls").then(function (f) {
         if (!f) return null;
@@ -1365,9 +1364,8 @@ window.AGENT = (function () {
           return null;
         });
       }).catch(function () { });
-    });
-    var imgBtn = document.getElementById("agent-img-attach");
-    if (imgBtn) imgBtn.addEventListener("click", function () {
+    }
+    function pickAgentImg() {
       if (!(window.ATTACH && ATTACH.pick)) return;
       ATTACH.pick("image/*").then(function (f) {
         if (!f) return null;
@@ -1383,13 +1381,42 @@ window.AGENT = (function () {
           return null;
         });
       }).catch(function () { });
-    });
-    document.addEventListener("click", function (e) {
-      var d = e.target.closest ? e.target.closest("[data-agent-img-del]") : null;
-      if (!d) return;
-      agentImages.splice(parseInt(d.getAttribute("data-agent-img-del"), 10), 1);
-      renderAgentImages();
-    });
+    }
+    var addBtn = document.getElementById("agent-add-btn");
+    if (addBtn) {
+      var aMenu = null;
+      function closeAMenu() { if (aMenu) { aMenu.remove(); aMenu = null; document.removeEventListener("click", onADoc, true); } }
+      function onADoc(e) { if (aMenu && !aMenu.contains(e.target) && !addBtn.contains(e.target)) closeAMenu(); }
+      addBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (!(window.ATTACH && ATTACH.pick)) return;
+        if (aMenu) { closeAMenu(); return; }
+        aMenu = document.createElement("div");
+        aMenu.style.cssText = "position:fixed;z-index:1300;display:flex;flex-direction:column;min-width:250px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(15,23,42,.16);overflow:hidden";
+        aMenu.innerHTML =
+          '<button type="button" data-att-kind="doc" style="text-align:left;padding:11px 14px;border:none;background:var(--card);font-size:13.5px;color:var(--ink);cursor:pointer">📄 文档　<span style="color:var(--ink-2);font-size:11.5px">Word/表格/文本 → 追加进案情</span></button>' +
+          '<button type="button" data-att-kind="image" style="text-align:left;padding:11px 14px;border:none;background:var(--card);font-size:13.5px;color:var(--ink);cursor:pointer;border-top:1px solid var(--line)">🖼 图片　<span style="color:var(--ink-2);font-size:11.5px">AI 分析时自动读图（≤3 张）</span></button>';
+        document.body.appendChild(aMenu);
+        var r = addBtn.getBoundingClientRect();
+        var left = Math.min(r.left, window.innerWidth - 266);
+        var top = r.top - 100;
+        if (top < 8) top = r.bottom + 8;
+        aMenu.style.left = Math.max(8, left) + "px";
+        aMenu.style.top = Math.max(8, top) + "px";
+        setTimeout(function () { document.addEventListener("click", onADoc, true); }, 0);
+        aMenu.querySelectorAll("[data-att-kind]").forEach(function (b) {
+          b.addEventListener("click", function () {
+            var kind = b.getAttribute("data-att-kind");
+            closeAMenu();
+            if (kind === "doc") pickAgentDoc(); else pickAgentImg();
+          });
+        });
+      });
+      document.addEventListener("click", function (e) {
+        var d = e.target.closest ? e.target.closest("[data-agent-img-del]") : null;
+        if (d) { agentImages.splice(parseInt(d.getAttribute("data-agent-img-del"), 10), 1); renderAgentImages(); }
+      });
+    }
     var btnR = document.getElementById("agent-mode-report");
     var btnA = document.getElementById("agent-mode-ai");
     if (btnR) btnR.addEventListener("click", function () { setMode("report"); });

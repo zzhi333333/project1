@@ -4,8 +4,8 @@
 (function () {
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-  /* ---------- 视图切换（C5：hash 路由——刷新保持页签、可分享定位） ---------- */
-  var views = ["consult", "agent", "contract", "laws", "tools", "cases", "faq"];
+  /* ---------- 视图切换（C5：hash 路由——刷新保持页签、可分享定位；v3.6.0 工作区独立页） ---------- */
+  var views = ["consult", "agent", "contract", "workspace", "laws", "tools", "cases", "faq"];
   function switchView(name) {
     views.forEach(function (v) {
       var el = document.getElementById("view-" + v);
@@ -20,6 +20,35 @@
   window.APP = { switchView: switchView };
   document.querySelectorAll(".nav-tab").forEach(function (t) {
     t.addEventListener("click", function () { switchView(t.getAttribute("data-view")); });
+  });
+  /* v3.6.0 IA：法条入口（顶栏，页签已让位案件）/ 设置弹层 / GitHub */
+  var lawsBtn = document.getElementById("laws-gear-btn");
+  if (lawsBtn) lawsBtn.addEventListener("click", function () { switchView("laws"); });
+  var setBtn = document.getElementById("settings-gear-btn");
+  if (setBtn) setBtn.addEventListener("click", function () {
+    var m = document.getElementById("settings-modal");
+    if (m) m.classList.remove("hidden");
+  });
+  var setClose = document.getElementById("settings-close");
+  if (setClose) setClose.addEventListener("click", function () {
+    var m = document.getElementById("settings-modal");
+    if (m) m.classList.add("hidden");
+  });
+  var setMask = document.querySelector("#settings-modal .modal-mask");
+  if (setMask) setMask.addEventListener("click", function () {
+    var m = document.getElementById("settings-modal");
+    if (m) m.classList.add("hidden");
+  });
+  var oai = document.getElementById("open-ai-settings");
+  if (oai) oai.addEventListener("click", function () {
+    var sm = document.getElementById("settings-modal");
+    if (sm) sm.classList.add("hidden");
+    var am = document.getElementById("ai-modal");
+    if (am) am.classList.remove("hidden");
+  });
+  var ghBtn = document.getElementById("about-github");
+  if (ghBtn) ghBtn.addEventListener("click", function () {
+    try { window.open("https://github.com/zzhi333333/project1", "_blank"); } catch (e) { }
   });
   /* 启动时按 hash 恢复页签（file:// 与 WebView 均安全，非法值回退咨询页） */
   (function () {

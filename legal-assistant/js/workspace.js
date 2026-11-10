@@ -572,12 +572,19 @@ window.WORKSPACE = (function () {
   function renderAll() { renderSelect(); renderBody(); }
 
   function openModal() {
-    var m = $("ws-modal");
-    if (!m) return;
-    m.classList.remove("hidden");
+    /* v3.6.0：工作区独立成页——切页并刷新；旧弹层结构仅作兼容兜底 */
     renderAll();
+    if (window.APP && APP.switchView && document.getElementById("view-workspace")) {
+      APP.switchView("workspace");
+      return;
+    }
+    var m = $("ws-modal");
+    if (m) m.classList.remove("hidden");
   }
-  function closeModal() { var m = $("ws-modal"); if (m) m.classList.add("hidden"); }
+  function closeModal() {
+    var m = $("ws-modal");
+    if (m) m.classList.add("hidden");
+  }
 
   function downloadMd() {
     var c = current();

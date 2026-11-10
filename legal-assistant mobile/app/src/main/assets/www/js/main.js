@@ -5,7 +5,7 @@
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
   /* ---------- 视图切换（C5：hash 路由——刷新保持页签） ---------- */
-  var views = ["consult", "agent", "contract", "laws", "tools", "cases", "faq"];
+  var views = ["consult", "agent", "contract", "workspace", "laws", "tools", "cases", "faq"];
   function switchView(name) {
     views.forEach(function (v) {
       var el = document.getElementById("view-" + v);

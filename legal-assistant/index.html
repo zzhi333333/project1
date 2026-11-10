@@ -24,6 +24,7 @@
 <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></symbol>
 <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5M12 16h.01"/></symbol>
 <symbol id="i-more" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M21.2 12h-3M5.8 12h-3M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1M18.5 18.5l-2.1-2.1M7.6 7.6L5.5 5.5"/></symbol>
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
 <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
@@ -93,7 +94,9 @@
     <div class="header-right">
       <button id="theme-toggle" class="ghost-btn theme-toggle" title="切换深色/浅色模式"><svg class="ico"><use href="#i-moon"/></svg></button>
       <div id="net-badge" class="net-badge off">○ 检测中<span class="nb-sub">正在探测本地服务…</span></div>
+      <button id="laws-gear-btn" class="ghost-btn header-search" title="法条检索"><svg class="ico"><use href="#i-laws"/></svg><span class="hdr-txt">法条</span></button>
       <button id="gsearch-btn" class="ghost-btn header-search" title="全局搜索（法条/讲堂/场景/案例）"><svg class="ico"><use href="#i-search"/></svg><span class="hdr-txt">搜索</span></button>
+      <button id="settings-gear-btn" class="ghost-btn" title="设置（关于 / 备份 / 隐私与数据）"><svg class="ico"><use href="#i-gear"/></svg><span class="hdr-txt">设置</span></button>
       <button id="ai-gear" class="ai-gear" title="配置 AI 模型（智谱/DeepSeek/Kimi/通义/千帆/OpenAI/Ollama）"><svg class="ico"><use href="#i-ai"/></svg><span class="hdr-txt">AI 模型</span></button>
     </div>
   </div>
@@ -101,7 +104,7 @@
     <button class="nav-tab active" data-view="consult"><svg class="ico"><use href="#i-consult"/></svg><span class="tab-txt">智能咨询</span></button>
     <button class="nav-tab" data-view="agent"><svg class="ico"><use href="#i-agent"/></svg><span class="tab-txt">深度分析</span></button>
     <button class="nav-tab" data-view="contract"><svg class="ico"><use href="#i-contract"/></svg><span class="tab-txt">合同审查</span></button>
-    <span class="tab-sep" aria-hidden="true"></span><button class="nav-tab" data-view="laws"><svg class="ico"><use href="#i-laws"/></svg><span class="tab-txt">法条</span></button>
+    <span class="tab-sep" aria-hidden="true"></span><button class="nav-tab" data-view="workspace"><svg class="ico"><use href="#i-box"/></svg><span class="tab-txt">案件</span></button>
     <button class="nav-tab" data-view="tools"><svg class="ico"><use href="#i-tools"/></svg><span class="tab-txt">工具</span></button>
     <button class="nav-tab" data-view="cases"><svg class="ico"><use href="#i-cases"/></svg><span class="tab-txt">案例</span></button>
     <button class="nav-tab" data-view="faq"><svg class="ico"><use href="#i-faq"/></svg><span class="tab-txt">讲堂</span></button>
@@ -159,8 +162,7 @@
       <div id="agent-img-row" class="hidden" style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap"></div>
       <div class="analysis-actions">
         <button id="agent-run"><svg class="ico"><use href="#i-rocket"/></svg> 开始分析</button>
-        <button id="agent-attach" class="ghost-btn" title="上传 Word/表格/文本附件，提取正文并入案情"><svg class="ico"><use href="#i-file"/></svg> 附件</button>
-        <button id="agent-img-attach" class="ghost-btn" title="上传图片：AI 分析时自动读图并入案情（需支持视觉的模型），同时登记证据目录"><svg class="ico"><use href="#i-file"/></svg> 图片</button>
+        <button id="agent-add-btn" class="ghost-btn" title="添加附件：文档（Word/表格/文本→追加进案情）/ 图片（AI 分析时自动读图）"><svg class="ico"><use href="#i-file"/></svg> ＋ 添加</button>
         <button id="agent-stop" class="ghost-btn hidden" title="停止本次分析"><svg class="ico"><use href="#i-stop"/></svg> 停止</button>
         <button id="agent-archive" class="ghost-btn"><svg class="ico"><use href="#i-save"/></svg> 报告存档</button>
         <button id="agent-export" class="ghost-btn"><svg class="ico"><use href="#i-file"/></svg> 导出 PDF / Word</button>
@@ -569,18 +571,28 @@
         <button id="skill-manage-btn" class="ghost-btn" style="margin-left:auto">管理技能库</button>
       </div>
       <div class="modal-note" style="margin-top:8px">技能 = 自定义 .md 知识包（分析框架/证据清单/文书模板/术语），注入 AI 提示词以强化细分领域能力；核验管线与免责声明不受技能影响。</div>
-      <div class="modal-section-title"><svg class="ico"><use href="#i-lock"/></svg> 隐私与数据</div>
-      <label class="check-line" style="margin:6px 0"><input id="ai-privacy-redact" type="checkbox" checked> 发送前自动脱敏（身份证号 / 手机号替换为占位符）</label>
+      <div class="modal-section-title"><svg class="ico"><use href="#i-lock"/></svg> 发送隐私（AI）</div>
+      <label class="check-line" style="margin:6px 0"><input id="ai-privacy-redact" type="checkbox" checked> 发送前自动脱敏（身份证号 / 手机号 / 银行卡 / 邮箱替换为占位符）</label>
       <label class="check-line" style="margin:6px 0"><input id="ai-privacy-preview" type="checkbox"> 每次发送前显示实际发送内容（敏感案情建议开启）</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <button class="ghost-btn" id="diag-copy" title="复制版本/存储占用/最近错误，报障时粘贴给维护者">复制诊断信息</button>
-        <button class="ghost-btn" data-label="清除对话历史" data-clear="sessions">清除对话历史</button>
-        <button class="ghost-btn" data-label="清除报告存档" data-clear="reports">清除报告存档</button>
-        <button class="ghost-btn" data-label="清除案例收藏" data-clear="cases">清除案例收藏</button>
-        <button class="ghost-btn" data-label="清除清单/日历/历史" data-clear="evhist">清除清单·日历·计算历史</button>
-        <button class="ghost-btn" data-label="清除全部案件数据" data-clear="all">清除全部案件数据</button>
-      </div>
-      <div class="modal-note" style="margin-top:6px">清除仅影响本机数据且不可恢复；API Key 与技能库不在清除范围（技能库可在技能管理中删除）。</div>
+      <div class="modal-note" style="margin-top:6px">脱敏与预览仅作用于发送给模型的内容；数据清除与备份已移至 <b>⚙ 设置</b>（右上角齿轮）。</div>
+    </div>
+    <div class="modal-foot">
+      <button id="ai-save" class="primary">保存</button>
+      <button id="ai-test">测试连接</button>
+      <button id="ai-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置（v3.6.0：关于助手 / 数据备份 / 隐私与数据 / AI 入口；从 AI 弹层拆出非 AI 项） -->
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card" style="width:min(560px, calc(100vw - 32px))">
+    <div class="modal-title"><svg class="ico"><use href="#i-gear"/></svg> 设置</div>
+    <div class="modal-body">
+      <div class="modal-section-title"><svg class="ico"><use href="#i-info"/></svg> 关于助手</div>
+      <div style="font-size:13px;line-height:1.8">网页版 · 功能与移动版 APK 同步；零依赖可离线运行，案件数据仅存本机。</div>
+      <div style="margin-top:8px"><button id="about-github" class="ghost-btn"><svg class="ico"><use href="#i-link"/></svg> GitHub 开源地址 ↗</button></div>
       <div class="modal-section-title"><svg class="ico"><use href="#i-save"/></svg> 数据备份</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button id="data-export" class="ghost-btn">导出备份（对话+设置）</button>
@@ -589,12 +601,20 @@
         <input id="data-import-file" type="file" accept="application/json,.json" class="hidden">
       </div>
       <div style="margin-top:6px"><button id="fb-export" class="ghost-btn" style="font-size:12px">导出反馈清单（维护者评测用）</button></div>
+      <div class="modal-section-title"><svg class="ico"><use href="#i-lock"/></svg> 隐私与数据</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <button class="ghost-btn" id="diag-copy" title="复制版本/存储占用/最近错误，报障时粘贴给维护者">复制诊断信息</button>
+        <button class="ghost-btn" data-label="清除对话历史" data-clear="sessions">清除对话历史</button>
+        <button class="ghost-btn" data-label="清除报告存档" data-clear="reports">清除报告存档</button>
+        <button class="ghost-btn" data-label="清除案例收藏" data-clear="cases">清除案例收藏</button>
+        <button class="ghost-btn" data-label="清除清单/日历/历史" data-clear="evhist">清除清单·日历·计算历史</button>
+        <button class="ghost-btn" data-label="清除全部案件数据" data-clear="all">清除全部案件数据</button>
+      </div>
+      <div class="modal-note" style="margin-top:6px">清除仅影响本机数据且不可恢复；API Key 与技能库不在清除范围（技能库可在 AI 弹层的技能管理中删除）。</div>
+      <div class="modal-section-title"><svg class="ico"><use href="#i-ai"/></svg> AI 模型</div>
+      <button id="open-ai-settings" class="ghost-btn">进入 AI 模型设置（服务商 / 密钥 / 模型 / 技能包）</button>
     </div>
-    <div class="modal-foot">
-      <button id="ai-save" class="primary">保存</button>
-      <button id="ai-test">测试连接</button>
-      <button id="ai-close">关闭</button>
-    </div>
+    <div class="modal-foot"><button id="settings-close">关闭</button></div>
   </div>
 </div>
 
@@ -630,12 +650,13 @@
 </div>
 
 <!-- 首次使用引导 -->
-<!-- 案件工作区 -->
-<div id="ws-modal" class="modal hidden">
-  <div class="modal-mask"></div>
-  <div class="modal-card" style="width:min(760px, calc(100vw - 32px))">
-    <div class="modal-title"><svg class="ico"><use href="#i-box"/></svg> 案件工作区</div>
-    <div class="modal-body">
+<!-- 案件工作区（v3.6.0：独立页面，原弹层结构退役） -->
+<section id="view-workspace" class="view">
+  <div class="view-head">
+    <h2>案件工作区</h2>
+    <p>同一案件统一管理：阶段 / 待办 / 台账 / 期限 / 文书 / 证据——咨询、分析、导入的产出自动归集到当前案件</p>
+  </div>
+  <div class="analysis-editor">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
         <select id="ws-select" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></select>
         <button id="ws-new" class="ghost-btn">＋ 新建案件</button>
@@ -688,15 +709,13 @@
         <div class="modal-note" style="margin-top:6px">需先在上方「判决书双时间线」粘贴判决书解析；拒执可追拒不执行判决裁定罪（刑法第313条），转移财产可主张撤销。</div>
         </div><!-- /ws-content -->
       </div>
-    </div>
-    <div class="modal-foot">
-      <button id="ws-onepager" class="primary"><svg class=ico><use href=#i-print></use></svg> 打印一页纸摘要</button>
-      <button id="ws-export" class="primary"><svg class=ico><use href=#i-save></use></svg> 导出案件档案 (.md)</button>
-      <button id="ws-handover"><svg class=ico><use href=#i-box></use></svg> 律师交接包 (zip)</button>
-      <button id="ws-close">关闭</button>
-    </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button id="ws-onepager" class="ghost-btn"><svg class=ico><use href=#i-print></use></svg> 打印一页纸摘要</button>
+        <button id="ws-export" class="ghost-btn"><svg class=ico><use href=#i-save></use></svg> 导出案件档案 (.md)</button>
+        <button id="ws-handover" class="ghost-btn"><svg class=ico><use href=#i-box></use></svg> 律师交接包 (zip)</button>
+      </div>
   </div>
-</div>
+</section>
 
 <!-- 发送前预览 -->
 <div id="send-preview-modal" class="modal hidden">

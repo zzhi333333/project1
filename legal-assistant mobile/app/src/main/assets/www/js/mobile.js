@@ -55,6 +55,11 @@
       if (!item) return;
       var v = item.getAttribute("data-view");
       closeSheet();
+      if (item.id === "more-settings") {
+        var sm = document.getElementById("settings-modal");
+        if (sm) sm.classList.remove("hidden");
+        return;
+      }
       if (v === "gsearch") {
         var g = document.getElementById("gsearch-btn");
         if (g) g.click();
@@ -246,4 +251,42 @@
     });
   } catch (e) { }
   setTimeout(pushOverlayCount, 1500);
+
+  /* ---------- ⑩ 设置弹层（v3.6.0 IA）：开关 / AI 入口 / GitHub ---------- */
+  try {
+    var openSettings = function () {
+      var sm = document.getElementById("settings-modal");
+      if (sm) sm.classList.remove("hidden");
+      pushOverlayCount();
+    };
+    var msBtn = document.getElementById("more-settings");
+    if (msBtn) msBtn.addEventListener("click", openSettings);
+    var sClose = document.getElementById("settings-close");
+    if (sClose) sClose.addEventListener("click", function () {
+      var sm = document.getElementById("settings-modal");
+      if (sm) sm.classList.add("hidden");
+      pushOverlayCount();
+    });
+    var sMask = document.querySelector("#settings-modal .modal-mask");
+    if (sMask) sMask.addEventListener("click", function () {
+      var sm = document.getElementById("settings-modal");
+      if (sm) sm.classList.add("hidden");
+      pushOverlayCount();
+    });
+    var oai = document.getElementById("open-ai-settings");
+    if (oai) oai.addEventListener("click", function () {
+      var sm = document.getElementById("settings-modal");
+      if (sm) sm.classList.add("hidden");
+      var am = document.getElementById("ai-modal");
+      if (am) am.classList.remove("hidden");
+      pushOverlayCount();
+    });
+    var gh = document.getElementById("about-github");
+    if (gh) gh.addEventListener("click", function () {
+      try {
+        if (window.BRIDGE && BRIDGE.openUrl) BRIDGE.openUrl("https://github.com/zzhi333333/project1");
+        else window.open("https://github.com/zzhi333333/project1", "_blank");
+      } catch (e) { }
+    });
+  } catch (e) { }
 })();
