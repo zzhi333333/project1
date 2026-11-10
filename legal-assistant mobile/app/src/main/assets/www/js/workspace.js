@@ -130,10 +130,15 @@ window.WORKSPACE = (function () {
       c.ledger.claimTotal = isFinite(v) && v > 0 ? v : null;
     }) === true;
   }
-  function addSpent(name, amount) {
+  function addSpent(name, amount, opts) {
     var v = parseFloat(amount);
     if (!isFinite(v) || v <= 0) return null;
+    var o = opts || {};
     var e = { name: String(name || "支出").slice(0, 30), amount: v, at: new Date().toISOString() };
+    /* 票据深化（v3.6.1）：类型/发生日期/凭证号（旧数据缺字段渲染回退） */
+    if (o.type) e.type = String(o.type).slice(0, 12);
+    if (o.date) e.date = String(o.date).slice(0, 10);
+    if (o.voucherNo) e.voucherNo = String(o.voucherNo).slice(0, 30);
     return withCurrent(function (c) {
       c.ledger = c.ledger || { claimTotal: null, spent: [], resultAmount: null };
       c.ledger.spent = c.ledger.spent || [];
@@ -423,12 +428,12 @@ window.WORKSPACE = (function () {
     if (empty) empty.classList.toggle("hidden", !!c);
     if (content) content.classList.toggle("hidden", !c);
     if (!c) return;
+    var dlAll = [];
+    try { dlAll = JSON.parse(localStorage.getItem("legal-deadlines") || "[]"); } catch (e) { }
     /* 多案件仪表盘（F1）：各案一卡=名称+阶段+三线台账摘要+最近未完成期限，点击切换 */
     var ovBox = $("ws-overview");
     if (ovBox) {
       var dAll = load();
-      var dlAll = [];
-      try { dlAll = JSON.parse(localStorage.getItem("legal-deadlines") || "[]"); } catch (e) { }
       var cards = dAll.list.slice().sort(function (a, b) { return (b.id === dAll.currentId ? 1 : 0) - (a.id === dAll.currentId ? 1 : 0); });
       ovBox.innerHTML = '<b style="font-size:13px">案件概览（' + cards.length + '）</b><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:6px 0 10px">' +
         cards.map(function (cc) {
@@ -451,14 +456,26 @@ window.WORKSPACE = (function () {
             '</div>';
         }).join("") + '</div>';
     }
-    /* 案件阶段 stepper（B1）：用户自报进度，节点色=已过绿/当前主色/未来灰 */
+    /* 案件阶段 stepper（B1）：用户自报进度，节点色=已过绿/当前主色/未来灰；顶部阶段建议横幅（v3.6.1，只建议不代改） */
     var stageBox = $("ws-stage");
+    var sug = "";
     if (stageBox) {
       var si = getStage(c);
+      if (c.result && si < 3) {
+        sug = '<div class="ws-sug">📄 已解析判决书——建议推进阶段到「判决」：<button class="mini-btn ws-sug-go" data-stage="3">一键推进</button><span class="dim" style="font-size:11px">（确认文书已生效后再点，阶段始终由你自报）</span></div>';
+      } else if (si < 5 && (c.links.deadlines || []).length) {
+        var allDone = c.links.deadlines.every(function (ld) {
+          var it = dlAll.filter(function (x) { return x.name === ld.name && x.date === ld.date; })[0];
+          return it && it.done;
+        });
+        if (allDone) {
+          sug = '<div class="ws-sug">✅ 本案期限已全部标记完成——如案件已了结：<button class="mini-btn ws-sug-go" data-stage="5">推进阶段到「结案」</button><span class="dim" style="font-size:11px">（结案后可随时导出档案）</span></div>';
+        }
+      }
       var stItems = STAGES.map(function (s, i) {
         return { label: s, sub: i === si ? "当前" : (i < si ? "已过" : ""), color: i < si ? "var(--ok)" : i === si ? "var(--primary)" : "var(--line-2)" };
       });
-      stageBox.innerHTML = (window.SVGCHART && SVGCHART.stepper ? SVGCHART.stepper(stItems) : "") +
+      stageBox.innerHTML = sug + (window.SVGCHART && SVGCHART.stepper ? SVGCHART.stepper(stItems) : "") +
         '<div class="ws-stage-btns">' + STAGES.map(function (s, i) {
           return '<button class="filter-chip ws-stage-set' + (i === si ? " active" : "") + '" data-stage="' + i + '">' + s + '</button>';
         }).join("") +
@@ -485,9 +502,10 @@ window.WORKSPACE = (function () {
         return '<div class="flk-item" style="padding:7px 11px"><div style="font-size:11.5px;color:var(--ink-2)">' + r2[0] + '</div><b style="font-size:15px;color:var(--ink)">' + (r2[1] == null ? "—" : fmt(r2[1]) + " 元") + '</b></div>';
       }).join("") + '</div>' +
         ((lg.spent || []).length ? '<div style="margin-top:6px">' + lg.spent.map(function (e, i3) {
-          return '<div style="font-size:12.5px;display:flex;gap:6px;align-items:center;padding:2px 0"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ' + esc(e.name) + '（' + fmt(e.amount) + ' 元）</span><button class="mini-btn" data-ws-spent-del="' + i3 + '">删</button></div>';
+          var meta = [e.date, e.type, e.voucherNo ? "凭证 " + e.voucherNo : ""].filter(Boolean).join(" · ");
+          return '<div style="font-size:12.5px;display:flex;gap:6px;align-items:center;padding:2px 0"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ' + esc(e.name) + '（' + fmt(e.amount) + ' 元）' + (meta ? '<span style="color:var(--ink-2)">　' + esc(meta) + '</span>' : '') + '</span><button class="mini-btn" data-ws-spent-del="' + i3 + '">删</button></div>';
         }).join("") + '</div>' : "") +
-        '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><input id="ws-spent-name" maxlength="30" placeholder="费用名（如 诉讼费）" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;flex:1;min-width:120px;background:var(--bg);color:var(--ink)"><input id="ws-spent-amt" type="number" min="0" placeholder="金额" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:92px;background:var(--bg);color:var(--ink)"><button class="mini-btn" id="ws-spent-add">记一笔支出</button></div>' +
+        '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><input id="ws-spent-name" maxlength="30" placeholder="费用名（如 诉讼费）" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;flex:1;min-width:110px;background:var(--bg);color:var(--ink)"><input id="ws-spent-amt" type="number" min="0" placeholder="金额" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:80px;background:var(--bg);color:var(--ink)"><select id="ws-spent-type" style="border:1px solid var(--line);border-radius:7px;padding:5px 6px;font-size:12.5px;background:var(--bg);color:var(--ink)"><option>诉讼费</option><option>保全费</option><option>公证费</option><option>鉴定费</option><option>律师费</option><option>差旅</option><option>其他</option></select><input id="ws-spent-date" type="date" style="border:1px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;background:var(--bg);color:var(--ink)"><input id="ws-spent-vno" maxlength="30" placeholder="凭证号(可选)" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:100px;background:var(--bg);color:var(--ink)"><button class="mini-btn" id="ws-spent-add">记一笔</button><button class="mini-btn" id="ws-ledger-word">导出台账</button></div>' +
         '<div class="calc-note">纯记账：只汇总你录入与判决解析出的数字，不预测结果、不推算「能拿回多少」。</div>';
     }
     /* 判决信息卡（B2） */
@@ -525,6 +543,83 @@ window.WORKSPACE = (function () {
       sec("期限与提醒", lk.deadlines, "（激活案件后，合规日历添加自动归集）", "deadlines") +
       sec("关联案例", lk.cases, "（激活案件后，案例粘贴导入自动归集）", "cases") +
       sec("关联会话", lk.sessions || [], "（激活案件后，咨询会话自动绑定，点击下方回看）", "sessions");
+  }
+
+  /* ---------------- 庭前文书（v3.6.1）：按最近关联报告的场景生成质证/提纲 ---------------- */
+  function latestReportScenario() {
+    var c = current();
+    if (!c || !(c.links.reports || []).length) return "";
+    var ids = {};
+    try {
+      (JSON.parse(localStorage.getItem("legal-agent-reports") || "[]")).forEach(function (r) { ids[r.id] = r.scenarioId || ""; });
+    } catch (e) { return ""; }
+    for (var i = 0; i < c.links.reports.length; i++) {
+      var sid = ids[c.links.reports[i].id];
+      if (sid) return sid;
+    }
+    return "";
+  }
+  function wsDocWin(title, text) {
+    var old = document.getElementById("ws-doc-win");
+    if (old) old.remove();
+    var m = document.createElement("div");
+    m.id = "ws-doc-win";
+    m.className = "modal";
+    m.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="width:min(680px,calc(100vw - 32px))">' +
+      '<div class="modal-title">' + esc(title) + '</div>' +
+      '<div class="modal-body"><textarea class="doc-textarea" rows="16" style="width:100%;box-sizing:border-box">' + esc(text) + '</textarea></div>' +
+      '<div class="modal-foot"><button id="ws-doc-copy">复制全文</button><button id="ws-doc-dl">下载 .txt</button><button id="ws-doc-close">关闭</button></div></div>';
+    document.body.appendChild(m);
+    m.querySelector(".modal-mask").addEventListener("click", function () { m.remove(); });
+    m.querySelector("#ws-doc-close").addEventListener("click", function () { m.remove(); });
+    m.querySelector("#ws-doc-copy").addEventListener("click", function () {
+      try { navigator.clipboard.writeText(text).then(function () { }, function () { }); } catch (e) { }
+      this.textContent = "已复制";
+      var b = this;
+      setTimeout(function () { b.textContent = "复制全文"; }, 1500);
+    });
+    m.querySelector("#ws-doc-dl").addEventListener("click", function () {
+      var fname = title.replace(/[\\/:*?"<>|]/g, "_") + ".txt";
+      if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) { window.BRIDGE.exportFile(fname, text); return; }
+      var blob = new Blob(["\ufeff" + text], { type: "text/plain;charset=utf-8" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    });
+  }
+  /* 票据台账 Word 导出（v3.6.1）：复用证据目录表格模式 */
+  function ledgerWord() {
+    var c = current();
+    if (!c) return;
+    var lg = c.ledger || {};
+    var spent = lg.spent || [];
+    if (!spent.length) {
+      var o = $("ws-court-out");
+      if (o) o.innerHTML = '<div class="tool-warn">暂无支出记录——先在台账记一笔。</div>';
+      return;
+    }
+    var sum = spent.reduce(function (s, e) { return s + (parseFloat(e.amount) || 0); }, 0);
+    var tr = spent.map(function (e, i) {
+      return '<tr><td>' + (i + 1) + '</td><td>' + esc(e.name) + '</td><td>' + esc(e.type || "—") + '</td><td>' + esc(e.date || "—") + '</td><td style="text-align:right">' + fmt(e.amount) + '</td><td>' + esc(e.voucherNo || "—") + '</td></tr>';
+    }).join("");
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN"><head><meta charset="utf-8"><title>费用台账</title>' +
+      '<style>body{font-family:"Microsoft YaHei",SimSun,sans-serif;font-size:12pt;margin:24pt}h2{font-size:15pt;text-align:center}table{border-collapse:collapse;width:100%}th,td{border:1pt solid #333;padding:5pt 7pt;font-size:10.5pt}th{background:#eee;text-align:center}.doc-foot{margin-top:14pt;color:#777;font-size:9.5pt}</style></head><body>' +
+      '<h2>费 用 台 账</h2><p style="text-align:center">案件：' + esc(c.name) + '</p>' +
+      '<table><thead><tr><th>序号</th><th>费用名</th><th>类型</th><th>发生日期</th><th>金额(元)</th><th>凭证号</th></tr></thead><tbody>' + tr +
+      '</tbody></table><p style="text-align:right">合计：' + fmt(sum) + ' 元</p>' +
+      '<div class="doc-foot">说明：本台账由法律咨询助手在本机生成，纯记账用途，请以票据原件为准；不构成法律意见。</div></body></html>';
+    var fname = "费用台账-" + c.name + ".doc";
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) { window.BRIDGE.exportFile(fname, html); return; }
+    var blob = new Blob(["\ufeff" + html], { type: "application/msword" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
   }
 
   /* ---------------- 逆向关联选择器（B5）：把存量报告/案例/会话/日历事后绑进当前案件 ---------------- */
@@ -678,46 +773,81 @@ window.WORKSPACE = (function () {
     });
   }
 
+  /* 轻量输入弹层（v3.6.1）：替代原生 prompt——App 内 WebView 无 onJsPrompt 桥，
+     prompt 静默返回 null 使「新建/重命名案件」失效；本弹层双端一致。 */
+  function wsPrompt(title, def, cb) {
+    var old = document.getElementById("ws-prompt");
+    if (old) old.remove();
+    var m = document.createElement("div");
+    m.id = "ws-prompt";
+    m.className = "modal";
+    m.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="width:min(420px,calc(100vw - 40px))">' +
+      '<div class="modal-title">' + esc(title) + '</div>' +
+      '<div class="modal-body"><input id="ws-prompt-input" maxlength="40" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;background:var(--bg);color:var(--ink)" value="' + esc(def || "") + '"></div>' +
+      '<div class="modal-foot"><button id="ws-prompt-cancel">取消</button><button id="ws-prompt-ok" class="primary">确定</button></div></div>';
+    document.body.appendChild(m);
+    var inp = m.querySelector("#ws-prompt-input");
+    setTimeout(function () { try { inp.focus(); inp.select(); } catch (e) { } }, 60);
+    m.querySelector(".modal-mask").addEventListener("click", function () { m.remove(); });
+    m.querySelector("#ws-prompt-cancel").addEventListener("click", function () { m.remove(); });
+    m.querySelector("#ws-prompt-ok").addEventListener("click", function () {
+      var v = inp.value.trim();
+      m.remove();
+      cb(v);
+    });
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { var v = inp.value.trim(); m.remove(); cb(v); } });
+  }
+
+  /* 绑定守卫：元素存在才挂监听（v3.6.1——页面化后 ws-modal 消失曾使 init 提前 return、全部委托失效） */
+  function on(id, ev, fn) {
+    var el = $(id);
+    if (el) el.addEventListener(ev, fn);
+  }
+
   function init() {
     var open = $("ws-open-btn");
     if (open) open.addEventListener("click", openModal);
     var modal = $("ws-modal");
-    if (!modal) return;
-    $("ws-close").addEventListener("click", closeModal);
-    modal.querySelector(".modal-mask").addEventListener("click", closeModal);
-    $("ws-select").addEventListener("change", function () { if (this.value) setCurrent(this.value); renderBody(); });
-    $("ws-new").addEventListener("click", function () {
-      var name = prompt("案件名称（如：与某公司劳动仲裁）:", "");
-      if (name == null) return;
-      create(name.trim() || "未命名案件");
-      renderAll();
+    if (modal) {   /* 旧弹层结构兼容（页面化后此块不存在） */
+      var wsCloseBtn = $("ws-close");
+      if (wsCloseBtn) wsCloseBtn.addEventListener("click", closeModal);
+      var maskEl = modal.querySelector(".modal-mask");
+      if (maskEl) maskEl.addEventListener("click", closeModal);
+    }
+    on("ws-select", "change", function () { if (this.value) setCurrent(this.value); renderBody(); });
+    on("ws-new", "click", function () {
+      wsPrompt("新建案件（如：与某公司劳动仲裁）", "", function (name) {
+        create(name || "未命名案件");
+        renderAll();
+      });
     });
-    $("ws-rename").addEventListener("click", function () {
+    on("ws-rename", "click", function () {
       var c = current();
       if (!c) return;
-      var name = prompt("重命名案件：", c.name);
-      if (name != null && name.trim()) { rename(c.id, name.trim()); renderAll(); }
+      wsPrompt("重命名案件：", c.name, function (name) {
+        if (name) { rename(c.id, name); renderAll(); }
+      });
     });
-    $("ws-del").addEventListener("click", function () {
+    on("ws-del", "click", function () {
       var c = current();
       if (!c) return;
       if (!confirm("删除案件「" + c.name + "」？\n仅解除关联，不删除底层报告/日历/案例数据。")) return;
       remove(c.id);
       renderAll();
     });
-    $("ws-note-add").addEventListener("click", function () {
+    on("ws-note-add", "click", function () {
       var inp = $("ws-note-input");
       if (inp.value.trim()) { addNote(inp.value.trim()); inp.value = ""; renderBody(); }
     });
-    $("ws-notes").addEventListener("change", function (e) {
+    on("ws-notes", "change", function (e) {
       var i = e.target.getAttribute("data-ws-note");
       if (i != null) { toggleNote(Number(i)); renderBody(); }
     });
-    $("ws-notes").addEventListener("click", function (e) {
+    on("ws-notes", "click", function (e) {
       var b = e.target.closest ? e.target.closest("[data-ws-note-del]") : null;
       if (b) { removeNote(Number(b.getAttribute("data-ws-note-del"))); renderBody(); }
     });
-    $("ws-export").addEventListener("click", downloadMd);
+    on("ws-export", "click", downloadMd);
     /* 判决书双时间线 */
     $("ws-judg-parse").addEventListener("click", function () {
       var text = $("ws-judg-input").value;
@@ -802,6 +932,8 @@ window.WORKSPACE = (function () {
       if (!e.target || !e.target.closest) return;
       var ovCard = e.target.closest("[data-ws-ov]");
       if (ovCard) { setCurrent(ovCard.getAttribute("data-ws-ov")); renderAll(); return; }
+      var sugGo = e.target.closest(".ws-sug-go");
+      if (sugGo) { setStage(parseInt(sugGo.getAttribute("data-stage"), 10)); renderBody(); return; }
       var stageBtn = e.target.closest(".ws-stage-set");
       if (stageBtn) { setStage(parseInt(stageBtn.getAttribute("data-stage"), 10)); renderBody(); return; }
       var spentDel = e.target.closest("[data-ws-spent-del]");
@@ -809,11 +941,30 @@ window.WORKSPACE = (function () {
       if (e.target.closest("[data-ws-result-clear]")) { clearCaseResult(); renderBody(); return; }
       var linkAdd = e.target.closest(".ws-link-add");
       if (linkAdd) { linkPicker(linkAdd.getAttribute("data-kind")); return; }
+      if (e.target.closest("#ws-court-critique") || e.target.closest("#ws-court-outline")) {
+        var kind = e.target.closest("#ws-court-critique") ? "court-critique" : "court-outline";
+        var sid = latestReportScenario();
+        if (!sid || !(window.DOCTPL)) {
+          var o1 = $("ws-court-out");
+          if (o1) o1.innerHTML = '<div class="tool-warn">尚未找到可用的场景数据——请先在「深度分析」生成一次报告并存入报告库。</div>';
+          return;
+        }
+        var t = DOCTPL.forScenario(sid).filter(function (x) { return x.id === kind; })[0];
+        var sc = window.INSIGHTS && INSIGHTS.get(sid);
+        var text = t.gen({ scenario: { id: sid, name: sc && sc.name ? sc.name : "【案情简述】" }, answers: {}, result: {} });
+        wsDocWin(kind === "court-critique" ? "质证意见（草稿）" : "庭审提纲（草稿）", text);
+        return;
+      }
+      if (e.target.closest("#ws-ledger-word")) { ledgerWord(); return; }
       if (e.target.closest("#ws-spent-add")) {
         var nameEl = $("ws-spent-name"), amtEl = $("ws-spent-amt");
         var v = amtEl ? parseFloat(amtEl.value) : NaN;
         if (!nameEl || !nameEl.value.trim() || !isFinite(v) || v <= 0) return;
-        addSpent(nameEl.value.trim(), v);
+        addSpent(nameEl.value.trim(), v, {
+          type: $("ws-spent-type") ? $("ws-spent-type").value : "",
+          date: $("ws-spent-date") ? $("ws-spent-date").value : "",
+          voucherNo: $("ws-spent-vno") ? $("ws-spent-vno").value.trim() : ""
+        });
         renderBody();
         if (window.TOOLS && TOOLS.haptic) TOOLS.haptic(10);
       }

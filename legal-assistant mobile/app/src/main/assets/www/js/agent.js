@@ -473,7 +473,12 @@ window.AGENT = (function () {
   }
   function saveReport(entry) {
     var list = loadReports();
-    var rec = { id: "r-" + Date.now(), date: new Date().toISOString(), q: entry.q, mode: entry.mode, html: entry.html, text: entry.text, verify: entry.verify, vstats: entry.vstats || null };
+    var sid = "";
+    try {
+      var mc = window.ANALYSIS.matchContext(entry.q || "");
+      if (mc && mc.scenarios && mc.scenarios[0]) sid = mc.scenarios[0].id;
+    } catch (e) { }
+    var rec = { id: "r-" + Date.now(), date: new Date().toISOString(), q: entry.q, mode: entry.mode, html: entry.html, text: entry.text, verify: entry.verify, vstats: entry.vstats || null, scenarioId: sid };
     list.unshift(rec);
     var ok = saveReports(list);
     /* 案件工作区自动归集（当前案件激活时） */

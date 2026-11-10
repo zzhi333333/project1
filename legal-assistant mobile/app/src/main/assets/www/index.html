@@ -639,7 +639,7 @@
     <div class="modal-body">
       <div class="modal-section-title"><svg class="ico"><use href="#i-info"/></svg> 关于助手</div>
       <div class="more-ver">
-        <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.6.0</b>（<span id="app-build">2026-11-10</span>）</div>
+        <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.6.1</b>（<span id="app-build">2026-11-10</span>）</div>
         <div class="mv-tips">
           <div class="mv-tip"><svg class=ico><use href=#i-agent></use></svg> 深度咨询：AI 逐项追问案情要素，齐全后一键生成可核验分析</div>
           <div class="mv-tip"><svg class=ico><use href=#i-list></use></svg> 一揽子请求计算器：勾选请求项→填参数→缺口自动转工作区待办</div>
@@ -740,6 +740,12 @@
         <div id="ws-ledger"></div>
         <div class="modal-section-title" style="margin-top:14px">判决信息（判决书解析后自动保存）</div>
         <div id="ws-result"></div>
+        <div class="modal-section-title" style="margin-top:14px">庭前文书（按最近报告的场景生成，全模板化）</div>
+        <div class="backup-row" style="margin-top:6px">
+          <button id="ws-court-critique" class="mini-btn block-btn"><svg class=ico><use href=#i-file></use></svg> 质证意见（草稿）</button>
+          <button id="ws-court-outline" class="mini-btn block-btn"><svg class=ico><use href=#i-file></use></svg> 庭审提纲（草稿）</button>
+        </div>
+        <div id="ws-court-out" style="margin-top:8px"></div>
         <div class="modal-section-title" style="margin-top:14px">判决书双时间线</div>
         <textarea id="ws-judg-input" rows="4" placeholder="粘贴判决书/调解书全文或尾部（含判决日期、履行期限），自动提取已发生事实与程序期限节点…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
         <div style="display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap">

@@ -681,6 +681,12 @@
         <div id="ws-ledger"></div>
         <div class="modal-section-title" style="margin-top:14px">判决信息（判决书解析后自动保存）</div>
         <div id="ws-result"></div>
+        <div class="modal-section-title" style="margin-top:14px">庭前文书（按最近报告的场景生成，全模板化）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <button id="ws-court-critique" class="ghost-btn"><svg class=ico><use href=#i-file></use></svg> 质证意见（草稿）</button>
+          <button id="ws-court-outline" class="ghost-btn"><svg class=ico><use href=#i-file></use></svg> 庭审提纲（草稿）</button>
+        </div>
+        <div id="ws-court-out" style="margin-top:8px"></div>
         <div class="modal-section-title" style="margin-top:14px">判决书双时间线</div>
         <textarea id="ws-judg-input" rows="4" placeholder="粘贴判决书/调解书全文或尾部（含判决日期、履行期限），自动提取已发生事实与程序期限节点…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
         <div style="display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap">
