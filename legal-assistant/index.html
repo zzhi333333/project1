@@ -858,30 +858,6 @@
 <script src="js/zipread.js"></script>
 <script src="js/attach.js"></script>
 <script src="js/main.js"></script>
-<script>
-/* 主题切换：默认跟随系统，手动选择存 localStorage 覆盖 */
-(function () {
-  var btn = document.getElementById("theme-toggle");
-  if (!btn) return;
-  var KEY = "legal-theme";
-  function apply(t) {
-    if (t) document.documentElement.setAttribute("data-theme", t);
-    else document.documentElement.removeAttribute("data-theme");
-    var use = btn.querySelector("use");
-    if (use) use.setAttribute("href", t === "dark" ? "#i-sun" : "#i-moon");
-    btn.title = t === "dark" ? "切换到浅色模式" : "切换到深色模式";
-  }
-  var saved = null;
-  try { saved = localStorage.getItem(KEY); } catch (e) { /* ignore */ }
-  apply(saved === "dark" || saved === "light" ? saved : null);
-  btn.addEventListener("click", function () {
-    var cur = document.documentElement.getAttribute("data-theme");
-    var sysDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    var next = cur === "dark" ? "light" : cur === "light" ? "dark" : (sysDark ? "light" : "dark");
-    try { localStorage.setItem(KEY, next); } catch (e) { /* ignore */ }
-    apply(next);
-  });
-})();
-</script>
+<script src="js/theme.js"></script>
 </body>
 </html>

@@ -423,6 +423,17 @@ head("CSS 完整性（令牌循环 / 非法拼接 / 暗色浅底）");
   });
 })();
 
+/* ---------- 14.5 内联脚本门禁（P0-② 防复发，v3.6.2） ----------
+   server.js CSP「default-src 'self'」无 script-src 指令 → 内联 <script> 被浏览器拒绝
+   （主题切换曾自 v3.5.2 起静默失效）。web index.html 禁止无 src 的 <script>，
+   新脚本一律外部化为 js/*.js（CSP 强度不降）。 */
+head("内联脚本门禁（CSP 兼容）");
+(function () {
+  var inline = (html.match(/<script(?![^>]*\bsrc=)[^>]*>/g) || []).filter(function (t) { return t.indexOf("application/json") === -1 && t.indexOf("ld+json") === -1; });
+  if (inline.length) bad("web index.html 存在内联 <script> ×" + inline.length + "——CSP 会拒绝执行，请外部化为 js/*.js");
+  else ok("web index.html 无内联 <script>（CSP 兼容）");
+})();
+
 /* ---------- 14. 资料时效门禁（内容新鲜度，v3.4.9 批次 D） ----------
    reviewedAt 此前只是页脚展示品（registry 常量与 index.html 页脚两处手工同步，链外漂移无人知）；
    节假日表年份缺失曾造成 2026 年顺延全年静默退化为仅周末判断——机器门禁防复发。 */

@@ -1,6 +1,6 @@
 # 法律咨询助手 · 功能说明书
 
-> 版本：v3.6.1（网页版与 Android 移动版功能同步，差异见文末）
+> 版本：v3.6.2（网页版与 Android 移动版功能同步，差异见文末）
 > 本说明书面向**使用者**（如何用）与**维护者**（如何改），架构与构建详见 README.md 与 AGENTS.md。
 > 免责声明：本工具所有输出均为基于公开法律信息的规则化参考，不构成法律意见或代理服务；具体案件请咨询执业律师。
 
@@ -280,7 +280,7 @@
 | 打印/PDF | 系统打印对话框「另存为 PDF」 | 原生 PrintManager |
 | Word 导出 | Blob 下载 | 系统保存器（exportFile） |
 | 维权材料包 zip | ✅ 支持 | 逐项导出（zip 二进制暂不适用） |
-| 深色模式 | 跟随系统 + 手动切换 | 跟随系统 |
+| 深色模式 | 跟随系统 + 手动切换（主题脚本外部化 js/theme.js，v3.6.2 修复 CSP 拦内联脚本致切换失效） | 跟随系统 |
 | 导航 | 顶部页签：…**案件**…（法条为顶栏按钮）+ ⚙ 设置 | 底部 5 tab：咨询/分析/**案件**/工具/更多（法条+设置入更多弹层；版本与使用说明在 设置→关于助手） |
 | 设置 | ⚙ 顶栏齿轮：关于助手（GitHub 入口）/ 数据备份（可选加密）/ 隐私与数据（清除+诊断）/ AI 入口 | ⚙ 更多→设置（同结构，底部弹层） |
 | 触控热区 | —（鼠标精确指针） | 小按钮伪元素外扩 9px 热区 ≥44px（v3.4） |
@@ -292,7 +292,7 @@
 
 - **加法律领域**：新建 `js/domains/<id>.js` 调用 `DomainRegistry.registerDomain`，index.html 加一行 script；争点/抗辩可选加入 `js/insights.js`
 - **加文书模板**：`js/templates.js` 的 `reg({id, name, scenarios, gen})`
-- **一致性校验**：`node check.js` **34 项**——script 标签/字段/id 唯一性/免责声明/工具卡对齐/双端一致性（sync-www + 分支文件函数集嗅探，online.js 移动端 BRIDGE 函数白名单）+ **版本链六处对齐**（manifest/build.bat/app-ver/README/FEATURES/MANUAL）+ **构建日期合法** + **对比度可达性**（WCAG AA ≥4.5:1，light/dark × 8 组合）+ **CSS 完整性**（令牌自引用循环 / var() 非法拼接 / 令牌块外暗色失明浅底，v3.4.3）+ **资料时效门禁**（reviewedAt 双处一致 + 当前年节假日表覆盖，缺失 warn——2026 年空窗曾致顺延静默退化，v3.4.9）
+- **一致性校验**：`node check.js` **35 项**——script 标签/字段/id 唯一性/免责声明/工具卡对齐/双端一致性（sync-www + 分支文件函数集嗅探，online.js 移动端 BRIDGE 函数白名单）+ **版本链六处对齐**（manifest/build.bat/app-ver/README/FEATURES/MANUAL）+ **构建日期合法** + **对比度可达性**（WCAG AA ≥4.5:1，light/dark × 8 组合）+ **CSS 完整性**（令牌自引用循环 / var() 非法拼接 / 令牌块外暗色失明浅底，v3.4.3）+ **资料时效门禁**（reviewedAt 双处一致 + 当前年节假日表覆盖，缺失 warn——2026 年空窗曾致顺延静默退化，v3.4.9）+ **内联脚本门禁**（web index.html 禁止无 src 的 script——CSP 兼容防复发，v3.6.2）
 - **评测集**：`node test.js` **131 项断言**（分节统计，`--report` 生成 test-report.md 评测覆盖率报告含 insights 覆盖矩阵）——10 计算器数值断言、金问题评测、技能预算、工作区/数据层语义（含清除分组隔离与 purgeReports、阶段/台账/判决落盘）、claims 八类全遍历、flk 降级仿真、日期管线（中文数字落款）、图表原语、mdLite 白名单渲染与脱敏扩充、**附件解析**（纯 JS inflate 往返/docx 段落表格/xlsx TSV/旧版拒绝）、**检索别名金问题**（N+1/2N/撤三）、**AI 体验纵深**（上下文预算裁剪/记忆重建/removeLastOf+导出免责）、**庭前文书模板**（三性质证框架/庭审提纲/回退占位）；**真实使用中发现的问题持续加进来作回归**
 - **出包**：`node release.js <版本号>`（`legal-assistant mobile/` 下）——版本 6 处+构建日期自动对齐 → check/test 门禁 → 管道安全构建 → 包内双验证 → 提交推送重试；`--dry` 只验证。双击 `build.bat` 为手动路径
 - **可视化**：新增图表一律走 `js/svgchart.js` 原语（ring/stepper/scale/ladder/radar/lanes），颜色只用 CSS 语义令牌（--ok/--warn/--danger/--c-*，暗色自动适配），SVG 呈现属性用 style 形式（attr 不支持 var()）
