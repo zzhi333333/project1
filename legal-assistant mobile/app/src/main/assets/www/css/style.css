@@ -125,6 +125,17 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .nav-tab .tab-ico { font-size: 20px; line-height: 1.2; }
 .nav-tab.active { color: var(--primary); font-weight: 600; }
 .nav-tab:active { background: var(--primary-soft); }
+/* 中间主功能「咨询」大气泡（v3.6.4）：凸起圆形主色钮，突出核心入口 */
+.nav-tab-center { margin-top: -8px; }
+.nav-tab-center .tab-ico {
+  width: 42px; height: 42px; margin: 0 auto;
+  border-radius: 50%;
+  background: var(--primary); color: #fff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, .35);
+}
+.nav-tab-center .tab-ico .ico { width: 24px; height: 24px; }
+.nav-tab-center.active .tab-ico { background: var(--primary-2); }
+.nav-tab-center:active { background: transparent; }
 
 /* ============ 智能咨询 ============ */
 .consult-main { display: flex; flex-direction: column; height: 100%; min-height: 0; }
