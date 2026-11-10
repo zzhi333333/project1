@@ -34,6 +34,9 @@ window.WORKSPACE = (function () {
       });
       /* C4 结案归档（archived 默认 false；活跃列表=未归档） */
       if (c.archived !== true) c.archived = false;
+      /* ④C2 期限节点（判决解析产物）与 ③取证打卡 默认 */
+      if (!Array.isArray(c.deadlineNodes)) c.deadlineNodes = [];
+      if (!c.evTaken || typeof c.evTaken !== "object") c.evTaken = {};
     });
     return d;
   }
@@ -140,9 +143,20 @@ window.WORKSPACE = (function () {
       c.result = r;
       c.ledger = c.ledger || { claimTotal: null, spent: [], resultAmount: null };
       if (r.amount) c.ledger.resultAmount = r.amount;   /* 判得金额自动入台账（可被后续解析覆盖） */
-      /* C3：判决落盘自动预建履行跟踪项（金额来自解析；履行期限需手填，占位待认领） */
+      /* C3：判决落盘自动预建履行跟踪项——due 近似上诉期届满（落款+15，与双时间线同口径），
+         实际履行期限以判决指定为准（不合适可删除后按实际期限重建） */
       if (r.amount && Array.isArray(c.performance) && !c.performance.length) {
-        c.performance.unshift({ item: "被申请人履行义务（支付 " + fmt(parseFloat(r.amount)) + " 元）", amount: parseFloat(r.amount), status: "pending", at: new Date().toISOString() });
+        var dueApprox = "";
+        try { if (r.judgmentDate) dueApprox = addDays(r.judgmentDate, 15); } catch (e) { }
+        c.performance.unshift({ item: "被申请人履行义务（支付 " + fmt(parseFloat(r.amount)) + " 元）", amount: parseFloat(r.amount), due: dueApprox, status: "pending", at: new Date().toISOString() });
+      }
+      /* ④C2 警报源扩展：程序期限节点落盘（未入日历的也进警报聚合；点「入日历」即标 addedToCal） */
+      if (r.judgmentDate) {
+        try {
+          c.deadlineNodes = futureNodes(r.judgmentDate, r.docType || "first").map(function (n) {
+            return { name: n.name, date: n.date, basis: n.basis, addedToCal: false };
+          });
+        } catch (e) { }
       }
     }) === true;
     if (ok) renderBody();   /* 判决卡即时刷新（P2）：与 attach 同惯例——弹层开着时不等重开才显已保存 */
@@ -306,6 +320,16 @@ window.WORKSPACE = (function () {
       if (!it.date || it.done) return;
       var owned = items.some(function (x) { return x.date === it.date && x.name === it.name; });
       if (!owned) items.push({ date: it.date, name: it.name, caseId: null, caseName: null, stage: null });
+    });
+    /* ④C2 警报源扩展：判决解析的程序期限节点（未入日历的也提醒，标注来源） */
+    dAll.list.forEach(function (c) {
+      if (c.archived) return;
+      (c.deadlineNodes || []).forEach(function (n) {
+        if (!n.date || n.addedToCal) return;
+        var dup = items.some(function (x) { return x.caseId === c.id && (x.name.indexOf(n.name.slice(0, 6)) > -1 || n.name.indexOf(x.name.slice(0, 6)) > -1); });
+        if (dup) return;
+        items.push({ date: n.date, name: n.name, caseId: c.id, caseName: c.name, stage: getStage(c), node: true });
+      });
     });
     items.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
     return items.filter(function (x) {
@@ -549,6 +573,10 @@ window.WORKSPACE = (function () {
         var name = b.getAttribute("data-name") + "（" + date + "）";
         if (window.TOOLS && window.TOOLS.calAdd) { window.TOOLS.calAdd(name, date); b.innerHTML = '<svg class=ico><use href=#i-checkc></use></svg> 已加入'; }
         if (window.WORKSPACE) window.WORKSPACE.attach("deadlines", { name: name, date: date });
+        /* ④C2：入日历后标记期限节点 addedToCal（警报栏不再重复聚合） */
+        withCurrent(function (cc) {
+          (cc.deadlineNodes || []).forEach(function (n) { if (n.name === b.getAttribute("data-name")) n.addedToCal = true; });
+        });
       });
     });
   }
@@ -590,11 +618,18 @@ window.WORKSPACE = (function () {
   function renderCatalog(rows) {
     var out = $("ws-ev-out");
     if (!rows.length) { out.innerHTML = '<div class="tool-warn">未识别到证据条目——每行填写一条。</div>'; return; }
-    var html = '<table class="ev-cat-table"><thead><tr><th>序号</th><th>证据名称</th><th>来源</th><th>证明目的</th></tr></thead><tbody>' +
+    /* ③U3 取证打卡：勾记取证状态与日期（存当前案件 evTaken，按证据名匹配），进度 N/M */
+    var c = current();
+    var evTaken = (c && c.evTaken) || {};
+    var taken = rows.filter(function (r) { return evTaken[r.name]; }).length;
+    var html = '<div class="dim" style="font-size:11.5px;margin-bottom:4px">取证进度：' + taken + '/' + rows.length + ' 已取' + (taken === rows.length ? ' ✓' : '') + '</div>' +
+      '<table class="ev-cat-table"><thead><tr><th>序号</th><th>证据名称</th><th>来源</th><th>证明目的</th><th>取证</th></tr></thead><tbody>' +
       rows.map(function (r) {
-        return '<tr><td>' + r.no + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.src) + '</td><td>' + esc(r.purpose) + '</td></tr>';
+        var tk = evTaken[r.name];
+        return '<tr><td>' + r.no + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.src) + '</td><td>' + esc(r.purpose) + '</td>' +
+          '<td style="white-space:nowrap"><input type="checkbox" data-ev-take="' + esc(r.name) + '"' + (tk ? " checked" : "") + ' title="标记已取证">' + (tk ? '<span class="dim" style="font-size:10.5px">' + esc(tk) + '</span>' : '') + '</td></tr>';
       }).join("") + '</tbody></table>' +
-      '<div class="calc-note">证明目的为按证据类型的自动建议，可导出后在 Word 中修改；提交时按此目录整理复印件并编页码。</div>';
+      '<div class="calc-note">证明目的为按证据类型的自动建议，可导出后在 Word 中修改；提交时按此目录整理复印件并编页码。勾记「取证」记录取证进度（存当前案件）。</div>';
     out.innerHTML = html;
     var wb = $("ws-ev-word");
     if (wb) wb.classList.remove("hidden");
@@ -749,12 +784,20 @@ window.WORKSPACE = (function () {
       var perfList = (c.performance || []).map(function (p, pi) {
         var od = perfOverdue(p, todayStr);
         var done = p.status === "done";
+        /* ②迟延履行利息估算（民诉法 260 条：加倍部分日万分之 1.75）——纯法定费率算术，估算参考 */
+        var lateInt = "";
+        if (od && p.amount) {
+          var days = Math.round((new Date(todayStr + "T00:00:00") - new Date(p.due + "T00:00:00")) / 86400000);
+          var est = Math.round(p.amount * days * 0.000175);
+          if (est > 0) lateInt = '<span style="color:var(--ink-2)">　预估迟延履行利息 ≈ ' + fmt(est) + ' 元（' + days + ' 天）</span>';
+        }
         return '<div style="font-size:12.5px;display:flex;gap:6px;align-items:center;padding:3px 0">' +
           '<input type="checkbox" data-ws-perf="' + pi + '"' + (done ? " checked" : "") + ' title="标记已履行"> ' +
           '<span style="flex:1;min-width:0;' + (done ? "text-decoration:line-through;opacity:.55" : od ? "color:var(--danger);font-weight:600" : "") + '">· ' + esc(p.item) +
           (p.amount ? '（' + fmt(p.amount) + ' 元）' : '') +
           (p.due ? '<span style="color:var(--ink-2)">　期限 ' + esc(p.due) + '</span>' : '') +
-          (od ? '<span style="color:var(--danger)">　⚠ 已逾期</span>' : done && p.doneAt ? '<span style="color:var(--ok-soft);color:var(--ok)">　✓ ' + p.doneAt.slice(0, 10) + ' 勾记</span>' : '') +
+          (od ? '<span style="color:var(--danger)">　⚠ 已逾期</span>' : '') + lateInt +
+          (done && p.doneAt ? '<span style="color:var(--ok)">　✓ ' + p.doneAt.slice(0, 10) + ' 勾记</span>' : '') +
           '</span>' +
           '<button class="mini-btn" data-ws-perf-del="' + pi + '">删</button></div>';
       }).join("");
@@ -770,7 +813,7 @@ window.WORKSPACE = (function () {
           ? '<div style="margin-top:6px">' + perfList + '</div>'
           : '<div class="dim" style="font-size:12px;margin-top:6px">暂无履行项——判决/调解落盘后自动带出金额项，也可手动添加。</div>') +
         '<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap"><input id="ws-perf-item" maxlength="80" placeholder="履行项（如 支付二倍工资差额）" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;flex:1;min-width:130px;background:var(--bg);color:var(--ink)"><input id="ws-perf-amt" type="number" min="0" placeholder="金额" style="border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;width:88px;background:var(--bg);color:var(--ink)"><input id="ws-perf-due" type="date" style="border:1px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px;background:var(--bg);color:var(--ink)"><button class="mini-btn" id="ws-perf-add">记一笔履行项</button></div>' +
-        '<div class="calc-note">履行台账只记录勾记事实，不预测对方是否会履行；逾期请自行评估并咨询律师。</div></div>';
+        '<div class="calc-note">履行台账只记录勾记事实，不预测对方是否会履行；利息为法定费率（日万分之 1.75 加倍部分）估算参考，以执行法院核算为准。逾期请自行评估并咨询律师。</div></div>';
     }
     /* 自动归集区（B5：渲染时校验源数据存在性，悬空引用明示；+ 关联已有 支持逆向绑定） */
     var links = $("ws-links");
@@ -1011,12 +1054,15 @@ window.WORKSPACE = (function () {
     }
   }
 
+  /* ①文书统一落盘：docWinModal 全出口（质证/庭审提纲/执行申请书/财产线索/结案回顾）
+     自带「存入案件工作区」——文书生成即归档，不再刷新即丢 */
   function docWinModal(title, text) {
     var w = document.createElement("div");
     w.className = "modal";
+    var has = !!current();
     w.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="max-width:720px;width:94%"><div class="modal-title">' + esc(title) + '</div>' +
       '<div class="modal-body" style="max-height:56vh;overflow-y:auto"><textarea readonly style="width:100%;min-height:40vh;font-size:13px;line-height:1.8;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);box-sizing:border-box">' + esc(text) + '</textarea></div>' +
-      '<div class="modal-foot"><button class="primary dw-copy">复制全文</button><button class="dw-close">关闭</button></div></div>';
+      '<div class="modal-foot"><button class="primary dw-copy">复制全文</button><button class="mini-btn dw-ws-save" data-wsdoc-title="' + esc(title).replace(/"/g, "&quot;") + '"' + (has ? "" : " disabled title=\"未激活案件：先新建/选择案件后可存\"") + '><svg class=ico><use href=#i-save></use></svg> 存入案件工作区</button><button class="dw-close">关闭</button></div></div>';
     document.body.appendChild(w);
     w.querySelector(".modal-mask").addEventListener("click", function () { w.remove(); });
     w.querySelector(".dw-close").addEventListener("click", function () { w.remove(); });
@@ -1024,6 +1070,13 @@ window.WORKSPACE = (function () {
       copy(text);
       var b = w.querySelector(".dw-copy"); b.textContent = "已复制";
       setTimeout(function () { b.textContent = "复制全文"; }, 1500);
+    });
+    w.querySelector(".dw-ws-save").addEventListener("click", function () {
+      var b = this;
+      var ok = attach("docs", { name: String(title).slice(0, 60), date: new Date().toISOString().slice(0, 10), draft: String(text).slice(0, 4000) });
+      if (ok && window.TOOLS && TOOLS.haptic) TOOLS.haptic(12);
+      b.innerHTML = ok ? "✓ 已存入案件工作区" : "未激活案件，未存入";
+      setTimeout(function () { b.innerHTML = '<svg class=ico><use href=#i-save></use></svg> 存入案件工作区'; }, 1800);
     });
   }
 
@@ -1175,7 +1228,9 @@ window.WORKSPACE = (function () {
         { name: "00-交接说明.txt", content: "案件交接包（律师版）\n\n生成：法律咨询助手（本机），时间 " + new Date().toLocaleString("zh-CN") + "\n用途：供律师/法律援助快速了解案情；内容均为用户录入或程序从用户材料提取的客观数据。\n\n免责：本包内容仅供参考，不构成法律意见；材料真实性以原件为准，请由执业律师核验。" },
         { name: "01-案件概要.md", content: "# 案件概要：" + c.name + "\n\n- 阶段：" + getStage(c) + "（自报）\n- 创建：" + c.createdAt.slice(0, 10) + "\n\n## 金额四线\n- 请求合计：" + (lg3.claimTotal != null ? fmt(lg3.claimTotal) + " 元" : "未记录") + "\n- 已支出：" + (spent3 ? fmt(spent3) + " 元" : "未记录") + "\n- 判决/调解确定：" + (lg3.resultAmount ? fmt(lg3.resultAmount) + " 元" : "未记录") + "\n- 已回收：" + ((parseFloat(lg3.recovered) || 0) > 0 ? fmt(lg3.recovered) + " 元" : "未记录") + "\n\n## 判决信息\n" + (c.result ? "- 案号：" + c.result.caseNo + "\n- 法院：" + c.result.court + "\n- 落款日：" + c.result.judgmentDate + "\n- 履行金额：" + c.result.amount + " 元" : "（未保存）") + "\n\n## 待确认事项\n" + (c.notes.length ? c.notes.map(function (n) { return "- [" + (n.done ? "x" : " ") + "] " + n.text; }).join("\n") : "（无）") + "\n" },
         { name: "02-期限与文书.txt", content: "## 期限\n" + ((c.links.deadlines || []).map(function (r) { return "- " + (r.date || "?") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 文书草稿\n" + ((c.links.docs || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联分析报告\n" + ((c.links.reports || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联案例\n" + ((c.links.cases || []).map(function (r) { return "- " + r.name; }).join("\n") || "（无）") + "\n" },
-        { name: "03-证据目录.txt", content: evText + "\n" }
+        { name: "03-证据目录.txt", content: evText + "\n" },
+        /* ⑤结案收尾：结案回顾并入交接包第五文件（律师一次拿到完整复盘） */
+        { name: "05-结案回顾.md", content: buildClosureReport(c) }
       ];
       PACK.download("案件交接-" + c.name + ".zip", files);
       if (window.TOOLS && TOOLS.haptic) TOOLS.haptic(12);
@@ -1192,13 +1247,22 @@ window.WORKSPACE = (function () {
       if (stageBtn) {
         var sk = stageBtn.getAttribute("data-stage");
         setStage(sk);
-        /* C4：推进到「已结案」时询问是否归档（移出活跃列表，不删数据可找回） */
+        /* C4：推进到「已结案」时询问是否归档（移出活跃列表，不删数据可找回）；
+           ⑤如实提示未完成日历提醒数量（不自动删，用户自行决定保留跟踪） */
         if (sk === "已结案") {
           var cur2 = current();
-          if (cur2 && !cur2.archived && confirm("是否同时归档本案？\n归档后移出活跃列表与仪表盘（选择器「已归档」分组可随时找回，不删除任何数据）。")) {
-            setArchived(cur2.id, true);
-            renderAll();
-            return;
+          if (cur2 && !cur2.archived) {
+            var dlAll3 = [];
+            try { dlAll3 = JSON.parse(localStorage.getItem("legal-deadlines") || "[]"); } catch (e) { }
+            var openDl = (cur2.links.deadlines || []).filter(function (ld) {
+              var it = dlAll3.filter(function (x) { return x.name === ld.name && x.date === ld.date; })[0];
+              return !it || !it.done;
+            }).length;
+            if (confirm("是否同时归档本案？" + (openDl ? "\n\n注意：本案还有 " + openDl + " 条未标记完成的日历提醒——归档不移出合规日历，将按原样继续保留跟踪。" : "") + "\n\n归档后移出活跃列表与仪表盘（选择器「已归档」分组可随时找回，不删除任何数据）。")) {
+              setArchived(cur2.id, true);
+              renderAll();
+              return;
+            }
           }
         }
         renderBody();
@@ -1207,6 +1271,18 @@ window.WORKSPACE = (function () {
       if (e.target.closest("#ws-closure-btn")) { closureReportCurrent(); return; }
       var spentDel = e.target.closest("[data-ws-spent-del]");
       if (spentDel) { removeSpent(parseInt(spentDel.getAttribute("data-ws-spent-del"), 10)); renderBody(); return; }
+      /* ③U3 取证打卡：勾记存当前案件 evTaken（名→取证日期），重渲染目录更新进度 */
+      var evTake = e.target.closest("[data-ev-take]");
+      if (evTake) {
+        var evName = evTake.getAttribute("data-ev-take");
+        withCurrent(function (cc) {
+          cc.evTaken = cc.evTaken || {};
+          if (evTake.checked) cc.evTaken[evName] = new Date().toISOString().slice(0, 10);
+          else delete cc.evTaken[evName];
+        });
+        renderCatalog(catalogRows);
+        return;
+      }
       /* C3 履行台账：勾选/删除/添加/逾期一键执行申请书 */
       var perfChk = e.target.closest("[data-ws-perf]");
       if (perfChk) { togglePerf(parseInt(perfChk.getAttribute("data-ws-perf"), 10)); return; }

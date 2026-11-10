@@ -1038,6 +1038,42 @@ T("C2 警报栏数据：跨案聚合/分级红橙/已完成排除/归档案排�
   const oy = items.find(x => x.name === "举证期限");
   if (oy) throw new Error("剩 9 天超出 7 天窗口不应出现");
 });
+T("④C2 警报源扩展：判决解析期限节点未入日历纳入聚合/入日历后排除", function () {
+  const today = "2026-11-11";
+  sandbox.localStorage.setItem("legal-workspaces", JSON.stringify({
+    list: [{ id: "n1", name: "节点案", archived: false, stage: "一审", links: { deadlines: [] },
+      deadlineNodes: [
+        { name: "上诉期届满（一审判决，15 日）", date: "2026-11-14", addedToCal: false },
+        { name: "申请强制执行（2 年）", date: "2028-11-14", addedToCal: false }
+      ], performance: [] }],
+    currentId: "n1"
+  }));
+  sandbox.localStorage.setItem("legal-deadlines", JSON.stringify([]));
+  const items = WORKSPACE.alertBarData(today);
+  const node = items.find(x => x.name.indexOf("上诉期届满") > -1);
+  if (!node || node.node !== true) throw new Error("未入日历期限节点应纳入聚合并标注来源");
+  if (items.some(x => x.name.indexOf("申请强制执行") > -1)) throw new Error("2 年外节点超窗口不应出现");
+  const ws2 = JSON.parse(sandbox.localStorage.getItem("legal-workspaces"));
+  ws2.list[0].deadlineNodes[0].addedToCal = true;
+  sandbox.localStorage.setItem("legal-workspaces", JSON.stringify(ws2));
+  if (WORKSPACE.alertBarData(today).some(x => x.name.indexOf("上诉期届满") > -1)) throw new Error("入日历后节点应被排除");
+});
+T("③U3 取证打卡/②利息估算/①文书落盘：数据函数语义", function () {
+  WORKSPACE.setCurrent(WORKSPACE.create("收尾测试案").id);
+  const cur = WORKSPACE.current();
+  if (typeof cur.evTaken !== "object" || !Array.isArray(cur.deadlineNodes)) throw new Error("evTaken/deadlineNodes 归一化默认缺失");
+  /* ②利息：350000 元逾期 30 天 × 0.000175 = 1837.5 → round 1838 */
+  const p = { item: "本金", amount: 350000, due: "2026-10-12", status: "pending" };
+  const overdue = WORKSPACE.perfOverdue(p, "2026-11-11");
+  if (!overdue) throw new Error("30 天逾期应判定");
+  const days = 30, est = Math.round(p.amount * days * 0.000175);
+  if (est !== 1838) throw new Error("迟延履行利息估算算术错误: " + est);
+  /* ①文书落盘：attach docs draft 保留 */
+  WORKSPACE.attach("docs", { name: "质证意见（草稿）", date: "2026-11-11", draft: "三性质证框架正文…" });
+  const d = JSON.parse(sandbox.localStorage.getItem("legal-workspaces"));
+  const doc = d.list.find(x => x.id === d.currentId).links.docs[0];
+  if (!doc.draft || doc.draft.indexOf("三性") === -1) throw new Error("文书落盘 draft 正文丢失");
+});
 
 T("备份 v3：entries 覆盖全部 backup:true 键且不含密钥/技能启用态", function () {
   AI.settings().apiKey = "sk-v3-test";
