@@ -432,6 +432,15 @@ head("内联脚本门禁（CSP 兼容）");
   var inline = (html.match(/<script(?![^>]*\bsrc=)[^>]*>/g) || []).filter(function (t) { return t.indexOf("application/json") === -1 && t.indexOf("ld+json") === -1; });
   if (inline.length) bad("web index.html 存在内联 <script> ×" + inline.length + "——CSP 会拒绝执行，请外部化为 js/*.js");
   else ok("web index.html 无内联 <script>（CSP 兼容）");
+  /* sprite symbol id 唯一性：双副本各加一个同名 symbol 曾使齿轮图标显示为旧样式（SVG 取文档第一个） */
+  var ids = {}, dup = [];
+  (html.match(/<symbol id="([^"]+)"/g) || []).forEach(function (s) {
+    var id = s.match(/id="([^"]+)"/)[1];
+    if (ids[id]) dup.push(id);
+    ids[id] = 1;
+  });
+  if (dup.length) bad("sprite symbol id 重复：" + dup.join("、") + "——<use> 只取文档第一个，后加的同名图标不生效");
+  else ok("sprite symbol id 无重复");
 })();
 
 /* ---------- 14. 资料时效门禁（内容新鲜度，v3.4.9 批次 D） ----------
