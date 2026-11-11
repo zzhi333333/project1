@@ -129,8 +129,9 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
    未激活=描边浅态统一大小+轻呼吸（不死板）；点击/激活=平滑放大少许+填充主色（不加外圈）；
    prefers-reduced-motion 全部动画关闭（W2）。 */
 .nav-tab-center { margin-top: -8px; }
-/* 案件页抬头 sticky（v3.7.3）：滚动残留/字体缩放撑高时抬头仍钉在视口顶 */
-.view-workspace .view-head {
+/* 案件页抬头 sticky（v3.7.3 引入，v3.7.4 修正选择器：原 .view-workspace 类选择器
+   不命中 id="view-workspace" 的 section，sticky 实际未生效） */
+#view-workspace .view-head {
   position: sticky; top: 0; z-index: 5;
   background: var(--bg); padding: 12px 0 8px;
 }
@@ -162,6 +163,33 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .nav-tab-center .tab-ico { animation: none; transition: none; }
+}
+
+/* =========================================================
+ * v3.7.4 UI 质感批次（本机 UI 建议落地）：
+ * 1 危险操作红显 / 2 按压反馈统一 / 3 页面切换轻动效 / 4 合同 chips 网格
+ * ========================================================= */
+/* 1 危险操作红显：删除是唯一不可逆动作，视觉上要敢于承认（诚实 UX） */
+#ws-del { color: var(--danger); border-color: var(--danger-border); }
+#ws-del:active { background: var(--danger-soft); }
+/* 2 按压反馈统一：把气泡动画建立的按压语言延伸到全站（transform 走 GPU） */
+.mini-btn, .ghost-btn, .calc-btn, .primary-btn, .mode-btn, .filter-chip,
+.tool-card, .more-item, .quick-card { transition: transform .12s ease; }
+.mini-btn:active, .ghost-btn:active, .calc-btn:active, .primary-btn:active,
+.mode-btn:active, .filter-chip:active, .tool-card:active, .more-item:active,
+.quick-card:active { transform: scale(.97); }
+/* 3 页面切换轻动效：对齐 web 版 fadein，切换过渡而非跳变 */
+.view.active { animation: viewfade .18s ease; }
+@keyframes viewfade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; }
+}
+/* 4 合同类型 chips：3+2 两行网格，消除「通用商业合 同」参差折行 */
+#view-contract .mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .view.active { animation: none; }
+  .mini-btn, .ghost-btn, .calc-btn, .primary-btn, .mode-btn, .filter-chip,
+  .tool-card, .more-item, .quick-card { transition: none; }
 }
 
 /* ============ 智能咨询 ============ */
