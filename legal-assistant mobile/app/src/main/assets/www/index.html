@@ -525,6 +525,78 @@
       </div>
     </section>
 
+<!-- 案件工作区（v3.6.0：独立页面，原弹层结构退役） -->
+<section id="view-workspace" class="view">
+  <div class="view-pad">
+    <div class="view-head">
+      <h2>案件工作区</h2>
+      <p>同一案件统一管理：阶段 / 待办 / 台账 / 期限 / 文书 / 证据——产出自动归集到当前案件</p>
+    </div>
+    <select id="ws-select" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);margin-bottom:8px"></select>
+    <div class="backup-row" style="margin-bottom:8px">
+      <button id="ws-new" class="mini-btn">＋ 新建案件</button>
+      <button id="ws-rename" class="mini-btn">重命名</button>
+      <button id="ws-del" class="mini-btn">删除</button>
+    </div>
+    <div id="ws-body">
+        <div id="ws-empty" class="empty hidden" style="font-size:13px;padding:14px 4px">尚无案件：点上方「＋ 新建案件」创建后，咨询/分析/导入的产出会自动归集到当前案件。</div>
+        <div id="ws-content" class="hidden">
+        <div id="ws-overview"></div>
+        <div id="ws-stage"></div>
+        <div class="modal-section-title">待确认事项</div>
+        <div class="backup-row" style="margin-bottom:8px">
+          <input id="ws-note-input" type="text" maxlength="120" placeholder="如：需确认合同签订日期" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+          <button id="ws-note-add" class="mini-btn">添加</button>
+        </div>
+        <div id="ws-notes" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+        <div class="modal-section-title" style="margin-top:12px">自动归集</div>
+        <div id="ws-links" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div class="modal-note" style="margin-top:10px">归集来源：深度分析「存入报告库」、合规日历添加、案例粘贴导入——当前案件激活时自动关联。</div>
+        <div class="modal-section-title" style="margin-top:14px">案件台账（纯记账）</div>
+        <div id="ws-ledger"></div>
+        <div class="modal-section-title" style="margin-top:14px">判决信息（判决书解析后自动保存）</div>
+        <div id="ws-result"></div>
+        <div class="modal-section-title" style="margin-top:14px">庭前文书（按最近报告的场景生成，全模板化）</div>
+        <div class="backup-row" style="margin-top:6px">
+          <button id="ws-court-critique" class="mini-btn block-btn"><svg class=ico><use href=#i-file></use></svg> 质证意见（草稿）</button>
+          <button id="ws-court-outline" class="mini-btn block-btn"><svg class=ico><use href=#i-file></use></svg> 庭审提纲（草稿）</button>
+        </div>
+        <div id="ws-court-out" style="margin-top:8px"></div>
+        <div class="modal-section-title" style="margin-top:14px">判决书双时间线</div>
+        <textarea id="ws-judg-input" rows="4" placeholder="粘贴判决书/调解书全文或尾部（含判决日期、履行期限），自动提取已发生事实与程序期限节点…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap">
+          <select id="ws-judg-type" style="padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+            <option value="first">一审判决书</option>
+            <option value="second">二审判决书</option>
+            <option value="mediation">调解书</option>
+          </select>
+          <button id="ws-judg-parse" class="mini-btn block-btn">解析生成双时间线</button>
+          <button id="ws-judg-docx" class="mini-btn block-btn" title="上传裁判文书网下载的判决书 docx，自动提取并解析"><svg class="ico"><use href="#i-file"/></svg> 上传判决书 docx</button>
+        </div>
+        <div id="ws-judg-out" style="margin-top:8px"></div>
+        <div class="modal-section-title" style="margin-top:14px">证据目录生成（Word 表格）</div>
+        <textarea id="ws-ev-input" rows="3" placeholder="每行一条证据，如：劳动合同（证明双方权利义务关系）…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <button id="ws-ev-gen" class="mini-btn block-btn">生成证据目录表</button>
+          <button id="ws-ev-word" class="mini-btn block-btn hidden"><svg class=ico><use href=#i-file></use></svg> 导出 Word 表格</button>
+        </div>
+        <div id="ws-ev-out" style="margin-top:8px;overflow-x:auto"></div>
+        <div class="modal-section-title" style="margin-top:14px">执行阶段工具（判决生效后）</div>
+        <div class="backup-row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+          <button id="ws-exec-enforce" class="mini-btn"><svg class=ico><use href=#i-file></use></svg> 执行申请书（自动填充）</button>
+          <button id="ws-exec-list" class="mini-btn"><svg class=ico><use href=#i-list></use></svg> 财产线索清单</button>
+        </div>
+        <div id="ws-exec-out" style="margin-top:8px"></div>
+        <div class="modal-note" style="margin-top:6px">需先在上方粘贴判决书解析；拒执可追拒不执行判决裁定罪（刑法第313条）。</div>
+        </div><!-- /ws-content -->
+      </div>
+      <div style="margin-top:12px">
+        <button id="ws-onepager" class="mini-btn block-btn"><svg class=ico><use href=#i-print></use></svg> 打印一页纸摘要</button>
+        <button id="ws-export" class="mini-btn block-btn"><svg class=ico><use href=#i-save></use></svg> 导出档案 (.md)</button>
+        <button id="ws-handover" class="mini-btn block-btn"><svg class=ico><use href=#i-box></use></svg> 律师交接包 (zip)</button>
+      </div>
+  </div>
+</section>
   </main>
 
   <!-- ================= 底部导航 ================= -->
@@ -708,78 +780,6 @@
   </div>
 </div>
 
-<!-- 案件工作区（v3.6.0：独立页面，原弹层结构退役） -->
-<section id="view-workspace" class="view">
-  <div class="view-pad">
-    <div class="view-head">
-      <h2>案件工作区</h2>
-      <p>同一案件统一管理：阶段 / 待办 / 台账 / 期限 / 文书 / 证据——产出自动归集到当前案件</p>
-    </div>
-    <select id="ws-select" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);margin-bottom:8px"></select>
-    <div class="backup-row" style="margin-bottom:8px">
-      <button id="ws-new" class="mini-btn">＋ 新建案件</button>
-      <button id="ws-rename" class="mini-btn">重命名</button>
-      <button id="ws-del" class="mini-btn">删除</button>
-    </div>
-    <div id="ws-body">
-        <div id="ws-empty" class="empty hidden" style="font-size:13px;padding:14px 4px">尚无案件：点上方「＋ 新建案件」创建后，咨询/分析/导入的产出会自动归集到当前案件。</div>
-        <div id="ws-content" class="hidden">
-        <div id="ws-overview"></div>
-        <div id="ws-stage"></div>
-        <div class="modal-section-title">待确认事项</div>
-        <div class="backup-row" style="margin-bottom:8px">
-          <input id="ws-note-input" type="text" maxlength="120" placeholder="如：需确认合同签订日期" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
-          <button id="ws-note-add" class="mini-btn">添加</button>
-        </div>
-        <div id="ws-notes" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
-        <div class="modal-section-title" style="margin-top:12px">自动归集</div>
-        <div id="ws-links" style="display:flex;flex-direction:column;gap:10px"></div>
-        <div class="modal-note" style="margin-top:10px">归集来源：深度分析「存入报告库」、合规日历添加、案例粘贴导入——当前案件激活时自动关联。</div>
-        <div class="modal-section-title" style="margin-top:14px">案件台账（纯记账）</div>
-        <div id="ws-ledger"></div>
-        <div class="modal-section-title" style="margin-top:14px">判决信息（判决书解析后自动保存）</div>
-        <div id="ws-result"></div>
-        <div class="modal-section-title" style="margin-top:14px">庭前文书（按最近报告的场景生成，全模板化）</div>
-        <div class="backup-row" style="margin-top:6px">
-          <button id="ws-court-critique" class="mini-btn block-btn"><svg class=ico><use href=#i-file></use></svg> 质证意见（草稿）</button>
-          <button id="ws-court-outline" class="mini-btn block-btn"><svg class=ico><use href=#i-file></use></svg> 庭审提纲（草稿）</button>
-        </div>
-        <div id="ws-court-out" style="margin-top:8px"></div>
-        <div class="modal-section-title" style="margin-top:14px">判决书双时间线</div>
-        <textarea id="ws-judg-input" rows="4" placeholder="粘贴判决书/调解书全文或尾部（含判决日期、履行期限），自动提取已发生事实与程序期限节点…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
-        <div style="display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap">
-          <select id="ws-judg-type" style="padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
-            <option value="first">一审判决书</option>
-            <option value="second">二审判决书</option>
-            <option value="mediation">调解书</option>
-          </select>
-          <button id="ws-judg-parse" class="mini-btn block-btn">解析生成双时间线</button>
-          <button id="ws-judg-docx" class="mini-btn block-btn" title="上传裁判文书网下载的判决书 docx，自动提取并解析"><svg class="ico"><use href="#i-file"/></svg> 上传判决书 docx</button>
-        </div>
-        <div id="ws-judg-out" style="margin-top:8px"></div>
-        <div class="modal-section-title" style="margin-top:14px">证据目录生成（Word 表格）</div>
-        <textarea id="ws-ev-input" rows="3" placeholder="每行一条证据，如：劳动合同（证明双方权利义务关系）…" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical"></textarea>
-        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-          <button id="ws-ev-gen" class="mini-btn block-btn">生成证据目录表</button>
-          <button id="ws-ev-word" class="mini-btn block-btn hidden"><svg class=ico><use href=#i-file></use></svg> 导出 Word 表格</button>
-        </div>
-        <div id="ws-ev-out" style="margin-top:8px;overflow-x:auto"></div>
-        <div class="modal-section-title" style="margin-top:14px">执行阶段工具（判决生效后）</div>
-        <div class="backup-row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
-          <button id="ws-exec-enforce" class="mini-btn"><svg class=ico><use href=#i-file></use></svg> 执行申请书（自动填充）</button>
-          <button id="ws-exec-list" class="mini-btn"><svg class=ico><use href=#i-list></use></svg> 财产线索清单</button>
-        </div>
-        <div id="ws-exec-out" style="margin-top:8px"></div>
-        <div class="modal-note" style="margin-top:6px">需先在上方粘贴判决书解析；拒执可追拒不执行判决裁定罪（刑法第313条）。</div>
-        </div><!-- /ws-content -->
-      </div>
-      <div style="margin-top:12px">
-        <button id="ws-onepager" class="mini-btn block-btn"><svg class=ico><use href=#i-print></use></svg> 打印一页纸摘要</button>
-        <button id="ws-export" class="mini-btn block-btn"><svg class=ico><use href=#i-save></use></svg> 导出档案 (.md)</button>
-        <button id="ws-handover" class="mini-btn block-btn"><svg class=ico><use href=#i-box></use></svg> 律师交接包 (zip)</button>
-      </div>
-  </div>
-</section>
 
 <!-- 发送前预览 -->
 <div id="send-preview-modal" class="modal hidden">

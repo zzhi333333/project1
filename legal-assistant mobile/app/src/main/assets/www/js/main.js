@@ -11,9 +11,11 @@
       var el = document.getElementById("view-" + v);
       if (el) {
         el.classList.toggle("active", v === name);
-        /* v3.7.3：切页强制滚动归零（原 mobile.js 包装只拦 APP.switchView 调用，
-           底部 tab 走闭包内 switchView 被绕过——真机滚动位置残留致进页不见抬头） */
-        try { el.scrollTop = 0; } catch (e) { }
+        /* v3.7.1（另一副本 453cf1d）：.view 是独立滚动容器（absolute+overflow-y:auto），切走
+           display:none 保留 scrollTop——长页（案件工作区）滚过后切回从旧位置显示，页头被滚出
+           只剩说明末行（真机「到当前案件」残留根因）。目标页回顶（consult 除外：聊天记录的
+           阅读位置应保留）；window.scrollTo 管不到内部容器。 */
+        if (v === name && v !== "consult") el.scrollTop = 0;
       }
     });
     document.querySelectorAll(".nav-tab").forEach(function (t) {
