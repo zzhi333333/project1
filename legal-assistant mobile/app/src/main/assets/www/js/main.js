@@ -9,7 +9,13 @@
   function switchView(name) {
     views.forEach(function (v) {
       var el = document.getElementById("view-" + v);
-      if (el) el.classList.toggle("active", v === name);
+      if (el) {
+        el.classList.toggle("active", v === name);
+        /* v3.7.1 修复：.view 是独立滚动容器（absolute+overflow-y:auto），切走 display:none
+           保留 scrollTop——长页（案件工作区）滚过后切回从旧位置显示，页头被滚出只剩说明末行。
+           目标页回顶（consult 除外：聊天记录的阅读位置应保留）；window.scrollTo 管不到内部容器。 */
+        if (v === name && v !== "consult") el.scrollTop = 0;
+      }
     });
     document.querySelectorAll(".nav-tab").forEach(function (t) {
       t.classList.toggle("active", t.getAttribute("data-view") === name);
