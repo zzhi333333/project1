@@ -173,6 +173,11 @@
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-laws></use></svg></div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
+    /* 意见卡逐段揭示（v3.8.0 B1）：结论前提→概要→分析 stagger 80ms 登场 */
+    div.querySelectorAll(".result-section").forEach(function (s, i) {
+      s.style.animationDelay = (i * 80) + "ms";
+      s.classList.add("cardrise");
+    });
     recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] } });
 
     div.querySelectorAll(".law-chip").forEach(bindLawChip);

@@ -610,6 +610,19 @@
         <button class="ghost-btn" data-label="清除全部案件数据" data-clear="all">清除全部案件数据</button>
       </div>
       <div class="modal-note" style="margin-top:6px">清除仅影响本机数据且不可恢复；API Key 与技能库不在清除范围（技能库可在 AI 弹层的技能管理中删除）。</div>
+      <div class="modal-section-title"><svg class="ico"><use href="#i-moon"/></svg> 外观</div>
+      <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:6px">主题</div>
+      <div class="seg" id="seg-theme">
+        <button data-themesel="">跟随系统</button>
+        <button data-themesel="light">浅色</button>
+        <button data-themesel="dark">深色</button>
+        <button data-themesel="warm">暖纸</button>
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-2);margin:8px 0 6px">字号</div>
+      <div class="seg" id="seg-font">
+        <button data-fontsel="">标准</button>
+        <button data-fontsel="large">大字</button>
+      </div>
       <div class="modal-section-title"><svg class="ico"><use href="#i-ai"/></svg> AI 模型</div>
       <button id="open-ai-settings" class="ghost-btn">进入 AI 模型设置（服务商 / 密钥 / 模型 / 技能包）</button>
     </div>

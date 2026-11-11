@@ -710,7 +710,7 @@
     <div class="modal-body">
       <div class="modal-section-title"><svg class="ico"><use href="#i-info"/></svg> 关于助手</div>
       <div class="more-ver">
-        <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.7.4</b>（<span id="app-build">2026-11-11</span>）</div>
+        <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">3.8.0</b>（<span id="app-build">2026-11-12</span>）</div>
         <div class="mv-tips">
           <div class="mv-tip"><svg class=ico><use href=#i-agent></use></svg> 深度咨询：AI 逐项追问案情要素，齐全后一键生成可核验分析</div>
           <div class="mv-tip"><svg class=ico><use href=#i-list></use></svg> 一揽子请求计算器：勾选请求项→填参数→缺口自动转工作区待办</div>
@@ -738,6 +738,19 @@
         <button class="mini-btn" data-label="清除全部案件数据" data-clear="all">清除全部案件数据</button>
       </div>
       <div class="modal-note" style="margin-top:6px">清除仅影响本机数据且不可恢复；API Key 与技能库不在清除范围。</div>
+      <div class="modal-section-title"><svg class="ico"><use href="#i-moon"/></svg> 外观</div>
+      <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:6px">主题</div>
+      <div class="seg" id="seg-theme">
+        <button class="mini-btn" data-themesel="">跟随系统</button>
+        <button class="mini-btn" data-themesel="light">浅色</button>
+        <button class="mini-btn" data-themesel="dark">深色</button>
+        <button class="mini-btn" data-themesel="warm">暖纸</button>
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-2);margin:8px 0 6px">字号</div>
+      <div class="seg" id="seg-font">
+        <button class="mini-btn" data-fontsel="">标准</button>
+        <button class="mini-btn" data-fontsel="large">大字</button>
+      </div>
       <div class="modal-section-title"><svg class="ico"><use href="#i-ai"/></svg> AI 模型</div>
       <button id="open-ai-settings" class="mini-btn block-btn">进入 AI 模型设置（服务商 / 密钥 / 模型 / 技能包）</button>
     </div>
@@ -904,6 +917,7 @@
 <script src="js/diag.js"></script>
 <script src="js/zipread.js"></script>
 <script src="js/attach.js"></script>
+<script src="js/theme.js"></script>
 <script src="js/main.js"></script>
 <script src="js/mobile.js"></script>
 </body>

@@ -1,14 +1,17 @@
 /* =========================================================
- * theme.js —— 主题切换（v3.6.2 自 index.html 内联脚本外部化）
- * 外部化原因：批次 G 的 CSP「default-src 'self'」无 script-src 指令，
- * 内联 <script> 被浏览器拒绝执行——主题切换自 v3.5.2 起在
- * node server.js 部署的 web 场景静默失效（P0-②）。
- * 默认跟随系统，手动选择存 localStorage（legal-theme）覆盖；
- * 移动端无 #theme-toggle 按钮时仅应用已存主题（安全早退）。
+ * theme.js —— 主题/外观（v3.8.0 扩展：暖纸第三主题 + 大字模式 + 设置分段）
+ * 历史：v3.6.2 自 index.html 内联脚本外部化（批次 G CSP 无 script-src 拦内联）。
+ * 主题四态：""（跟随系统）/ light / dark / warm（暖纸，固定浅暖——卷宗气质）。
+ * 字号：html[data-fontscale="large"]（zoom 1.15 全局等比）。
+ * 设置弹层分段：[data-themesel] / [data-fontsel] 点击即存即用；启动时恢复。
+ * 移动端无 #theme-toggle 按钮时仅应用已存偏好（安全早退）。
  * ========================================================= */
 (function () {
   var btn = document.getElementById("theme-toggle");
   var KEY = "legal-theme";
+  var FKEY = "legal-fontscale";
+  var THEMES = ["", "light", "dark", "warm"];
+
   function apply(t) {
     var de = document.documentElement;
     if (!de) return;   /* check.js VM 沙箱 document 桩无 documentElement（同 ui.js 守卫先例） */
@@ -19,15 +22,52 @@
     if (use) use.setAttribute("href", t === "dark" ? "#i-sun" : "#i-moon");
     btn.title = t === "dark" ? "切换到浅色模式" : "切换到深色模式";
   }
-  var saved = null;
-  try { saved = localStorage.getItem(KEY); } catch (e) { /* ignore */ }
-  apply(saved === "dark" || saved === "light" ? saved : null);
-  if (!btn) return;
-  btn.addEventListener("click", function () {
-    var cur = document.documentElement.getAttribute("data-theme");
-    var sysDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    var next = cur === "dark" ? "light" : cur === "light" ? "dark" : (sysDark ? "light" : "dark");
-    try { localStorage.setItem(KEY, next); } catch (e) { /* ignore */ }
-    apply(next);
-  });
+  function applyFont(fs) {
+    var de = document.documentElement;
+    if (!de) return;
+    if (fs === "large") de.setAttribute("data-fontscale", "large");
+    else de.removeAttribute("data-fontscale");
+  }
+  function get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
+  function set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+
+  /* 启动清理：data-theme=""（空串属性，历史代码/调试残留）等效未设置——
+     空串会使 html:not([data-theme]) 等主题令牌块全部不命中（P0-② 同款坑） */
+  try { if (document.documentElement.getAttribute("data-theme") === "") document.documentElement.removeAttribute("data-theme"); } catch (e) { }
+  apply(get(KEY, null));
+  applyFont(get(FKEY, ""));
+
+  /* 右上角手动切换按钮：跟随系统 → 深色 → 浅色 → 暖纸 → 循环 */
+  if (btn) {
+    btn.addEventListener("click", function () {
+      var cur = document.documentElement.getAttribute("data-theme") || "";
+      var idx = THEMES.indexOf(cur);
+      var next = THEMES[(idx + 1) % THEMES.length];
+      set(KEY, next);
+      apply(next);
+    });
+  }
+
+  /* 设置弹层外观分段（v3.8.0）：主题四选 / 字号两选，点击即存即用。
+     try/catch 守卫：check.js VM 沙箱 document 桩无 querySelector（同 ui.js 先例） */
+  function bindSeg(sel, attr, key, applyFn) {
+    try {
+      var box = document.querySelector(sel);
+      if (!box) return;
+      var btns = box.querySelectorAll("[" + attr + "]");
+      function sync() {
+        btns.forEach(function (b) { b.classList.toggle("on", b.getAttribute(attr) === get(key, "")); });
+      }
+      btns.forEach(function (b) {
+        b.addEventListener("click", function () {
+          set(key, b.getAttribute(attr));
+          applyFn(b.getAttribute(attr));
+          sync();
+        });
+      });
+      sync();
+    } catch (e) { }
+  }
+  bindSeg("#seg-theme", "data-themesel", KEY, apply);
+  bindSeg("#seg-font", "data-fontsel", FKEY, applyFont);
 })();

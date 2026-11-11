@@ -583,7 +583,23 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 
 /* ---------------- 报告（规则引擎输出） ---------------- */
 .report { background: var(--card); border-radius: var(--radius); border: 1px solid var(--line); overflow: hidden; }
-.report-head { color: #fff; padding: 18px 20px; font-size: 13.5px; display: flex; flex-direction: column; gap: 6px; }
+.report-head { color: #fff; padding: 18px 20px; font-size: 13.5px; display: flex; flex-direction: column; gap: 6px; position: relative; }
+/* 篆刻印章（v3.8.0）：报告/意见卡右上浅朱砂方章——竖排两列传统读序 */
+.report-head::after, .result-card::after {
+  content: "仅供参考";
+  position: absolute; right: 12px; top: 8px;
+  width: 42px; height: 42px;
+  display: grid; place-items: center;
+  writing-mode: vertical-rl; text-orientation: upright;
+  font-family: "KaiTi", "STKaiti", var(--font-serif);
+  font-size: 14px; letter-spacing: 4px; line-height: 1.15;
+  color: var(--seal); border: 2px solid var(--seal); border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--seal);
+  transform: rotate(-6deg);
+  opacity: .18;
+  pointer-events: none;
+}
+.result-card { position: relative; }
 .report-head-title { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
 .report-sec { padding: 16px 20px; border-top: 1px solid var(--line); }
 .report-sec-title { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
@@ -717,6 +733,20 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 /* ---------------- 暗色模式 ----------------
    跟随系统（prefers-color-scheme）；网页版可用 data-theme="light"/"dark" 手动覆盖 */
 :root { color-scheme: light; }
+/* ---------- 暖纸主题（v3.8.0）：data-theme="warm" 固定浅暖——米纸底/墨字/卷宗气质；暗色令牌不受影响 ---------- */
+html[data-theme="warm"] {
+  color-scheme: light;
+  --bg: #f6f1e8; --card: #fdfaf3; --ink: #2c2620; --ink-2: #7a6f5f;
+  --line: #e6dcc8; --line-2: #d8cdb4;
+  --primary: #4f46e5; --primary-2: #4338ca;
+  --primary-soft: #ece7d8; --primary-border: #c9c0a6;
+  --seal: #b03a2e;
+}
+html:not([data-theme]), html[data-theme=""] { --seal: #b03a2e; }
+:root[data-theme="dark"] { --seal: #e08573; }
+:root, html[data-theme="warm"] { --font-serif: Georgia, "Noto Serif SC", "Source Han Serif SC", "STSong", "SimSun", serif; }
+html[data-fontscale="large"] { zoom: 1.15; }
+
 :root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
@@ -988,8 +1018,29 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .sc-ladder-bar { animation: sc-growx .4s ease-out; transform-origin: left center; }
 @media (prefers-reduced-motion: reduce) {
   .sc-arc, .sc-dot, .sc-fade, .sc-growx, .sc-ladder-bar,
-  .sc-ring-box svg, svg[role="img"][aria-label*="雷达"] { animation: none !important; }
+  .sc-ring-box svg, svg[role="img"][aria-label*="雷达"],
+  .cardrise, .result-card > .result-section,
+  .nav-breathe, .nav-tab-center .tab-ico { animation: none !important; }
+  .nav-tab-center.active .tab-ico { transform: none; }
 }
+
+/* ---------- 意见卡逐段揭示（v3.8.0 B1）：结论→分析→法条依次登场（stagger 由 JS 设 delay） ---------- */
+@keyframes cardrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.cardrise { animation: cardrise .38s ease both; }
+.result-card > .result-section { animation: cardrise .38s ease both; }
+
+/* ---------- 衬线标题混排（v3.8.0 A3）：法律文书庄重感，正文保持无衬线 ---------- */
+.view-head h2, .report-sec-title, .result-title, .modal-title, .report-head-title {
+  font-family: var(--font-serif);
+}
+
+/* ---------- 设置外观分段（v3.8.0：主题四选 / 字号两选） ---------- */
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-2);
+  border-radius: 999px; padding: 6px 14px; font-size: 12.5px; cursor: pointer;
+}
+.seg button.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
 
 /* ---------------- V10 事实高亮（日期/金额） ---------------- */
 .fact-hl { background: var(--fact-bg); border-radius: 3px; padding: 0 1px; }
