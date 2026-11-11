@@ -9,7 +9,12 @@
   function switchView(name) {
     views.forEach(function (v) {
       var el = document.getElementById("view-" + v);
-      if (el) el.classList.toggle("active", v === name);
+      if (el) {
+        el.classList.toggle("active", v === name);
+        /* v3.7.3：切页强制滚动归零（原 mobile.js 包装只拦 APP.switchView 调用，
+           底部 tab 走闭包内 switchView 被绕过——真机滚动位置残留致进页不见抬头） */
+        try { el.scrollTop = 0; } catch (e) { }
+      }
     });
     document.querySelectorAll(".nav-tab").forEach(function (t) {
       t.classList.toggle("active", t.getAttribute("data-view") === name);

@@ -129,6 +129,11 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
    未激活=描边浅态统一大小+轻呼吸（不死板）；点击/激活=平滑放大少许+填充主色（不加外圈）；
    prefers-reduced-motion 全部动画关闭（W2）。 */
 .nav-tab-center { margin-top: -8px; }
+/* 案件页抬头 sticky（v3.7.3）：滚动残留/字体缩放撑高时抬头仍钉在视口顶 */
+.view-workspace .view-head {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg); padding: 12px 0 8px;
+}
 .nav-tab-center .tab-ico {
   width: 42px; height: 42px; margin: 0 auto;
   border-radius: 50%;
