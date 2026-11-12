@@ -293,7 +293,10 @@ window.AI = (function () {
       }
       var om = t.match(/^\d{1,3}[.、]\s+(.*)$/);
       if (om) {
-        closeLists();
+        /* 连续有序行并入同一 <ol>（浏览器自动连续编号）——此前每行 closeLists 拆成
+           N 个单项列表，浏览器每个都从 1 数起（用户实测「序号全部是 1」）；
+           空行/无序行/标题行仍会经 closeLists 断开列表 */
+        if (inUl) { out.push("</ul>"); inUl = false; }
         if (!inOl) { out.push("<ol>"); inOl = true; }
         out.push("<li>" + inline(om[1]) + "</li>");
         return;

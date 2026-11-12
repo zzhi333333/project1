@@ -231,7 +231,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 }
 .msg.user .bubble { background: var(--primary-soft); color: var(--ink); border-color: var(--primary-border); border-bottom-right-radius: 6px; }
 .msg.bot .bubble { border-top-left-radius: 6px; }
-.msg .bubble ul { padding-left: 18px; margin: 4px 0; }
+.msg .bubble ul, .msg .bubble ol { padding-left: 18px; margin: 4px 0; }
 .msg .bubble li { margin: 2px 0; }
 
 /* AI 流式气泡 */

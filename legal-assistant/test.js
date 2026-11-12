@@ -780,6 +780,21 @@ T("AI mdLite：白名单渲染与 XSS 转义（C4）", function () {
   if (xss.indexOf("<img") !== -1 || xss.indexOf("onerror") === -1 || xss.indexOf("&lt;img") === -1) throw new Error("HTML 未被转义");
   if (xss.indexOf("<code>code</code>") === -1) throw new Error("行内代码未渲染");
 });
+T("AI mdLite：连续有序行并入同一 <ol>（修复用户实测「序号全部是 1」）", function () {
+  const md = sandbox.window.AI.mdLite;
+  /* LLM 输出常见形态：每行都写「1.」——此前每行 closeLists 拆成 N 个单项 <ol>，
+     浏览器每个都从 1 数起；修复后连续行并入同一 <ol> 由浏览器连续编号 */
+  const src = "具体操作步骤\n\n1. **固定证据**：收集材料；\n1. **申请鉴定**：向法院申请；\n1. **法院认定**：向基层法院申请。\n\n后续段落文字。";
+  const html = md(src);
+  const olCount = (html.match(/<ol>/g) || []).length;
+  if (olCount !== 1) throw new Error("连续有序行应并入同一 <ol>，实际 " + olCount + " 个（序号会全部显示 1）");
+  if ((html.match(/<li>/g) || []).length !== 3) throw new Error("应 3 个 <li>");
+  if (html.indexOf("<b>固定证据</b>") === -1) throw new Error("粗体内联丢失");
+  if (html.slice(html.lastIndexOf("</ol>")).indexOf("后续段落文字") === -1) throw new Error("空行后段落丢失");
+  /* 混排切换：ol→ul→ol 应各自成组 */
+  const mixed = md("1. 甲\n- 乙\n1. 丙");
+  if ((mixed.match(/<ol>/g) || []).length !== 2 || (mixed.match(/<ul>/g) || []).length !== 1) throw new Error("有序/无序切换分组异常");
+});
 T("AI redactPII：银行卡与邮箱扩充（C5）", function () {
   const r = sandbox.window.AI.redactPII("卡号6222020200112233445，邮箱 a.b@test.cn，身份证11010519491231002X");
   if (r.indexOf("622202") !== -1) throw new Error("银行卡号未脱敏：" + r);
