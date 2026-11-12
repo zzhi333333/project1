@@ -152,8 +152,8 @@ window.AI = (function () {
 
   function aiChat(messages, onDelta, opts) {
     var cfg = Object.assign({}, S, opts || {});
-    if (!cfg.baseUrl) return Promise.reject(new Error("未配置接口地址（Base URL），请点击右上角「AI 模型」设置。"));
-    if (!cfg.apiKey && cfg.provider !== "ollama") return Promise.reject(new Error("未配置 API Key，请点击右上角「AI 模型」设置。"));
+    if (!cfg.baseUrl) { setStopUI(false); return Promise.reject(new Error("未配置接口地址（Base URL），请点击右上角「AI 模型」设置。")); }
+    if (!cfg.apiKey && cfg.provider !== "ollama") { setStopUI(false); return Promise.reject(new Error("未配置 API Key，请点击右上角「AI 模型」设置。")); }
     var temp = parseFloat(cfg.temperature);
     if (isNaN(temp)) temp = 0.5;
     /* 隐私：发送前脱敏（默认开）+ 发送前预览（默认关，可在设置开启） */
@@ -201,10 +201,13 @@ window.AI = (function () {
     /* AI 链路边界统一归一（用户实测：深度解读 90 秒超时被误显示为「已停止生成」）——
        watchdog abort 的报错经直连包装后含 "aborted"，下游 /abort/ 判据会误判成手动停止；
        此处在 aiChat 出口把超时翻译成人话，手动停止（timedOut=false）不受影响 */
-    return chain.catch(function (e) {
+    var out = chain.catch(function (e) {
       if (timedOut) throw new Error("连接超时：模型 90 秒无响应或传输中断——请检查网络后重试。");
       throw e;
     });
+    /* AI 出口统一恢复发送键（停止同位互换收尾）——then(f,f) 双参兼容旧 WebView（不用 .finally） */
+    out.then(function () { setStopUI(false); }, function () { setStopUI(false); });
+    return out;
 
     /* ---- 请求健康度（C1）：连接/流式 90 秒无进展自动中断（此前直连挂死永久转圈）----
        AbortController 与停止按钮共享；超时置 timedOut 标志，catch 里翻译成人话 */
@@ -467,16 +470,46 @@ window.AI = (function () {
     if (chatBox) { chatBox.appendChild(wrap); chatBox.scrollTop = chatBox.scrollHeight; }
   }
 
+  /* ---------------- 停止键同位互换（v3.9.2，ZCode 风格）----------------
+     生成期间输入区发送键变身为停止键（危险红描边），结束后恢复——
+     停止操作恒在输入焦点旁，不再随气泡增长漂移滚出视口。
+     capture 阶段接管点击 + stopPropagation：不污染 main.js 的发送绑定；
+     dataset.stop 供 mobile.js grow() 显隐守卫（停止态不因输入框为空被藏起） */
+  var sendBtn = null, sendHTML = null;
+  function setStopUI(on) {
+    if (!sendBtn) {
+      sendBtn = document.getElementById("consult-send");
+      if (sendBtn) sendHTML = sendBtn.innerHTML;
+    }
+    if (!sendBtn) return;
+    if (on) {
+      sendBtn.dataset.stop = "1";
+      sendBtn.classList.add("is-stop");
+      sendBtn.classList.remove("hidden");
+      sendBtn.innerHTML = '<svg class="ico"><use href="#i-stop"/></svg>停止';
+      sendBtn.disabled = false;
+      sendBtn.addEventListener("click", stopClickCap, true);
+    } else {
+      delete sendBtn.dataset.stop;
+      sendBtn.classList.remove("is-stop");
+      sendBtn.removeEventListener("click", stopClickCap, true);
+      sendBtn.innerHTML = sendHTML || "发送";
+      /* mobile 微信式显隐恢复：按输入框内容决定（web 端无 .send-btn 类，恒显不受影响） */
+      var inp = document.getElementById("consult-input");
+      if (inp && sendBtn.classList.contains("send-btn")) sendBtn.classList.toggle("hidden", inp.value.length === 0);
+    }
+  }
+  function stopClickCap(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    stopCurrent();
+  }
   /* ---------------- 集成①：AI 对话模式 ---------------- */
   function streamBubble(box) {
     var div = document.createElement("div");
     div.className = "msg bot";
     div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-ai></use></svg></div><div class="bubble ai-stream"><span class="ai-text"></span><span class="ai-cursor">▍</span></div>';
-    var stop = document.createElement("button");
-    stop.className = "ai-stop";
-    stop.textContent = "⏹ 停止";
-    stop.addEventListener("click", function () { window.AI.stopCurrent(); });
-    div.appendChild(stop);
+    setStopUI(true);
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
     return div;

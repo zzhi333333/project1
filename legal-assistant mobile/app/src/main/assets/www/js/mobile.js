@@ -94,12 +94,13 @@
   var input = document.getElementById("consult-input");
   if (input) {
     /* auto-grow：随内容自动长高（CSS 上限约 6 行），清空/发送后重置；
-       微信式发送按钮：有内容才出现，清空后隐藏 */
+       微信式发送按钮：有内容才出现，清空后隐藏；
+       dataset.stop（AI 生成中停止同位互换）守卫：停止键不因输入框为空被藏起 */
     var sendBtn = document.getElementById("consult-send");
     var grow = function () {
       input.style.height = "auto";
       input.style.height = Math.min(input.scrollHeight, 132) + "px";
-      if (sendBtn) sendBtn.classList.toggle("hidden", input.value.length === 0);
+      if (sendBtn) sendBtn.classList.toggle("hidden", input.value.length === 0 && sendBtn.dataset.stop !== "1");
     };
     input.addEventListener("input", grow);
     input.addEventListener("input", function () { input.dataset.base = input.value; });
