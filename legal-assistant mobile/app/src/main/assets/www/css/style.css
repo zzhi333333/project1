@@ -312,7 +312,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .input-tools .intake-entry { height: 34px; padding: 0 10px; font-size: 12px; }
 /* 主输入行：textarea + 微信式发送按钮（有内容才出现，贴底对齐） */
 .input-main { display: flex; align-items: flex-end; gap: 8px; }
-.input-main .send-btn { height: 40px; padding: 0 16px; border-radius: 10px; }
+.input-main .send-btn { width: 40px; height: 40px; padding: 0; border-radius: 50%; }
 .ai-toggle {
   flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
   padding: 9px 10px; border-radius: 12px; font-size: 13px;
@@ -331,15 +331,19 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 /* 多行输入：随内容自动长高（上限约 6 行），超出滚动 */
 #consult-input { resize: none; overflow-y: auto; min-height: 44px; max-height: 132px; height: 44px; line-height: 1.5; transition: height .12s ease; }
 .send-btn {
-  flex: 0 0 auto; padding: 10px 16px; border-radius: 12px;
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%;
   background: var(--primary); color: #fff; font-size: 15px; font-weight: 600;
+  display: grid; place-items: center;
 }
+.send-btn .ico { width: 18px; height: 18px; stroke-width: 2.2; }
 .send-btn:active { background: var(--primary-2); }
-/* 停止键同位互换（v3.9.2）：AI 生成中发送键变停止键——危险红描边覆盖主色底，
-   停止操作恒在输入焦点旁，不再随气泡增长漂移（气泡内 .ai-stop 已移除） */
+/* ZCode 式发送/停止键（v3.9.3 复刻，用户真机反馈去文字）：圆形纯图标——
+   发送=主色圆底白上箭头；停止=描边圆内实心方块（同位互换 v3.9.2） */
 #consult-send.is-stop {
-  background: var(--danger-soft); border: 1px solid var(--danger); color: var(--danger);
+  background: var(--card); border: 1.5px solid var(--line-2); color: var(--ink);
 }
+#consult-send.is-stop .ico { width: 20px; height: 20px; fill: currentColor; }
+#consult-send.is-stop:active { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 
 /* ============ 侧滑抽屉 ============ */
 .drawer-mask {

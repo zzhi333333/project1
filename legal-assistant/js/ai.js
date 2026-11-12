@@ -471,29 +471,34 @@ window.AI = (function () {
     return tmp.innerHTML;
   }
 
-  /* ---------------- 停止键同位互换（v3.9.2，ZCode 风格）----------------
-     生成期间输入区发送键变身为停止键（危险红描边），结束后恢复——
+  /* ---------------- 停止键同位互换（v3.9.2 落地；v3.9.3 复刻 ZCode 纯图标圆形）----------------
+     生成期间输入区发送键变身为停止键（描边圆内实心方块），结束后恢复主色圆底白箭头——
      停止操作恒在输入焦点旁，不再随气泡增长漂移滚出视口。
+     图标切换走 svg use href（发送 #i-send / 停止 #i-stop），无文字；aria-label 同步。
      capture 阶段接管点击 + stopPropagation：不污染 main.js 的发送绑定 */
-  var sendBtn = null, sendHTML = null;
+  var sendBtn = null;
   function setStopUI(on) {
-    if (!sendBtn) {
-      sendBtn = document.getElementById("consult-send");
-      if (sendBtn) sendHTML = sendBtn.innerHTML;
-    }
+    if (!sendBtn) sendBtn = document.getElementById("consult-send");
     if (!sendBtn) return;
+    var use = sendBtn.querySelector("use");
     if (on) {
       sendBtn.dataset.stop = "1";
       sendBtn.classList.add("is-stop");
       sendBtn.classList.remove("hidden");
-      sendBtn.innerHTML = '<svg class="ico"><use href="#i-stop"/></svg>停止';
+      if (use) use.setAttribute("href", "#i-stop");
+      else sendBtn.textContent = "停止";   /* 老 DOM 兜底（无 sprite 的极端场景） */
+      sendBtn.title = "停止生成";
+      sendBtn.setAttribute("aria-label", "停止生成");
       sendBtn.disabled = false;
       sendBtn.addEventListener("click", stopClickCap, true);
     } else {
       delete sendBtn.dataset.stop;
       sendBtn.classList.remove("is-stop");
       sendBtn.removeEventListener("click", stopClickCap, true);
-      sendBtn.innerHTML = sendHTML || "发送";
+      if (use) use.setAttribute("href", "#i-send");
+      else sendBtn.textContent = "发送";
+      sendBtn.title = "发送";
+      sendBtn.setAttribute("aria-label", "发送");
       /* mobile 微信式显隐恢复：按输入框内容决定（web 端无 .send-btn 类，恒显不受影响） */
       var inp = document.getElementById("consult-input");
       if (inp && sendBtn.classList.contains("send-btn")) sendBtn.classList.toggle("hidden", inp.value.length === 0);

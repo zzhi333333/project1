@@ -327,9 +327,20 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   border-radius: 999px; padding: 3px 12px; font-size: 12px; transition: .12s;
 }
 .ai-stop:hover { border-color: var(--danger); color: var(--danger); }
-/* 停止键同位互换（v3.9.2）：AI 生成中发送键变停止键——危险红描边，ZCode/ChatGPT 通行模式；
-   停止操作恒在输入焦点旁，不再随气泡增长漂移（气泡内 .ai-stop 已移除，样式留作打印隐藏兼容） */
-#consult-send.is-stop { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+/* ZCode 式发送/停止键（v3.9.3 复刻，用户真机反馈去文字）：圆形纯图标——
+   发送=主色圆底白上箭头；停止=描边圆内实心方块（同位互换 v3.9.2） */
+#consult-send {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--primary); border: none; color: #fff;
+}
+#consult-send .ico { width: 18px; height: 18px; stroke-width: 2.2; }
+#consult-send:hover { background: var(--primary-2); }
+#consult-send.is-stop {
+  background: var(--card); border: 1.5px solid var(--line-2); color: var(--ink);
+}
+#consult-send.is-stop .ico { width: 20px; height: 20px; fill: currentColor; }
+#consult-send.is-stop:hover { border-color: var(--danger); color: var(--danger); }
 
 /* 弹窗内分节标题 */
 .modal-section-title {
