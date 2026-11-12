@@ -342,7 +342,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 #consult-send.is-stop {
   background: var(--card); border: 1.5px solid var(--line-2); color: var(--ink);
 }
-#consult-send.is-stop .ico { width: 20px; height: 20px; fill: currentColor; }
+#consult-send.is-stop .ico { width: 32px; height: 32px; fill: currentColor; }   /* 方块实显 32×13/24≈17.3px ≈ ZCode 圆径 44% 比例 */
 #consult-send.is-stop:active { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 
 /* ============ 侧滑抽屉 ============ */
