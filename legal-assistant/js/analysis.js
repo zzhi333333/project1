@@ -304,7 +304,7 @@ window.ANALYSIS = (function () {
     if (text.length < 10) return { error: "案情描述太短，请补充关键事实（时间、人物、发生了什么、您的诉求）。" };
 
     var cls = window.CONSULT.classify(text);
-    var domain = cls.domain || "labor";
+    var domain = cls.domain || domainHint || "labor";
     var tokens = tokenize(text);
     var facts = extractFacts(text);
     var scenarios = topScenarios(text, domain, 2);
@@ -532,10 +532,11 @@ window.ANALYSIS = (function () {
   }
 
   /* 供 AI 模块构建上下文：领域 + 场景 + 法条 + 案例 */
-  function matchContext(text) {
+  function matchContext(text, domainHint) {
+    /* domainHint：AI 咨询「继续生成」类消息匹配不到域时继承会话最近 result 领域（AI Memory 修复） */
     text = (text || "").trim();
     var cls = window.CONSULT.classify(text);
-    var domain = cls.domain || "labor";
+    var domain = cls.domain || domainHint || "labor";
     var tokens = tokenize(text);
     var scenarios = topScenarios(text, domain, 2);
     var laws = topLaws(text, tokens, scenarios, domain, 5);

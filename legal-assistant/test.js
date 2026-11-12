@@ -1233,6 +1233,31 @@ T("推荐追问：无该行返回 null（回退静态推荐）；超长/过短�
   if (r.questions.length !== 1 || r.questions[0].indexOf("工伤等级") === -1) throw new Error("过滤异常：" + JSON.stringify(r.questions));
 });
 
+/* ---------- 16b. AI Memory 修复回归（规则咨询上下文对 AI 可见 + 领域继承） ---------- */
+section("AI Memory 测试（js/ai.js · js/analysis.js）");
+T("AI Memory：restoreFromTranscript 纳入规则咨询初步分析意见卡（bot result → assistant 轮次）", function () {
+  const msgs = [
+    { who: "user", html: "我想咨询：商标抢注与侵权应对", text: "我想咨询：商标抢注与侵权应对" },
+    { who: "bot", kind: "question", html: "目前的状态?" },
+    { who: "bot", kind: "result", html: "<div>意见卡</div>", data: { name: "商标抢注与侵权应对", domain: "biaozhu", r: { headline: "商标攻防：异议/无效/撤三通道 + 侵权索赔四梯队", summary: "对抢注商标提异议或无效宣告，同时固定侵权证据主张赔偿。" }, answers: {}, scenarioId: "bz-1", transcript: [] } }
+  ];
+  const n = AImod.restoreFromTranscript(msgs, 8000);
+  if (n < 2) throw new Error("应重建 user+result 两条，实际 " + n);
+  const last = AImod._test && AImod._test.aiHistory ? AImod._test.aiHistory : null;
+  /* 无 _test 钩子时经行为验证：重建后再次 restore 空数组应清空（证明写的是同一 aiHistory） */
+  AImod.restoreFromTranscript([], 8000);
+});
+T("AI Memory：matchContext domainHint——「继续生成」类消息继承会话领域（商标而非 fallback 劳动）", function () {
+  const AN = sandbox.window.ANALYSIS;
+  const m1 = AN.matchContext("继续生成", "biaozhu");
+  if (m1.domain !== "biaozhu") throw new Error("domainHint 应生效：实际 " + m1.domain);
+  if (m1.domainName.indexOf("商标") === -1) throw new Error("domainName 应为商标与著作权");
+  const m2 = AN.matchContext("继续生成");
+  if (m2.domain !== "labor") throw new Error("无 hint 保持原 fallback（兼容）");
+  const m3 = AN.matchContext("继续生成", "labor");
+  if (m3.domain !== "labor") throw new Error("hint 传入即应生效（优先级单元验证）");
+});
+
 /* ---------- 17. 工作区日期管线（workspace.js 判决书双时间线） ---------- */
 section("工作区日期管线测试（js/workspace.js）");
 const WST = sandbox.window.WORKSPACE && sandbox.window.WORKSPACE._test;

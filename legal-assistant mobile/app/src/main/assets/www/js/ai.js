@@ -350,8 +350,8 @@ window.AI = (function () {
     "⑧结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
     "使用简体中文，条理清晰，适度使用小标题与列表。";
 
-  function buildContext(text, budget) {
-    var c = window.ANALYSIS.matchContext(text);
+  function buildContext(text, budget, domainHint) {
+    var c = window.ANALYSIS.matchContext(text, domainHint);
     var s = "\n\n【系统预匹配资料】（识别领域：" + c.domainName + "）";
     if (c.scenarios.length) s += "\n· 匹配场景：" + c.scenarios.map(function (x) { return x.name; }).join("、");
     if (c.laws.length) s += "\n【相关法条】\n" + c.laws.map(function (l) {
@@ -648,12 +648,22 @@ window.AI = (function () {
     return out;
   }
 
-  /* 切换会话后按持久化消息重建 AI 记忆（P2）：数据一直在，只差重建这一步 */
+  /* 切换会话后按持久化消息重建 AI 记忆（P2）：数据一直在，只差重建这一步。
+     AI Memory 修复：规则咨询的初步分析意见卡（who=bot kind=result）也转 assistant
+     轮次——此前只认 user/ai，规则流程产出的商标/劳动分析对 AI 不可见，用户随后说
+     「继续生成」时 AI 无从续写。澄清问题类 bot 消息对续写无价值不入。 */
   function restoreFromTranscript(msgs, budget) {
     aiHistory = [];
     (msgs || []).forEach(function (m) {
       if (m.who === "user" && m.text) aiHistory.push({ role: "user", content: m.text });
       else if (m.who === "ai" && m.text) aiHistory.push({ role: "assistant", content: m.text });
+      else if (m.who === "bot" && m.kind === "result" && m.data && m.data.r) {
+        var dName = (window.DOMAINS && window.DOMAINS[m.data.domain] || {}).name || m.data.domain || "";
+        aiHistory.push({
+          role: "assistant",
+          content: "【" + dName + "初步分析（" + (m.data.name || "") + "）】" + (m.data.r.headline || "") + (m.data.r.summary ? "。" + m.data.r.summary : "")
+        });
+      }
     });
     aiHistory = trimHistory(aiHistory, budget || ctxBudget());
     return aiHistory.length;
@@ -671,7 +681,25 @@ window.AI = (function () {
       return "【附件：" + d.name + "】\n" + d.text + (d.truncated ? "\n（文档过长已截断至 2 万字）" : "");
     }).join("\n\n") : "";
     var sendText = docBlock ? docBlock + "\n\n" + text : text;
-    var ctx = buildContext(sendText, Math.floor(ctxBudget() * 0.6));
+    /* AI Memory 修复：规则咨询全程不发 AI 请求（aiHistory 空）——用户随后说「继续生成」
+       时 AI 看不到此前咨询，误答「对话刚刚开始」；此处从当前会话 transcript 兜底重建。 */
+    var sessionMsgs = (window.CHATHISTORY && CHATHISTORY.current && CHATHISTORY.current() ? CHATHISTORY.current().messages : null) || [];
+    /* appendUser 已把当前这条 user 消息写入会话——兜底重建时剔除尾部同文重复，
+       否则当前问题在 messages 里出现两次（历史尾+最终 user 各一次） */
+    if (sessionMsgs.length && sessionMsgs[sessionMsgs.length - 1].who === "user" && sessionMsgs[sessionMsgs.length - 1].text === text) {
+      sessionMsgs = sessionMsgs.slice(0, -1);
+    }
+    if (!aiHistory.length && sessionMsgs.length) restoreFromTranscript(sessionMsgs);
+    /* 领域注入修复：「继续生成」类消息匹配不到任何域关键词，matchContext 硬编码 fallback
+       labor 曾把商标咨询误导成劳动助手——未命中时继承会话最近 result 卡的领域。 */
+    var domainHint = null;
+    if (!window.CONSULT.classify(sendText).domain) {
+      for (var i = sessionMsgs.length - 1; i >= 0; i--) {
+        var mm = sessionMsgs[i];
+        if (mm.kind === "result" && mm.data && mm.data.domain) { domainHint = mm.data.domain; break; }
+      }
+    }
+    var ctx = buildContext(sendText, Math.floor(ctxBudget() * 0.6), domainHint);
     var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
       (window.INTAKE && window.INTAKE.isActive() ? window.INTAKE.promptBlock() : "") +
       (window.INTAKE && window.INTAKE.isActive() ? "" : langPrompt()) +
@@ -681,7 +709,7 @@ window.AI = (function () {
       .concat([{ role: "user", content: chatImg ? imageContent(chatImg[0].dataUrl, sendText) : sendText }]);
     var full = "";
     if (window.INTAKE && window.INTAKE.isActive()) window.INTAKE.onUserMessage(text);
-    var dId = (window.ANALYSIS.matchContext(sendText) || {}).domain;
+    var dId = (window.ANALYSIS.matchContext(sendText, domainHint) || {}).domain;
     var vmOpt = chatImg && visionModel() ? { model: visionModel() } : undefined;
     aiChat(messages, function (delta) {
       full += delta;
