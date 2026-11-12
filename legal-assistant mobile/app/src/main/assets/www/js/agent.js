@@ -807,9 +807,28 @@ window.AGENT = (function () {
   /* ============ Agent 视图工作流 ============ */
   var els = {};
   var mode = "report";  /* "report" = 规则引擎报告（离线） | "ai" = AI 可核验分析 */
-  var lastRun = null;   /* {q, ctxText, fullTexts, messages} 供严格模式重生成 */
+  var lastRun = null;   /* {q, ctxText, fullTexts, messages, domain} 供严格模式重生成与多轮沿用 */
   var runToken = 0;     /* 运行令牌：停止/新运行使其失效，旧异步链全部静默退出 */
   var lastReport = null; /* 最近一次规则报告 {evidence, procedure} 供材料包使用 */
+  /* ---- 深度分析多轮记忆（方案 A + 4.3 状态机，用户确认批次）----
+     agentHistory 只放案情问答轮次（裸问题 + 回答摘要截 2000 字），资料区只在当前轮
+     user 消息注入（不进历史，防 token 爆炸）；「继续」沿用上轮资料区，同域短追问
+     沿用历史，长文本（贴新案情）重置——防跨案件串题。内存态，刷新即失。 */
+  var agentHistory = [];
+  var AGENT_HIST_MAX = 6;   /* 最多 3 组问答 */
+  function isContinueMsg(q) {
+    var s = String(q || "").trim();
+    return /^(请)?(继续|接着|然后|后面|再(说说|分析|讲|展开)|展开(说说|讲)?)/.test(s) || /^(继续|接着)[^。]{0,12}$/.test(s);
+  }
+  function decideTurn(q, hasHist) {
+    if (!hasHist) return "fresh";
+    if (isContinueMsg(q)) return "continue";
+    /* 短文本默认视为追问（保上下文优先）——域精确相等判据太脆：通用追问（流程/证据/时效）
+       常被 classify 打到错误域（如「无效宣告」命中专利反超商标），等于每次都断记忆；
+       跨域串题风险由「清空上下文」显式出口 + 长文本新案情重置兜底 */
+    if (String(q || "").length <= 40) return "followup";
+    return "fresh";
+  }
 
   /* 停止按钮显隐 */
   function setStopBtn(on) {
@@ -1040,19 +1059,34 @@ window.AGENT = (function () {
     var ctxText = buildContextBlock(q, c);
     onlinePromise.then(function () {
       if (myToken !== runToken) return null;   /* 已被停止/新运行取代 */
-      els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div>';
+      /* 多轮记忆决策（4.3 状态机）：fresh 重置 / continue 显式继续 / followup 同域短追问 */
+      var turn = decideTurn(q, agentHistory.length > 0);
+      if (turn === "fresh") agentHistory = [];
+      var histMsgs = agentHistory.slice(-AGENT_HIST_MAX);
+      /* continue 沿用上轮资料区（本轮 q 无增量信息，matchContext 会 fallback 漂移）；其余按本轮检索 */
+      var effCtxText = (turn === "continue" && lastRun) ? lastRun.ctxText : ctxText;
+      var effFullTexts = (turn === "continue" && lastRun) ? lastRun.fullTexts : fullTexts;
+      var histNote = histMsgs.length ? '<div class="calc-note" style="margin-bottom:8px">🧠 已继承本会话前 ' + (histMsgs.length / 2) + ' 轮对话上下文（深度分析多轮记忆）；<b>清空上下文</b>按钮可重新开始。</div>' : "";
+      els.answer.innerHTML = histNote + '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream" style="flex:1"><span class="ai-text"></span><span class="ai-cursor">▍</span></div></div>';
       var span = els.answer.querySelector(".ai-text");
-      var ctxForGen = ctxText;
-      Object.keys(fullTexts).forEach(function (k) {
-        ctxForGen += "\n【资料区·官方全文摘录：《" + fullTexts[k].title + "》（可引用其中条文）】\n" + String(fullTexts[k].text).slice(0, 6000);
+      var ctxForGen = effCtxText;
+      Object.keys(effFullTexts).forEach(function (k) {
+        ctxForGen += "\n【资料区·官方全文摘录：《" + effFullTexts[k].title + "》（可引用其中条文）】\n" + String(effFullTexts[k].text).slice(0, 6000);
       });
+      var userContent = turn === "continue"
+        ? "请继续上述分析。\n用户补充：" + (q.length > 6 ? q : "（无补充，请接着展开）") + "\n\n【资料区（沿用上一轮检索结果，可继续引用）】\n" + ctxForGen
+        : "请依据资料区分析以下问题：\n" + ctxForGen;
       var messages = [
-        { role: "system", content: AGENT_PROMPT + (window.SKILLS && window.SKILLS.promptBlock ? window.SKILLS.promptBlock() : "") + (window.AI && window.AI.langPrompt ? window.AI.langPrompt() : "") },
-        { role: "user", content: "请依据资料区分析以下问题：\n" + ctxForGen }
-      ];
-      lastRun = { q: q, ctxText: ctxText + Object.keys(fullTexts).map(function (k) { return fullTexts[k].text; }).join(""), fullTexts: fullTexts, messages: messages };
+        { role: "system", content: AGENT_PROMPT + (window.SKILLS && window.SKILLS.promptBlock ? window.SKILLS.promptBlock() : "") + (window.AI && window.AI.langPrompt ? window.AI.langPrompt() : "") }
+      ].concat(histMsgs).concat([{ role: "user", content: userContent }]);
+      lastRun = {
+        q: q,
+        ctxText: effCtxText + Object.keys(effFullTexts).map(function (k) { return effFullTexts[k].text; }).join(""),
+        fullTexts: effFullTexts, messages: messages,
+        domain: (turn === "continue" && lastRun) ? lastRun.domain : c.domain
+      };
       var full = "";
-      stepState(1, "run", "AI 生成中（仅可依据资料区作答）…");
+      stepState(1, "run", histMsgs.length ? "AI 生成中（已注入 " + (histMsgs.length / 2) + " 轮历史上下文）…" : "AI 生成中（仅可依据资料区作答）…");
       return window.AI.aiChat(messages, function (d) {
         full += d;
         span.textContent = full;
@@ -1060,7 +1094,11 @@ window.AGENT = (function () {
       }).then(function () {
         if (myToken !== runToken) return null;
         stepState(1, "done", "生成完毕");
-        return { text: full || "（模型未返回内容）" };
+        /* 多轮写回：问答对入历史（assistant 截 2000 字防膨胀），供后续轮延续 */
+        agentHistory.push({ role: "user", content: q });
+        agentHistory.push({ role: "assistant", content: String(full || "").slice(0, 2000) });
+        if (agentHistory.length > AGENT_HIST_MAX) agentHistory = agentHistory.slice(-AGENT_HIST_MAX);
+        return { text: full || "（模型未返回内容）", note: histNote };
       });
     }).then(function (gen) {
       if (myToken !== runToken) return;   /* 已被停止/新运行取代 */
@@ -1074,9 +1112,9 @@ window.AGENT = (function () {
       var v = verifyText(gen.text, lastRun.ctxText, lastRun.fullTexts);
       stepState(2, v.allOk ? "done" : "warn",
         v.totalCitations + " 条引用核实 " + v.verifiedCount + " 条" + (v.flaggedNumbers ? "；" + v.flaggedNumbers + " 项数字待核实" : ""));
-      /* 用标注版替换纯文本 */
+      /* 用标注版替换纯文本（多轮引用可见性随渲染保留：3.2 半采纳项） */
       var html = annotate(gen.text, v);
-      els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
+      els.answer.innerHTML = (gen.note || "") + '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
       if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
       highlightFacts(els.answer);
       renderPanel(v, gen.text);
@@ -1354,6 +1392,13 @@ window.AGENT = (function () {
     if (docBtn) docBtn.addEventListener("click", exportDoc);
     var archBtn = document.getElementById("agent-archive");
     if (archBtn) archBtn.addEventListener("click", openReportArchive);
+    /* 清空上下文（3.1）：显式重置多轮记忆，让「重新开始」成为可见动作 */
+    var clearHistBtn = document.getElementById("agent-clear-hist");
+    if (clearHistBtn) clearHistBtn.addEventListener("click", function () {
+      agentHistory = []; lastRun = null;
+      els.answer.innerHTML = '<div class="tool-warn">🧹 已清空多轮对话上下文——下一次分析将作为全新案件开始。</div>';
+      if (window.TOOLS && TOOLS.haptic) TOOLS.haptic(10);
+    });
     els.input.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runAgent();
     });
@@ -1452,6 +1497,13 @@ window.AGENT = (function () {
     annotate: annotate,
     attachVerification: attachVerification,
     runAgent: runAgent,
-    runWith: runWith
+    runWith: runWith,
+    /* 深度分析多轮记忆（方案 A）：测试钩子与清空入口 */
+    _test: {
+      isContinueMsg: isContinueMsg,
+      decideTurn: decideTurn,
+      historyLen: function () { return agentHistory.length; },
+      clearHistory: function () { agentHistory = []; lastRun = null; }
+    }
   };
 })();

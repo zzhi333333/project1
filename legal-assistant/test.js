@@ -1258,6 +1258,30 @@ T("AI Memory：matchContext domainHint——「继续生成」类消息继承会
   if (m3.domain !== "labor") throw new Error("hint 传入即应生效（优先级单元验证）");
 });
 
+/* ---------- 16c. 深度分析多轮记忆（方案 A + 4.3 状态机） ---------- */
+section("深度分析多轮记忆测试（js/agent.js 方案A）");
+const AGT = sandbox.window.AGENT;
+T("多轮状态机：isContinueMsg 显式继续词命中/新案情长文本不命中", function () {
+  if (!AGT._test || !AGT._test.isContinueMsg) throw new Error("AGENT._test.isContinueMsg 未导出");
+  if (!AGT._test.isContinueMsg("继续生成")) throw new Error("「继续生成」应命中");
+  if (!AGT._test.isContinueMsg("接着说说二审怎么走")) throw new Error("「接着说说」应命中");
+  if (!AGT._test.isContinueMsg("然后呢")) throw new Error("「然后呢」应命中");
+  if (AGT._test.isContinueMsg("我注册的商标被人山寨侵权，对方在电商平台销售，请分析应对策略与索赔路径。")) throw new Error("长案情不应命中");
+});
+T("多轮状态机：decideTurn 三态——fresh 无历史/continue 显式/followup 短文本保上下文（跨域串题靠清空按钮兜底）", function () {
+  const DT = AGT._test.decideTurn;
+  if (DT("继续生成", false) !== "fresh") throw new Error("无历史一律 fresh");
+  if (DT("继续生成", true) !== "continue") throw new Error("显式继续应 continue");
+  if (DT("劳动仲裁的流程怎么走？", true) !== "followup") throw new Error("短追问应 followup（保上下文优先）");
+  if (DT("商标异议和无效宣告的流程怎么走？", true) !== "followup") throw new Error("通用追问即使 classify 打到别域也应 followup（域判据过脆已弃用）");
+  const long = DT("本人2026年3月15日入职某科技公司任软件工程师，月薪三万五千元，至今未签订书面劳动合同，昨天被口头辞退，请分析二倍工资与违法解除赔偿。", true);
+  if (long !== "fresh") throw new Error("长文本新案情应 fresh（防跨案件串题）");
+});
+T("多轮记忆：清空入口与导出（_test.clearHistory/historyLen）", function () {
+  AGT._test.clearHistory();
+  if (AGT._test.historyLen() !== 0) throw new Error("clearHistory 后应为 0");
+});
+
 /* ---------- 17. 工作区日期管线（workspace.js 判决书双时间线） ---------- */
 section("工作区日期管线测试（js/workspace.js）");
 const WST = sandbox.window.WORKSPACE && sandbox.window.WORKSPACE._test;
