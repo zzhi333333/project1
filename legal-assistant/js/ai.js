@@ -177,7 +177,7 @@ window.AI = (function () {
       if (onDelta) onDelta(d);
     }
     /* 预览确认 → 探测代理 → 发送；取消预览时整个调用拒绝 */
-    return proceed.then(function (finalMessages) {
+    var chain = proceed.then(function (finalMessages) {
       body.messages = finalMessages;
       return detectProxy().then(function (pb) {
         var viaProxy = pb !== false;
@@ -196,6 +196,14 @@ window.AI = (function () {
         }
         return p.then(function () { return acc; });
       });
+    });
+
+    /* AI 链路边界统一归一（用户实测：深度解读 90 秒超时被误显示为「已停止生成」）——
+       watchdog abort 的报错经直连包装后含 "aborted"，下游 /abort/ 判据会误判成手动停止；
+       此处在 aiChat 出口把超时翻译成人话，手动停止（timedOut=false）不受影响 */
+    return chain.catch(function (e) {
+      if (timedOut) throw new Error("连接超时：模型 90 秒无响应或传输中断——请检查网络后重试。");
+      throw e;
     });
 
     /* ---- 请求健康度（C1）：连接/流式 90 秒无进展自动中断（此前直连挂死永久转圈）----
