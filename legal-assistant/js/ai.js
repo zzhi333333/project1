@@ -198,25 +198,22 @@ window.AI = (function () {
       });
     });
 
-    /* AI 链路边界统一归一（用户实测：深度解读 90 秒超时被误显示为「已停止生成」）——
-       watchdog abort 的报错经直连包装后含 "aborted"，下游 /abort/ 判据会误判成手动停止；
-       此处在 aiChat 出口把超时翻译成人话，手动停止（timedOut=false）不受影响 */
-    var out = chain.catch(function (e) {
-      if (timedOut) throw new Error("连接超时：模型 90 秒无响应或传输中断——请检查网络后重试。");
-      throw e;
-    });
-    /* AI 出口统一恢复发送键（停止同位互换收尾）——then(f,f) 双参兼容旧 WebView（不用 .finally） */
-    out.then(function () { setStopUI(false); }, function () { setStopUI(false); });
-    return out;
-
-    /* ---- 请求健康度（C1）：连接/流式 90 秒无进展自动中断（此前直连挂死永久转圈）----
-       AbortController 与停止按钮共享；超时置 timedOut 标志，catch 里翻译成人话 */
-    var timedOut = false, toId = null;
-    function armTimeout() {
+    /* ---- 请求健康度（C1；v3.9.4 分级）---- 首字节 45 秒（服务商排队/内容审核延迟常见——
+       快失败快重试，不再让用户干等 90 秒）；流式阶段 90 秒无进展（传输级异常才触发）。
+       AbortController 与停止按钮共享；超时置 timedOut 标志，catch 里翻译成人话。
+       ⚠ 声明区必须在 return 之前——历史版本放 return 后靠函数提升侥幸工作，
+       var 赋值全部死掉（FIRST_BYTE_MS 运行时 undefined → NaN 文案/0ms 立即超时） */
+    var FIRST_BYTE_MS = 45000, STREAM_IDLE_MS = 90000;
+    var timedOut = false, timedOutStage = "", toId = null;
+    function armTimeout(ms, stage) {
       clearTimeout(toId);
-      toId = setTimeout(function () { timedOut = true; try { ctrl.abort(); } catch (e) { } }, 90000);
+      toId = setTimeout(function () { timedOut = true; timedOutStage = stage || ""; try { ctrl.abort(); } catch (e) { } }, ms || STREAM_IDLE_MS);
     }
     function disarm() { clearTimeout(toId); }
+    function timeoutMsg() {
+      if (timedOutStage === "first") return "模型 " + (FIRST_BYTE_MS / 1000) + " 秒未开始回答——多为服务商排队或内容审核延迟（连接本身正常）。请稍后重试或换个模型。";
+      return "生成中断：回答数据流 " + (STREAM_IDLE_MS / 1000) + " 秒无进展——请检查网络后重试。";
+    }
     function statusHint(status, body) {
       if (status === 401 || status === 403) return "API Key 无效或无权限——请点右上角「AI 模型」核对密钥（注意首尾空格）。";
       if (status === 402) return "账户余额不足——请到服务商控制台充值，或改用免费模型（如智谱 glm-4-flash）。";
@@ -230,7 +227,7 @@ window.AI = (function () {
       return "";
     }
     function post(url, b) {
-      armTimeout();
+      armTimeout(FIRST_BYTE_MS, "first");
       return fetch(url, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(b), signal: ctrl.signal
@@ -239,11 +236,11 @@ window.AI = (function () {
           var hint = statusHint(r.status, t);
           throw new Error(hint || ("上游返回 " + r.status + "：" + t.slice(0, 300)));
         }); }
-        return readStream(r, function (d) { armTimeout(); emit(d); }).then(disarm, function (e) { disarm(); throw e; });
+        return readStream(r, function (d) { armTimeout(STREAM_IDLE_MS, "stream"); emit(d); }).then(disarm, function (e) { disarm(); throw e; });
       }, function (e) { disarm(); throw e; });
     }
     function postDirect(cfg, b) {
-      armTimeout();
+      armTimeout(FIRST_BYTE_MS, "first");
       return fetch(cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.apiKey },
@@ -254,17 +251,33 @@ window.AI = (function () {
           var hint = statusHint(r.status, t);
           throw new Error(hint || ("直连返回 " + r.status + "：" + t.slice(0, 300)));
         }); }
-        return readStream(r, function (d) { armTimeout(); emit(d); }).then(disarm, function (e) { disarm(); throw e; });
+        return readStream(r, function (d) { armTimeout(STREAM_IDLE_MS, "stream"); emit(d); }).then(disarm, function (e) { disarm(); throw e; });
       }, function (e) { disarm(); throw e; });
     }
     function friendly(e1, e2) {
       var a = String(e1 && e1.message || e1), b2 = String(e2 && e2.message || e2);
-      if (timedOut) return "连接超时：模型 90 秒无响应或传输中断——请检查网络后重试。";
+      if (timedOut) return timeoutMsg();
       if (/Failed to fetch|NetworkError|TypeError/i.test(b2)) {
         return "无法连接模型接口：本地代理未启动且浏览器直连被跨域策略拦截。\n解决：①在项目目录运行 node server.js（或 python server.py）后重试；或 ②改用支持浏览器直连的服务商（如智谱 GLM）。\n（代理诊断：" + a + "）";
       }
       return e2 && e2.message ? b2 : a;
     }
+
+    /* AI 链路边界统一归一（用户实测：深度解读 90 秒超时被误显示为「已停止生成」）——
+       watchdog abort 的报错经直连包装后含 "aborted"，下游 /abort/ 判据会误判成手动停止；
+       此处在 aiChat 出口把超时翻译成人话，手动停止（timedOut=false）不受影响 */
+    var out = chain.catch(function (e) {
+      /* 首字节超时自动重试一次（v3.9.4）：排队/审核多为瞬时——重试常命中空闲实例。
+         _retried 防无限循环；重试复用调用方气泡（onDelta 闭包引用同一 div），停止键保持 */
+      if (timedOut && timedOutStage === "first" && !(opts && opts._retried)) {
+        return aiChat(messages, onDelta, Object.assign({}, opts || {}, { _retried: true }));
+      }
+      if (timedOut) throw new Error(timeoutMsg());
+      throw e;
+    });
+    /* AI 出口统一恢复发送键（停止同位互换收尾）——then(f,f) 双参兼容旧 WebView（不用 .finally） */
+    out.then(function () { setStopUI(false); }, function () { setStopUI(false); });
+    return out;
   }
 
   /* ---------------- 轻量 Markdown 渲染（C4）----------------
@@ -331,7 +344,8 @@ window.AI = (function () {
       finishBubble(div, full + "\n\n—— 以上为中断前已生成内容（未经核验）");
       bubble = div.querySelector(".bubble");
     } else {
-      finishBubble(div, "<svg class=ico><use href=#i-warn></use></svg> " + esc(msg));
+      /* 无半截内容：错误只渲染错误卡一遍（v3.9.4——此前 ⚠ 文本与红卡同屏两遍） */
+      finishBubble(div, "");
     }
     if (!bubble) return;
     var err = document.createElement("div");
