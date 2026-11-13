@@ -335,7 +335,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   background: var(--primary); color: #fff; font-size: 15px; font-weight: 600;
   display: grid; place-items: center;
 }
-.send-btn .ico { width: 18px; height: 18px; stroke-width: 2.2; }
+.send-btn .ico { width: 18px; height: 18px; stroke-width: 2; }
 .send-btn:active { background: var(--primary-2); }
 /* ZCode 式发送/停止键（v3.9.3 复刻，用户真机反馈去文字）：圆形纯图标——
    发送=主色圆底白上箭头；停止=描边圆内实心方块（同位互换 v3.9.2） */
@@ -894,7 +894,7 @@ html[data-fontscale="large"] { zoom: 1.15; }
 }
 
 /* ---------------- 线性图标（SVG sprite，单色跟随主题） ---------------- */
-.ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: -3px; }
+.ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: -3px; }
 
 /* ============ 线性图标（SVG sprite） ============ */
 .brand-icon { display: flex; align-items: center; justify-content: center; }
@@ -1190,3 +1190,15 @@ html[data-fontscale="large"] { zoom: 1.15; }
 /* 1.2 破坏性操作红显统一 */
 #agent-clear-hist { color: var(--danger); border-color: var(--danger-border); }
 #agent-clear-hist:active { background: var(--danger-soft); }
+
+/* ③ 案件 tab 期限警报红点 */
+.nav-tab { position: relative; }
+.tab-dot { position: absolute; top: 7px; left: calc(50% + 7px); width: 8px; height: 8px; border-radius: 99px; background: var(--danger); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
+.tab-dot.hidden { display: none; }
+/* ② 工具卡分层 pilot */
+.tool-card { border-color: transparent; box-shadow: 0 1px 3px rgba(0, 0, 0, .06); transition: border-color .15s ease, box-shadow .15s ease; }
+.tool-card:hover { border-color: var(--line); box-shadow: 0 3px 10px rgba(0, 0, 0, .09); }
+/* ⑤ 输入聚焦暗示 + 发送键按压统一 */
+#consult-input:focus, textarea:focus { border-color: var(--primary); }
+.send-btn { transition: transform .12s ease, background-color .12s ease; }
+.send-btn:active { transform: scale(.92); }

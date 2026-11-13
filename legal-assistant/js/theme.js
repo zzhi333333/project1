@@ -20,7 +20,7 @@
     if (!btn) return;
     var use = btn.querySelector("use");
     if (use) use.setAttribute("href", t === "dark" ? "#i-sun" : "#i-moon");
-    btn.title = t === "dark" ? "切换到浅色模式" : "切换到深色模式";
+    btn.title = "选择主题（跟随系统/浅色/深色/暖纸）";
   }
   function applyFont(fs) {
     var de = document.documentElement;
@@ -37,9 +37,19 @@
   apply(get(KEY, null));
   applyFont(get(FKEY, ""));
 
-  /* 右上角手动切换按钮：跟随系统 → 深色 → 浅色 → 暖纸 → 循环 */
+  /* 顶栏主题按钮（web）：四主题时代「循环」是反模式——每次点击都先套用中间态
+     （要到暖纸得连按三次、路过不想要的深/浅）。改为打开设置弹层并定位外观分段
+     （四选分段 v3.8.0 已存在，零新组件）；无设置弹层的页面兜底维持旧循环 */
   if (btn) {
+    btn.title = "选择主题（跟随系统/浅色/深色/暖纸）";
     btn.addEventListener("click", function () {
+      var gear = document.getElementById("settings-gear-btn");
+      if (gear) {
+        gear.click();
+        var seg = document.getElementById("seg-theme");
+        if (seg && seg.scrollIntoView) seg.scrollIntoView({ block: "center" });
+        return;
+      }
       var cur = document.documentElement.getAttribute("data-theme") || "";
       var idx = THEMES.indexOf(cur);
       var next = THEMES[(idx + 1) % THEMES.length];

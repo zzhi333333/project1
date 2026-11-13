@@ -342,6 +342,13 @@ window.WORKSPACE = (function () {
       return x;
     });
   }
+  /* ③ C2 闭合环：案件 tab 红点——红级（逾期/≤3 天）才点，橙级不打扰；数据同警报栏 */
+  function renderTabDot() {
+    var red = alertBarData().some(function (x) { return x.level === "red"; });
+    document.querySelectorAll(".tab-dot[data-for='workspace']").forEach(function (d) {
+      d.classList.toggle("hidden", !red);
+    });
+  }
   function renderAlertBar() {
     var view = document.getElementById("view-consult");
     if (!view) return;
@@ -390,6 +397,8 @@ window.WORKSPACE = (function () {
     }
     host.innerHTML = html;
     if (!html) host.style.display = "none"; else host.style.display = "";
+    /* ③ 同步案件 tab 红点（与警报栏同一数据、同一刷新节奏） */
+    renderTabDot();
   }
 
   /* 自动归集：当前案件激活时，报告存档/日历项/案例导入调用（无当前案件则忽略） */
