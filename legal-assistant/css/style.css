@@ -1072,3 +1072,9 @@ html[data-fontscale="large"] { zoom: 1.15; }
 .defense-node-wrap { position: relative; margin-bottom: 10px; }
 .defense-node { position: absolute; left: -22px; top: 2px; width: 16px; height: 16px; border-radius: 99px; background: var(--warn); color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .defense-chain .defense-block:last-child { margin-bottom: 0; }
+
+/* 可访问性（4.2）：键盘焦点可见（触屏无焦点环不受影响） */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* 1.2 破坏性操作红显统一：清空上下文与工作区删除案件同级 */
+#agent-clear-hist { color: var(--danger); border-color: var(--danger-border); }
+#agent-clear-hist:active { background: var(--danger-soft); }

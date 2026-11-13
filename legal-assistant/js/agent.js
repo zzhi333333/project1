@@ -1094,8 +1094,8 @@ window.AGENT = (function () {
       }).then(function () {
         if (myToken !== runToken) return null;
         stepState(1, "done", "生成完毕");
-        /* 多轮写回：问答对入历史（assistant 截 2000 字防膨胀），供后续轮延续 */
-        agentHistory.push({ role: "user", content: q });
+        /* 多轮写回：问答对入历史（user 截 800/assistant 截 2000 防长案情撑爆预算），供后续轮延续 */
+        agentHistory.push({ role: "user", content: String(q).slice(0, 800) });
         agentHistory.push({ role: "assistant", content: String(full || "").slice(0, 2000) });
         if (agentHistory.length > AGENT_HIST_MAX) agentHistory = agentHistory.slice(-AGENT_HIST_MAX);
         return { text: full || "（模型未返回内容）", note: histNote };
@@ -1208,6 +1208,13 @@ window.AGENT = (function () {
         stepState(1, "done", "严格模式生成完毕");
         var v2 = verifyText(full, lastRun.ctxText, lastRun.fullTexts);
         stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
+        /* 方案 A 一致性收口（外部审核发现）：严格模式是对同一问题的修正——
+           替换 agentHistory 最后一组 assistant（避免同一问题残留两份矛盾回答），
+           同步 lastRun.messages 使二次严格重生成可链式拼接；后续「继续」读到修正版 */
+        if (agentHistory.length >= 2) {
+          agentHistory[agentHistory.length - 1] = { role: "assistant", content: String(full || "").slice(0, 2000) };
+          lastRun = Object.assign({}, lastRun, { messages: messages });
+        }
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%"><div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
         if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
         highlightFacts(els.answer);
@@ -1503,7 +1510,8 @@ window.AGENT = (function () {
       isContinueMsg: isContinueMsg,
       decideTurn: decideTurn,
       historyLen: function () { return agentHistory.length; },
-      clearHistory: function () { agentHistory = []; lastRun = null; }
+      clearHistory: function () { agentHistory = []; lastRun = null; },
+      agentHistoryView: function () { return agentHistory.slice(); }
     }
   };
 })();

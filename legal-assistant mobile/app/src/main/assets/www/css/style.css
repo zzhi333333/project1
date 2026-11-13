@@ -1183,3 +1183,10 @@ html[data-fontscale="large"] { zoom: 1.15; }
 /* ---------------- W5 触控热区：小按钮视觉不变、热区扩至 ≥44px ---------------- */
 .mini-btn, .fav-star { position: relative; }
 .mini-btn::after, .fav-star::after { content: ""; position: absolute; inset: -9px; }
+
+/* 可访问性（4.2）：键盘焦点可见 */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* 1.2 破坏性操作红显统一 */
+#agent-clear-hist { color: var(--danger); border-color: var(--danger-border); }
+#agent-clear-hist:active { background: var(--danger-soft); }
