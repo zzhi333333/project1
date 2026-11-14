@@ -1090,8 +1090,9 @@ window.AI = (function () {
     var cb = document.getElementById("ai-mode");
     if (!cb) return;
     var ok = !!S.apiKey || S.provider === "ollama";
+    /* 边界注记随动态 title 保留（1dcd406 ③ 补落地）：静态 title 被本函数覆盖时会丢「仅解答法律问题」提醒 */
     cb.parentElement.title = ok
-      ? "开启后，输入的问题由 " + S.model + " 结合法条与案例回答"
+      ? "开启后，输入的问题由 " + S.model + " 结合法条与案例回答（AI 仅解答法律问题，无关问题会被拒绝）"
       : "AI 未配置：点击右上角「AI 模型」设置后使用";
   }
 
