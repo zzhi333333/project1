@@ -369,7 +369,8 @@ window.AGENT = (function () {
     "  ③ 争点式分析：将案件拆解为 2–4 个关键法律争点，每个争点按「争点问题 → 法律规则（引用资料区法条）→ 适用到本案事实 → 小结」展开。\n" +
     "  ④ 对方抗辩预案：给出对方可能的 2–3 个抗辩及我方应对与所需反驳证据（若用户为被主张方则给出我方抗辩思路）。\n" +
     "  ⑤ 行动建议 → 时效提醒 → 末尾注明「以上仅供参考，不构成法律意见」。\n" +
-    "你的回答将被程序逐条核验引用与数字，未核实内容会被标注并要求重新生成，请确保每一句法律断言都有资料区依据。";
+    "你的回答将被程序逐条核验引用与数字，未核实内容会被标注并要求重新生成，请确保每一句法律断言都有资料区依据。\n" +
+    "7. 范围边界：仅回答与法律相关的问题（法律咨询、法条、程序、维权、证据、文书、赔偿与时效计算等）；与法律无关的问题（闲聊、纯数学/科学/编程题、医疗、历史、娱乐等）不回答其内容本身，也不延伸相关知识，按固定话术拒绝：「这个问题超出了法律咨询的范围——本助手只解答法律问题。您可以换个法律问题问我，例如：工资被拖欠怎么办？租房押金不退如何维权？离婚财产怎么分割？」法律相关的数字计算（如赔偿金额、时效天数）属于法律问题，应正常作答。";
 
   function buildContextBlock(q, c) {
     var s = "\n\n【用户案情/问题】\n" + q;
@@ -1511,7 +1512,8 @@ window.AGENT = (function () {
       decideTurn: decideTurn,
       historyLen: function () { return agentHistory.length; },
       clearHistory: function () { agentHistory = []; lastRun = null; },
-      agentHistoryView: function () { return agentHistory.slice(); }
+      agentHistoryView: function () { return agentHistory.slice(); },
+      agentPromptText: function () { return AGENT_PROMPT; }
     }
   };
 })();

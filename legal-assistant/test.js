@@ -585,6 +585,21 @@ T("评测·拒答红线：SYSTEM_PROMPT 含追问与条件分支规则", functio
   if (sp.indexOf("条件分支") === -1) throw new Error("SYSTEM_PROMPT 缺少条件分支规则");
   if (sp.indexOf("不要直接给出确定性结论") === -1) throw new Error("SYSTEM_PROMPT 缺少拒答规则");
 });
+T("评测·范围边界：SYSTEM_PROMPT 含仅法律边界与固定拒绝话术", function () {
+  const sp = String(AI.systemPromptText());
+  if (sp.indexOf("范围边界") === -1) throw new Error("SYSTEM_PROMPT 缺少范围边界条款");
+  if (sp.indexOf("只回答与法律相关的问题") === -1) throw new Error("SYSTEM_PROMPT 缺少仅法律限定");
+  if (sp.indexOf("超出了法律咨询的范围") === -1) throw new Error("SYSTEM_PROMPT 缺少固定拒绝话术");
+  if (sp.indexOf("工资被拖欠怎么办") === -1) throw new Error("拒绝话术缺少引导示例");
+  if (sp.indexOf("法律相关的数字计算") === -1) throw new Error("缺少法律计算豁免（赔偿/时效计算不应被误拒）");
+});
+T("评测·范围边界：AGENT_PROMPT 含仅法律边界与固定拒绝话术", function () {
+  const ap = String(AGENT._test.agentPromptText());
+  if (ap.indexOf("范围边界") === -1) throw new Error("AGENT_PROMPT 缺少范围边界条款");
+  if (ap.indexOf("仅回答与法律相关的问题") === -1) throw new Error("AGENT_PROMPT 缺少仅法律限定");
+  if (ap.indexOf("超出了法律咨询的范围") === -1) throw new Error("AGENT_PROMPT 缺少固定拒绝话术");
+  if (ap.indexOf("法律相关的数字计算") === -1) throw new Error("缺少法律计算豁免");
+});
 
 /* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */
 section("技能注入预算测试（fold/预算管理）");
