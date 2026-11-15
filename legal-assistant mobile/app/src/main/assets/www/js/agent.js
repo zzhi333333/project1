@@ -567,7 +567,7 @@ window.AGENT = (function () {
       '</style></head><body>' +
       '<h2>案件分析参考意见书</h2>' +
       '<div class="doc-meta">法律咨询助手 · ' + dateStr + " · " + esc(r.mode) + '</div>' +
-      '<div style="border-left:3pt solid #4f46e5;padding:6pt 10pt;margin:10pt 0"><b>案情摘述：</b>' + esc(r.q) + '</div>' +
+      '<div style="border-left:3pt solid #7d5f1b;padding:6pt 10pt;margin:10pt 0"><b>案情摘述：</b>' + esc(r.q) + '</div>' +
       (r.html || "") +
       (r.verify ? '<div class="verify-panel">' + esc(r.verify) + '</div>' : "") +
       '<div class="doc-foot">免责声明：本报告由「法律咨询助手」基于公开法律信息生成，仅供参考，不构成法律意见或代理服务；具体案件请咨询执业律师。</div>' +
@@ -1267,8 +1267,8 @@ window.AGENT = (function () {
       'body{font-family:"Microsoft YaHei","PingFang SC",SimSun,sans-serif;font-size:12pt;line-height:1.8;color:#111;margin:24pt}' +
       'h2{font-size:16pt;text-align:center;margin:6pt 0 2pt}' +
       '.doc-meta{text-align:center;color:#555;font-size:10pt;border-bottom:1pt solid #999;padding-bottom:6pt;margin-bottom:10pt}' +
-      '.doc-q{background:#f2f4f8;border-left:3pt solid #4f46e5;padding:6pt 10pt;margin:10pt 0;font-size:11pt}' +
-      '.report-sec{margin:10pt 0}.report-sec-title{font-weight:bold;font-size:13pt;border-left:3pt solid #4f46e5;padding-left:6pt;margin:14pt 0 6pt}' +
+      '.doc-q{background:#f2f4f8;border-left:3pt solid #7d5f1b;padding:6pt 10pt;margin:10pt 0;font-size:11pt}' +
+      '.report-sec{margin:10pt 0}.report-sec-title{font-weight:bold;font-size:13pt;border-left:3pt solid #7d5f1b;padding-left:6pt;margin:14pt 0 6pt}' +
       '.fact-chip{border:1pt solid #bbb;padding:1pt 6pt;margin:2pt;font-size:10.5pt}' +
       '.verify-panel{border:1pt solid #999;padding:8pt;margin-top:12pt;font-size:10.5pt}' +
       '.vp-line{margin:3pt 0}.law-note{color:#555;font-size:10.5pt;margin:2pt 0}' +
