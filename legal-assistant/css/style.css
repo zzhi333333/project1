@@ -802,12 +802,14 @@ html[data-fontscale="large"] { zoom: 1.15; }
 
 /* ---------------- 线性图标（SVG sprite，单色跟随主题） ---------------- */
 .ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: -3px; }
+/* 镂空獬豸线稿图标（用户稿件提取单色 PNG，mask 跟随 currentColor） */
+.ico-line { display: inline-block; width: 18px; height: 18px; flex: none; vertical-align: -3px; background: currentColor; -webkit-mask: url("../img/xiezhi-line.png") center / contain no-repeat; mask: url("../img/xiezhi-line.png") center / contain no-repeat; }
 
 /* ---------------- 小尺寸图标适配 ---------------- */
 .sec-label .ico, .mini-btn .ico, .fact-chip .ico, .case-lesson .ico, .mode-btn .ico,
 .report-sec-title .ico, .vp-title .ico, .modal-title .ico, .report-head-title .ico,
 .filter-chip .ico, .law-note .ico, .tool-warn .ico, .vp-line .ico, .num-warn .ico,
-.domain-chip .ico, .fav-bar-label .ico, .net-badge .ico, .ai-toggle .ico, .modal-note .ico, .site-footer .ico { width: 14px; height: 14px; vertical-align: -2px; }
+.domain-chip .ico, .fav-bar-label .ico, .net-badge .ico, .ai-toggle .ico, .modal-note .ico, .site-footer .ico, .ico-line.sm { width: 14px; height: 14px; vertical-align: -2px; }
 .result-flag .ico, .qc-icon .ico, .group-title .ico { width: 16px; height: 16px; vertical-align: -3px; }
 .qc-icon { display: flex; align-items: center; justify-content: center; }
 
@@ -1092,16 +1094,19 @@ html[data-fontscale="large"] { zoom: 1.15; }
 .send-btn { transition: transform .12s ease, background-color .12s ease; }
 .send-btn:active { transform: scale(.92); }
 
-/* 启动品牌动画：图标红满屏 + 四层字样渐入，1.7s 后整体淡出；reduced-motion 跳过 */
-#splash { position: fixed; inset: 0; z-index: 3000; background: #970a0e; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; animation: splash-out .45s ease 1.7s forwards; }
-#splash .sp-img { width: 112px; height: 112px; object-fit: contain; margin-bottom: 20px; opacity: 0; animation: splash-pop .55s cubic-bezier(.34,1.56,.64,1) .05s forwards; }
-#splash .sp-name { font-family: var(--font-serif); font-size: 30px; font-weight: 800; letter-spacing: 8px; text-indent: 8px; color: #ffffff; opacity: 0; animation: splash-in .5s ease .15s forwards; }
-#splash .sp-sub { font-size: 13px; letter-spacing: 4px; text-indent: 4px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease .4s forwards; }
-#splash .sp-en { font-size: 12px; letter-spacing: 6px; text-indent: 6px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease .65s forwards; }
-#splash .sp-slogan { font-size: 14px; color: #f3e9d9; opacity: 0; animation: splash-in .5s ease .95s forwards; }
+/* 启动品牌动画两幕式：第一幕 0-8.05s 满屏视频（无文字）→ 第二幕视频淡出、彩色獬豸图标 pop + 四层标题 stagger → 11s 整体淡出进主界面；视频不可播/reduced-motion 直接静态锁版 */
+#splash { position: fixed; inset: 0; z-index: 3000; background: #970a0e; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; animation: splash-out .45s ease 11s forwards; }
+#splash .sp-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: sp-veil .4s ease 8.05s forwards; }
+#splash .sp-img { width: 112px; height: 112px; object-fit: contain; margin-bottom: 20px; opacity: 0; animation: splash-pop .55s cubic-bezier(.34,1.56,.64,1) 8.15s forwards; }
+#splash .sp-name { font-family: var(--font-serif); font-size: 30px; font-weight: 800; letter-spacing: 8px; text-indent: 8px; color: #ffffff; opacity: 0; animation: splash-in .5s ease 8.35s forwards; }
+#splash .sp-sub { font-size: 13px; letter-spacing: 4px; text-indent: 4px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease 8.6s forwards; }
+#splash .sp-en { font-size: 12px; letter-spacing: 6px; text-indent: 6px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease 8.85s forwards; }
+#splash .sp-slogan { font-size: 14px; color: #f3e9d9; opacity: 0; animation: splash-in .5s ease 9.1s forwards; }
 @keyframes splash-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes splash-pop { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: none; } }
+@keyframes sp-veil { to { opacity: 0; visibility: hidden; } }
 @keyframes splash-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
-  #splash, #splash .sp-img, #splash .sp-name, #splash .sp-sub, #splash .sp-en, #splash .sp-slogan { animation-duration: .01s; animation-delay: 0s; }
+  #splash, #splash .sp-video, #splash .sp-img, #splash .sp-name, #splash .sp-sub, #splash .sp-en, #splash .sp-slogan { animation-duration: .01s; animation-delay: 0s; }
+  #splash .sp-video { display: none; }
 }

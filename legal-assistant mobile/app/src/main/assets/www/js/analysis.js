@@ -401,7 +401,7 @@ window.ANALYSIS = (function () {
       '<span class="dim">（联网模式可用，需手机联网）</span></div></div>';
 
     /* 参考案例 */
-    html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-laws></use></svg> 参考案例（与案情匹配）</div>';
+    html += '<div class="report-sec"><div class="report-sec-title"><span class="ico-line sm"></span> 参考案例（与案情匹配）</div>';
     if (r.cases.length) {
       html += '<div class="report-cases" id="report-cases"></div>';
     } else {

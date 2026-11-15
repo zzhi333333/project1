@@ -82,7 +82,7 @@
   function appendBot(html) {
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-laws></use></svg></div><div class="bubble">' + html + '</div>';
+    div.innerHTML = '<div class="avatar"><span class=ico-line></span></div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
     recordMsg({ who: "bot", html: html });
     scrollDown();
@@ -96,7 +96,7 @@
       inner += '<button class="q-btn" data-value="' + esc(op.value) + '">' + esc(op.label) + '</button>';
     });
     inner += '</div>';
-    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-laws></use></svg></div><div class="bubble">' + inner + '</div>';
+    div.innerHTML = '<div class="avatar"><span class=ico-line></span></div><div class="bubble">' + inner + '</div>';
     box.appendChild(div);
     recordMsg({ who: "bot", kind: "question", html: inner });
     div.querySelectorAll(".q-btn").forEach(function (b) {
@@ -171,7 +171,7 @@
       '</div>';
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-laws></use></svg></div><div class="bubble">' + html + '</div>';
+    div.innerHTML = '<div class="avatar"><span class=ico-line></span></div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
     /* 意见卡逐段揭示（v3.8.0 B1）：结论前提→概要→分析 stagger 80ms 登场 */
     div.querySelectorAll(".result-section").forEach(function (s, i) {
@@ -411,7 +411,7 @@
 
   /* ---------- 对话历史：渲染与会话列表 ---------- */
   function welcomeHtml() {
-    return "您好！我是<b>法律咨询助手</b>。<br>" +
+    return "您好！我是<b>獬小豸</b>，您的法律咨询助手。<br>" +
       "请描述您的问题，我会澄清关键事实后给出<b>分析 + 法条 + 行动建议</b>；也可点左上角 ☰ 从「快捷咨询」选场景开始，或点顶部 🔍 搜索法条与案例。";
   }
 
@@ -422,7 +422,7 @@
       div.className = "msg user";
       div.innerHTML = '<div class="bubble">' + m.html + '</div>';
     } else {
-      var avatar = m.who === "ai" ? "<svg class=ico><use href=#i-ai></use></svg>" : "<svg class=ico><use href=#i-laws></use></svg>";
+      var avatar = "<span class=ico-line></span>";
       div.className = "msg bot";
       div.innerHTML = '<div class="avatar">' + avatar + '</div><div class="bubble">' + m.html + '</div>';
     }
