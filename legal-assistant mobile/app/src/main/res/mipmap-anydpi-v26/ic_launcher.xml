@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 自适应图标 v4.1：用户提供的 3D 獬豸设计图简洁版（去底座与法典，绛红满幅底+环形徽记+法字纹样，与品牌红 #970a0e 同源），
-     满幅原图直接作 fg/bg 双层（iconsafe：fg/bg 同一满幅图），不设 monochrome——主题图标回退显示完整图标，设计原样呈现。 -->
+<!-- 自适应图标 v4.2 safe-area 版：用户实测启动器遮罩裁切獬豸——fg=源图缩至 72% 安全区内居中（大圆角+羽化边），
+     bg=源图边缘取样红渐变（#ca1118→#970208）融合缝；徽记/法字纹样/獬豸主体零裁切，不设 monochrome。 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_bg" />
     <foreground android:drawable="@drawable/ic_launcher_fg" />
