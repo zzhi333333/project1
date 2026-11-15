@@ -462,6 +462,29 @@ head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
   else warn(y + " 年法定节假日表未收录——时效顺延仅按周末近似（宁少勿错），请对照国务院办公厅通知补充 limitation.js HOLIDAY/WORKDAY");
 })();
 
+/* ---------- 旧靛蓝残留扫描（v4.0.8 暗金换装防回归：4f46e5 系在 UI 文件应清零；域语义色 --c-info 与打印文档除外） ---------- */
+(function () {
+  var stale = /#4f46e5|#4338ca|#6366f1|rgba[(]79, ?70, ?229/g;
+  var files = [
+    "css/style.css", "index.html",
+    path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "css", "style.css"),
+    path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "index.html")
+  ];
+  try {
+    fs.readdirSync(path.join(root, "js")).forEach(function (f) { if (f.endsWith(".js")) files.push(path.join("js", f)); });
+    fs.readdirSync(path.join(root, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js")).forEach(function (f) { if (f.endsWith(".js")) files.push(path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js", f)); });
+  } catch (e) { bad("残留扫描：js 目录枚举失败 " + e.message); return; }
+  var hits = [];
+  files.forEach(function (rel) {
+    var t = "";
+    try { t = fs.readFileSync(path.join(root, rel), "utf8"); } catch (e) { return; }
+    var m = t.match(stale);
+    if (m) hits.push(rel + "×" + m.length);
+  });
+  if (hits.length) bad("旧靛蓝残留：" + hits.join("、") + "（暗金 #7d5f1b/#d8b57a 时代应为零）");
+  else ok("旧靛蓝残留为零（两端 css/js/index 全扫描）");
+})();
+
 /* ---------- 结果 ---------- */
 console.log("\n────────────────────────");
 console.log(failures === 0
