@@ -1207,9 +1207,9 @@ html[data-fontscale="large"] { zoom: 1.15; }
 .send-btn { transition: transform .12s ease, background-color .12s ease; }
 .send-btn:active { transform: scale(.92); }
 
-/* 启动品牌动画两幕式：第一幕 0-8.05s 满屏视频（无文字）→ 第二幕视频淡出、彩色獬豸图标 pop + 四层标题 stagger → 11s 整体淡出进主界面；视频不可播/reduced-motion 直接静态锁版 */
+/* 启动品牌动画两幕式：第一幕 0-8.05s 红底居中视频小卡完整呈现獬豸（海报图遮播放键，无文字）→ 第二幕视频淡出、彩色獬豸图标 pop + 四层标题 stagger → 11s 整体淡出进主界面；视频不可播/reduced-motion 直接静态锁版 */
 #splash { position: fixed; inset: 0; z-index: 3000; background: #970a0e; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; animation: splash-out .45s ease 11s forwards; }
-#splash .sp-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: sp-veil .4s ease 8.05s forwards; }
+#splash .sp-video { position: absolute; inset: 0; margin: auto; width: min(64vw, 320px); height: auto; border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,.4), 0 0 0 1px rgba(255,235,200,.28); animation: sp-veil .4s ease 8.05s forwards; }
 #splash .sp-img { width: 112px; height: 112px; object-fit: contain; margin-bottom: 20px; opacity: 0; animation: splash-pop .55s cubic-bezier(.34,1.56,.64,1) 8.15s forwards; }
 #splash .sp-name { font-family: var(--font-serif); font-size: 30px; font-weight: 800; letter-spacing: 8px; text-indent: 8px; color: #ffffff; opacity: 0; animation: splash-in .5s ease 8.35s forwards; }
 #splash .sp-sub { font-size: 13px; letter-spacing: 4px; text-indent: 4px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease 8.6s forwards; }

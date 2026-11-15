@@ -424,7 +424,9 @@
     } else {
       var avatar = "<span class=ico-line></span>";
       div.className = "msg bot";
-      div.innerHTML = '<div class="avatar">' + avatar + '</div><div class="bubble">' + m.html + '</div>';
+      /* 旧会话回放迁移：品牌化前的欢迎语存档升级为獬小豸口径 */
+      var html = m.html.indexOf("我是<b>法律咨询助手</b>") === 0 ? m.html.replace("我是<b>法律咨询助手</b>", "我是<b>獬小豸</b>，您的法律咨询助手") : m.html;
+      div.innerHTML = '<div class="avatar">' + avatar + '</div><div class="bubble">' + html + '</div>';
     }
     box.appendChild(div);
     if (m.kind === "result" && m.data) {
