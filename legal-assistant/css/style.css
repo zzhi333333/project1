@@ -1094,19 +1094,21 @@ html[data-fontscale="large"] { zoom: 1.15; }
 .send-btn { transition: transform .12s ease, background-color .12s ease; }
 .send-btn:active { transform: scale(.92); }
 
-/* 启动品牌动画两幕式：第一幕 0-8.05s 红底居中视频小卡完整呈现獬豸（海报图遮播放键，无文字）→ 第二幕视频淡出、彩色獬豸图标 pop + 四层标题 stagger → 11s 整体淡出进主界面；视频不可播/reduced-motion 直接静态锁版 */
-#splash { position: fixed; inset: 0; z-index: 3000; background: #970a0e; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; animation: splash-out .45s ease 11s forwards; }
-#splash .sp-video { position: absolute; inset: 0; margin: auto; width: min(64vw, 320px); height: auto; border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,.4), 0 0 0 1px rgba(255,235,200,.28); animation: sp-veil .4s ease 8.05s forwards; }
-#splash .sp-img { width: 112px; height: 112px; object-fit: contain; margin-bottom: 20px; opacity: 0; animation: splash-pop .55s cubic-bezier(.34,1.56,.64,1) 8.15s forwards; }
-#splash .sp-name { font-family: var(--font-serif); font-size: 30px; font-weight: 800; letter-spacing: 8px; text-indent: 8px; color: #ffffff; opacity: 0; animation: splash-in .5s ease 8.35s forwards; }
-#splash .sp-sub { font-size: 13px; letter-spacing: 4px; text-indent: 4px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease 8.6s forwards; }
-#splash .sp-en { font-size: 12px; letter-spacing: 6px; text-indent: 6px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease 8.85s forwards; }
-#splash .sp-slogan { font-size: 14px; color: #f3e9d9; opacity: 0; animation: splash-in .5s ease 9.1s forwards; }
+/* 启动品牌动画并发式：视频占据图标位（0.05s pop），四层标题 0.25s 起 stagger 同现，8.05s 视频播完与静态彩色獬豸图标交叉淡化（0.4s），9.4s 整体淡出；总时长 ~9.9s；视频不可播/reduced-motion 直接静态图标锁版 */
+#splash { position: fixed; inset: 0; z-index: 3000; background: #970a0e; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; animation: splash-out .45s ease 9.4s forwards; }
+#splash .sp-slot { position: relative; width: min(33vw, 132px); aspect-ratio: 576 / 720; margin: 0 auto 20px; opacity: 0; animation: splash-pop .55s cubic-bezier(.34,1.56,.64,1) .05s forwards; }
+#splash .sp-video { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,.4), 0 0 0 1px rgba(255,235,200,.28); animation: sp-veil .4s ease 8.05s forwards; }
+#splash .sp-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; animation: sp-swap-in .45s ease 8.05s forwards; }
+#splash .sp-name { font-family: var(--font-serif); font-size: 30px; font-weight: 800; letter-spacing: 8px; text-indent: 8px; color: #ffffff; opacity: 0; animation: splash-in .5s ease .25s forwards; }
+#splash .sp-sub { font-size: 13px; letter-spacing: 4px; text-indent: 4px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease .5s forwards; }
+#splash .sp-en { font-size: 12px; letter-spacing: 6px; text-indent: 6px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease .75s forwards; }
+#splash .sp-slogan { font-size: 14px; color: #f3e9d9; opacity: 0; animation: splash-in .5s ease 1s forwards; }
 @keyframes splash-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes splash-pop { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: none; } }
 @keyframes sp-veil { to { opacity: 0; visibility: hidden; } }
+@keyframes sp-swap-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes splash-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
-  #splash, #splash .sp-video, #splash .sp-img, #splash .sp-name, #splash .sp-sub, #splash .sp-en, #splash .sp-slogan { animation-duration: .01s; animation-delay: 0s; }
+  #splash, #splash .sp-slot, #splash .sp-video, #splash .sp-img, #splash .sp-name, #splash .sp-sub, #splash .sp-en, #splash .sp-slogan { animation-duration: .01s; animation-delay: 0s; }
   #splash .sp-video { display: none; }
 }
