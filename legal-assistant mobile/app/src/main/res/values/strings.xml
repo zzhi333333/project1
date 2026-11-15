@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">法律咨询助手</string>
+    <string name="app_name">獬小豸</string>
     <string name="shortcut_consult">新咨询</string>
     <string name="shortcut_consult_long">发起智能咨询</string>
     <string name="shortcut_laws">法条</string>
