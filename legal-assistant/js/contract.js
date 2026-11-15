@@ -155,7 +155,7 @@ window.CONTRACT = (function () {
   }
 
   function renderRule(res) {
-    var html = '<div class="report"><div class="report-head" style="background:#0f766e">' +
+    var html = '<div class="report"><div class="report-head" style="background:var(--primary)">' +
       '<div class="report-head-title"><svg class=ico><use href=#i-copy></use></svg> 合同条款核对报告（' + esc(res.name) + ' · 规则引擎 · 离线）</div>' +
       '<div>必备/要素条款：命中 ' + res.found.length + ' 项 · 缺失 ' + res.missing.length + ' 项 · 风险语句 ' + res.risks.length + ' 处</div></div>';
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-checkc></use></svg> 已包含条款</div><div class="report-facts">' +

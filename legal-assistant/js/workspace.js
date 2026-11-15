@@ -1147,9 +1147,12 @@ window.WORKSPACE = (function () {
     on("ws-del", "click", function () {
       var c = current();
       if (!c) return;
-      if (!confirm("删除案件「" + c.name + "」？\n仅解除关联，不删除底层报告/日历/案例数据。")) return;
-      remove(c.id);
-      renderAll();
+      /* v4.0.9：原生 confirm → UI.confirmModal 金化弹层（与全站按钮风格一致） */
+      window.UIKIT.confirmModal("删除案件", "删除案件「" + c.name + "」？\n仅解除关联，不删除底层报告/日历/案例数据。", "删除").then(function (ok) {
+        if (!ok) return;
+        remove(c.id);
+        renderAll();
+      });
     });
     on("ws-note-add", "click", function () {
       var inp = $("ws-note-input");
@@ -1267,11 +1270,11 @@ window.WORKSPACE = (function () {
               var it = dlAll3.filter(function (x) { return x.name === ld.name && x.date === ld.date; })[0];
               return !it || !it.done;
             }).length;
-            if (confirm("是否同时归档本案？" + (openDl ? "\n\n注意：本案还有 " + openDl + " 条未标记完成的日历提醒——归档不移出合规日历，将按原样继续保留跟踪。" : "") + "\n\n归档后移出活跃列表与仪表盘（选择器「已归档」分组可随时找回，不删除任何数据）。")) {
-              setArchived(cur2.id, true);
-              renderAll();
-              return;
-            }
+            /* v4.0.9：原生 confirm → UI.confirmModal 金化弹层（Promise 化，false 时 fallthrough 语义不变） */
+            window.UIKIT.confirmModal("归档案件", "是否同时归档本案？" + (openDl ? "\n\n注意：本案还有 " + openDl + " 条未标记完成的日历提醒——归档不移出合规日历，将按原样继续保留跟踪。" : "") + "\n\n归档后移出活跃列表与仪表盘（选择器「已归档」分组可随时找回，不删除任何数据）。", "归档").then(function (ok) {
+              if (ok) { setArchived(cur2.id, true); renderAll(); }
+            });
+            return;
           }
         }
         renderBody();
