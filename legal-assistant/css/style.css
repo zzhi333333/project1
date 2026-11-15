@@ -105,6 +105,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .view.active { display: block; animation: fadein .18s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
 
+/* 案件工作区（v4.0.8 修：内容未包 .container 贴视口边——CSS 等效 container 盒） */
+#view-workspace { max-width: 1180px; margin: 20px auto 40px; padding: 0 20px; }
 .view-head { margin-bottom: 16px; }
 .view-head h2 { font-size: 20px; color: var(--ink); font-weight: 700; }
 .view-head p { color: var(--ink-2); font-size: 13.5px; margin-top: 3px; }
@@ -237,7 +239,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .input-row input {
   flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; outline: none;
 }
-.input-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, .12); }
+.input-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(125, 95, 27, .12); }
 .input-row button {
   background: var(--primary); color: var(--on-primary); border: none; border-radius: 10px;
   padding: 0 24px; font-size: 15px; font-weight: 600;
@@ -265,7 +267,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   font-family: inherit; font-size: 14px; line-height: 1.7; resize: vertical; outline: none;
   background: var(--field);
 }
-.analysis-editor textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, .12); }
+.analysis-editor textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(125, 95, 27, .12); }
 .analysis-actions { display: flex; align-items: center; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
 .analysis-actions > button {
   background: var(--primary); color: var(--on-primary); border: none; border-radius: 10px;
@@ -486,7 +488,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .modal-body input, .modal-body select {
   border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-size: 13.5px; outline: none;
 }
-.modal-body input:focus, .modal-body select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, .1); }
+.modal-body input:focus, .modal-body select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(125, 95, 27, .1); }
 .modal-note { font-size: 12.5px; color: var(--ink-2); background: var(--soft-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; line-height: 1.7; }
 .modal-note code { background: var(--primary-soft); border: none; border-radius: 4px; padding: 0 5px; font-size: 11.5px; color: var(--primary); }
 .modal-foot { display: flex; gap: 10px; padding: 6px 20px 18px; justify-content: flex-end; }
@@ -510,7 +512,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
   background: var(--card); outline: none;
 }
-.search-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, .12); }
+.search-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(125, 95, 27, .12); }
 .search-row button {
   background: var(--primary); color: var(--on-primary); border: none; border-radius: 10px;
   padding: 0 24px; font-size: 14.5px; font-weight: 600;
@@ -744,7 +746,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .tool-fav { margin-left: auto; cursor: pointer; font-size: 13px; opacity: .5; user-select: none; flex: none; }
 .tool-fav:hover, .tool-fav.on { opacity: 1; }
 .law-link { color: var(--primary); cursor: pointer; text-decoration: underline dotted; }
-.law-link:hover { color: var(--primary-2, #1d4ed8); }
+.law-link:hover { color: var(--primary-2, #63491a); }
 .calc-copy { margin-top: 8px; font-size: 12.5px; }
 
 /* ---------------- 暗色模式 ----------------
@@ -1082,8 +1084,14 @@ html[data-fontscale="large"] { zoom: 1.15; }
 
 /* 可访问性（4.2）：键盘焦点可见（触屏无焦点环不受影响） */
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-/* 1.2 破坏性操作红显统一：清空上下文与工作区删除案件同级 */
-#agent-clear-hist { color: var(--danger); border-color: var(--danger-border); }
+/* 1.2 破坏性操作红显统一：清空上下文与工作区删除案件同级。
+   （v4.0.8 修：.analysis-actions > button 金底覆盖使金底红字不可读——
+   id 规则显式回卡底，脱离主色涂金；hover 同步 danger-soft） */
+#agent-clear-hist {
+  color: var(--danger); border-color: var(--danger-border);
+  background: var(--card);
+}
+#agent-clear-hist:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 #agent-clear-hist:active { background: var(--danger-soft); }
 
 /* ③ 案件 tab 期限警报红点（红级=逾期/≤3 天；数据同首页警报栏） */
