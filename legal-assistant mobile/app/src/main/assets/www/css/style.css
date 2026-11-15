@@ -221,6 +221,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   background: var(--primary-soft); border: 1px solid var(--primary-border);
   display: flex; align-items: center; justify-content: center; font-size: 17px;
 }
+/* 助手表情头像（八表情随机，img/face-1..8.png） */
+.msg .avatar .face { width: 30px; height: 30px; object-fit: contain; display: block; }
 .msg .bubble {
   max-width: 84%;
   background: var(--card); border: 1px solid var(--line);

@@ -101,12 +101,17 @@
     } catch (e) { /* 绑定失败不阻断咨询流程 */ }
   }
 
+  /* 助手表情头像：八表情随机（img/face-1..8.png，用户表情表提取，face 随消息存档保持稳定） */
+  function randFace() { return 1 + Math.floor(Math.random() * 8); }
+  function faceAvatar(n) { return '<img class="face" src="img/face-' + n + '.png" alt="">'; }
+
   function appendBot(html) {
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar"><span class=ico-line></span></div><div class="bubble">' + html + '</div>';
+    var face = randFace();
+    div.innerHTML = '<div class="avatar">' + faceAvatar(face) + '</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
-    recordMsg({ who: "bot", html: html });
+    recordMsg({ who: "bot", face: face, html: html });
     scrollDown();
   }
 
@@ -118,9 +123,10 @@
       inner += '<button class="q-btn" data-value="' + esc(op.value) + '">' + esc(op.label) + '</button>';
     });
     inner += '</div>';
-    div.innerHTML = '<div class="avatar"><span class=ico-line></span></div><div class="bubble">' + inner + '</div>';
+    var face = randFace();
+    div.innerHTML = '<div class="avatar">' + faceAvatar(face) + '</div><div class="bubble">' + inner + '</div>';
     box.appendChild(div);
-    recordMsg({ who: "bot", kind: "question", html: inner });
+    recordMsg({ who: "bot", kind: "question", face: face, html: inner });
     div.querySelectorAll(".q-btn").forEach(function (b) {
       b.addEventListener("click", function () {
         /* 选中后禁用整组，防止重复作答 */
@@ -193,14 +199,15 @@
       '</div>';
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar"><span class=ico-line></span></div><div class="bubble">' + html + '</div>';
+    var face = randFace();
+    div.innerHTML = '<div class="avatar">' + faceAvatar(face) + '</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
     /* 意见卡逐段揭示（v3.8.0 B1）：结论前提→概要→分析 stagger 80ms 登场 */
     div.querySelectorAll(".result-section").forEach(function (s, i) {
       s.style.animationDelay = (i * 80) + "ms";
       s.classList.add("cardrise");
     });
-    recordMsg({ who: "bot", kind: "result", html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] } });
+    recordMsg({ who: "bot", kind: "result", face: face, html: html, data: { name: scenario.name, domain: scenario.domain, r: r, answers: answers || {}, scenarioId: scenario.id, transcript: transcript || [] } });
     if (window.REPORTFOLD && div.querySelector(".result-section")) window.REPORTFOLD.applyResult(div.querySelector(".bubble"));
     div.querySelectorAll(".law-chip").forEach(bindLawChip);
     bindRelLinks(div);
@@ -448,7 +455,7 @@
       div.className = "msg user";
       div.innerHTML = '<div class="bubble">' + m.html + '</div>';
     } else {
-      var avatar = "<span class=ico-line></span>";
+      var avatar = faceAvatar(m.face || randFace());
       div.className = "msg bot";
       /* 旧会话回放迁移：品牌化前的欢迎语存档升级为獬小豸口径 */
       var html = m.html.indexOf("我是<b>法律咨询助手</b>") === 0 ? m.html.replace("我是<b>法律咨询助手</b>", "我是<b>獬小豸</b>，您的法律咨询助手") : m.html;
