@@ -79,7 +79,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .brand { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .brand-icon { font-size: 22px; }
 .brand-text { min-width: 0; }
-.brand-title { font-size: 16.5px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
+.brand-title { font-size: 16.5px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; font-family: var(--font-serif); }
 /* 覆盖范围描述在移动端顶栏不展示（空间有限，完整覆盖说明见欢迎语与首次引导） */
 .brand-sub { display: none; }
 .topbar-right { display: flex; align-items: center; gap: 4px; }
@@ -899,6 +899,7 @@ html[data-fontscale="large"] { zoom: 1.15; }
 /* ============ 线性图标（SVG sprite） ============ */
 .brand-icon { display: flex; align-items: center; justify-content: center; }
 .brand-icon .ico { width: 22px; height: 22px; }
+.brand-avatar { width: 24px; height: 24px; object-fit: contain; display: block; }
 .icon-btn { display: flex; align-items: center; justify-content: center; }
 .icon-btn .ico { width: 19px; height: 19px; }
 .tab-ico { display: flex; align-items: center; justify-content: center; }
