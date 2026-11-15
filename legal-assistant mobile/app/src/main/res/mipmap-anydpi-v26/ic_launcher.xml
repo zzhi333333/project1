@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 自适应图标 v3.0：完整使用用户提供的獬豸设计图（含底座，等比呈现零改动，仅裁除设计图外白边）；
-     背景取图边缘深红作遮罩融合底色。不设 monochrome——主题图标回退显示完整图标，确保设计原样呈现。 -->
+<!-- 自适应图标 v4.0：用户提供的 3D 奠基獬豸设计图（绛红满幅底+环形徽记+法字纹样+底座书卷，与品牌红 #970a0e 同源），
+     满幅原图直接作 fg/bg 双层（iconsafe：fg/bg 同一满幅图），不设 monochrome——主题图标回退显示完整图标，设计原样呈现。 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_bg" />
     <foreground android:drawable="@drawable/ic_launcher_fg" />
