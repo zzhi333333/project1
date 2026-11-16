@@ -929,7 +929,6 @@ window.AI = (function () {
     ];
     var col = "rgb(" + mix.join(",") + ")";
     r.style.setProperty("--temp-fill", col);
-    r.style.background = "linear-gradient(to right, " + col + " " + (v * 100) + "%, var(--line) " + (v * 100) + "%)";
   }
   function setStatus(t, cls) {
     var el = document.getElementById("ai-status");
