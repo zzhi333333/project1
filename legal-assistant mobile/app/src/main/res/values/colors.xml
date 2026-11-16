@@ -2,7 +2,7 @@
 <resources>
     <!-- 与 assets/www/css/style.css 的设计令牌保持一致（绛红 + 暗金鎏金） -->
     <color name="bg">#F6F7F9</color>
-    <color name="primary">#8A6A1F</color>
+    <color name="primary">#92701E</color>
     <color name="primary_dark">#6E5217</color>
     <color name="status_bar">#2B2115</color>
     <color name="icon_bg">#970a0e</color>
