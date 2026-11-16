@@ -901,10 +901,35 @@ window.AI = (function () {
     syncTempFill();
     setStatus(S.apiKey || S.provider === "ollama" ? "已配置：" + S.provider + " / " + S.model : "尚未配置 API Key");
   }
-  /* 温度滑条进度填充（v4.0.11 金化配套）：拖动/载入时实时同步金色渐变比例 */
+  /* 温度滑条进度填充（v4.0.11 金化配套）：拖动/载入时实时同步渐变比例。
+     v4.0.12 用户建议采纳：填充色随值浅金→深金插值（双通道编码+温度隐喻）——
+     两端取当前主题令牌 --primary-fill（亮金）→ --primary（文字金）实时插值，
+     thumb 经 --temp-fill 自定义属性同步同色（css 伪元素引用继承变量），暗色主题自动适配 */
   function syncTempFill() {
     var r = document.getElementById("ai-temp");
-    if (r) { var pct = (parseFloat(r.value) || 0) * 100; r.style.background = "linear-gradient(to right, var(--primary-fill) " + pct + "%, var(--line) " + pct + "%)"; }
+    if (!r) return;
+    var v = Math.max(0, Math.min(1, parseFloat(r.value) || 0));
+    var cs = getComputedStyle(r);
+    function toRgb(c) {
+      c = String(c).trim();
+      if (c.charAt(0) === "#") {
+        var h = c.slice(1);
+        if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+        return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+      }
+      var m = c.match(/rgba?\((\d+), ?(\d+), ?(\d+)/);
+      return m ? [+m[1], +m[2], +m[3]] : [216, 181, 122];
+    }
+    var a = toRgb(cs.getPropertyValue("--primary-fill"));
+    var b = toRgb(cs.getPropertyValue("--primary"));
+    var mix = [
+      Math.round(a[0] + (b[0] - a[0]) * v),
+      Math.round(a[1] + (b[1] - a[1]) * v),
+      Math.round(a[2] + (b[2] - a[2]) * v)
+    ];
+    var col = "rgb(" + mix.join(",") + ")";
+    r.style.setProperty("--temp-fill", col);
+    r.style.background = "linear-gradient(to right, " + col + " " + (v * 100) + "%, var(--line) " + (v * 100) + "%)";
   }
   function setStatus(t, cls) {
     var el = document.getElementById("ai-status");

@@ -333,12 +333,12 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 #ai-temp::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--primary-fill); border: 2px solid var(--card);
+  background: var(--temp-fill, var(--primary-fill)); border: 2px solid var(--card);
   box-shadow: 0 1px 4px rgba(15, 23, 42, .25); cursor: pointer;
 }
 #ai-temp::-moz-range-thumb {
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--primary-fill); border: 2px solid var(--card);
+  background: var(--temp-fill, var(--primary-fill)); border: 2px solid var(--card);
   box-shadow: 0 1px 4px rgba(15, 23, 42, .25); cursor: pointer;
 }
 #consult-input {
