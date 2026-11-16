@@ -828,7 +828,11 @@ html[data-fontscale="large"] { zoom: 1.15; }
 .ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: -3px; }
 /* 镂空獬豸线稿图标（用户稿件提取单色 PNG，mask 跟随 currentColor） */
 .ico-line { display: inline-block; width: 18px; height: 18px; flex: none; vertical-align: -3px; background: currentColor; -webkit-mask: url("../img/xiezhi-line.png") center / contain no-repeat; mask: url("../img/xiezhi-line.png") center / contain no-repeat; }
-/* 法条语境书本图标（用户参考图原样提取 PNG，mask 跟随 currentColor） */
+
+/* 空状态獬豸（线稿淡显） */
+.empty-mascot { display: inline-block; width: 52px; height: 52px; vertical-align: middle; margin-right: 10px; opacity: .5; background: currentColor; -webkit-mask: url("../img/xiezhi-line.png") center / contain no-repeat; mask: url("../img/xiezhi-line.png") center / contain no-repeat; }
+/* 首次引导标题小獬豸 */
+.guide-mascot { width: 34px; height: 34px; object-fit: contain; vertical-align: -9px; margin-right: 6px; }/* 法条语境书本图标（用户参考图原样提取 PNG，mask 跟随 currentColor） */
 .ico-books { background: currentColor; -webkit-mask: url("../img/books-line.png") center / contain no-repeat; mask: url("../img/books-line.png") center / contain no-repeat; }
 
 /* ---------------- 小尺寸图标适配 ---------------- */

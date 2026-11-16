@@ -101,17 +101,19 @@
     } catch (e) { /* 绑定失败不阻断咨询流程 */ }
   }
 
-  /* 助手表情头像：八表情随机（img/face-1..8.png，用户表情表提取，face 随消息存档保持稳定） */
+  /* 助手表情头像：八表情（img/face-1..8.png，用户表情表提取）+ 语义映射（face 随消息存档保持稳定）
+     FACE：1 开心 / 2 眨眼 / 3 好奇 / 4 得意 / 5 认真 / 6 惊讶 / 7 睡觉 / 8 害羞 */
+  var FACE = { happy: 1, blink: 2, curious: 3, proud: 4, serious: 5, surprise: 6, sleep: 7, shy: 8 };
   function randFace() { return 1 + Math.floor(Math.random() * 8); }
   function faceAvatar(n) { return '<img class="face" src="img/face-' + n + '.png" alt="">'; }
 
-  function appendBot(html) {
+  function appendBot(html, face) {
     var div = document.createElement("div");
     div.className = "msg bot";
-    var face = randFace();
-    div.innerHTML = '<div class="avatar">' + faceAvatar(face) + '</div><div class="bubble">' + html + '</div>';
+    var f = face || randFace();
+    div.innerHTML = '<div class="avatar">' + faceAvatar(f) + '</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
-    recordMsg({ who: "bot", face: face, html: html });
+    recordMsg({ who: "bot", face: f, html: html });
     scrollDown();
   }
 
@@ -123,7 +125,7 @@
       inner += '<button class="q-btn" data-value="' + esc(op.value) + '">' + esc(op.label) + '</button>';
     });
     inner += '</div>';
-    var face = randFace();
+    var face = FACE.curious;
     div.innerHTML = '<div class="avatar">' + faceAvatar(face) + '</div><div class="bubble">' + inner + '</div>';
     box.appendChild(div);
     recordMsg({ who: "bot", kind: "question", face: face, html: inner });
@@ -199,7 +201,7 @@
       '</div>';
     var div = document.createElement("div");
     div.className = "msg bot";
-    var face = randFace();
+    var face = FACE.proud;
     div.innerHTML = '<div class="avatar">' + faceAvatar(face) + '</div><div class="bubble">' + html + '</div>';
     box.appendChild(div);
     /* 意见卡逐段揭示（v3.8.0 B1）：结论前提→概要→分析 stagger 80ms 登场 */
@@ -485,7 +487,7 @@
       cur.messages.forEach(renderMessage);
     } else {
       if (!cur) window.CHATHISTORY.newSession(false);
-      appendBot(welcomeHtml());
+      appendBot(welcomeHtml(), 1);
       appendEntryCards();
     }
   }
@@ -548,7 +550,7 @@
       else if (window.AI && window.AI.resetHistory) window.AI.resetHistory();
     } else {
       if (!cur) window.CHATHISTORY.newSession(false);
-      appendBot(welcomeHtml());
+      appendBot(welcomeHtml(), 1);
       appendEntryCards();
       window.AI.resetHistory && window.AI.resetHistory();
     }
@@ -693,7 +695,7 @@
       window.CHATHISTORY.newSession();
       box.innerHTML = "";
       window.AI.resetHistory && window.AI.resetHistory();
-      appendBot(welcomeHtml());
+      appendBot(welcomeHtml(), 1);
       appendEntryCards();
       window.renderSessionList();
       scrollDown();
@@ -813,7 +815,7 @@
     if (window.AI && window.AI.restoreFromTranscript) window.AI.restoreFromTranscript(cur.messages);
   } else {
     if (!cur) window.CHATHISTORY.newSession(false);
-    appendBot(welcomeHtml());
+    appendBot(welcomeHtml(), 1);
     appendEntryCards();
   }
   window.renderSessionList();

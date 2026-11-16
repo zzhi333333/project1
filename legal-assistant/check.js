@@ -462,9 +462,9 @@ head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
   else warn(y + " 年法定节假日表未收录——时效顺延仅按周末近似（宁少勿错），请对照国务院办公厅通知补充 limitation.js HOLIDAY/WORKDAY");
 })();
 
-/* ---------- 旧靛蓝残留扫描（v4.0.8 暗金换装防回归：4f46e5 系在 UI 文件应清零；域语义色 --c-info 与打印文档除外） ---------- */
+/* ---------- 淘汰色残留扫描（防回归：旧靛蓝系/teal/v1 暗金在 UI 文件应清零；现役金系 #8a6a1f/#e4c88f/#d8b57a 与域语义色除外） ---------- */
 (function () {
-  var stale = /#4f46e5|#4338ca|#6366f1|rgba[(]79, ?70, ?229/g;
+  var stale = /#4f46e5|#4338ca|#6366f1|rgba[(]79, ?70, ?229|#0f766e|#7d5f1b|#63491a/g;
   var files = [
     "css/style.css", "index.html",
     path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "css", "style.css"),
@@ -481,8 +481,8 @@ head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
     var m = t.match(stale);
     if (m) hits.push(rel + "×" + m.length);
   });
-  if (hits.length) bad("旧靛蓝残留：" + hits.join("、") + "（暗金 #7d5f1b/#d8b57a 时代应为零）");
-  else ok("旧靛蓝残留为零（两端 css/js/index 全扫描）");
+  if (hits.length) bad("淘汰色残留：" + hits.join("、") + "（现役金系 #92701e/#8a6a1f/#e4c88f/#d8b57a 时代应为零）");
+  else ok("淘汰色残留为零（旧靛蓝系/teal/v1 暗金，两端 css/js/index 全扫描）");
 })();
 
 /* ---------- 结果 ---------- */
