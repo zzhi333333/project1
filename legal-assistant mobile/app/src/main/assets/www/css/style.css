@@ -147,10 +147,10 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   animation: nav-breathe 3.4s ease-in-out infinite;
 }
 .nav-tab-center .tab-ico .ico { width: 24px; height: 24px; transition: color .28s ease; }
-/* 激活：填充当前蓝 + 微放大（无外圈，靠填色与投影加深表达） */
+/* 激活：填充当前金 + 微放大（无外圈，靠填色与投影加深表达）；描边同填色避免衬线过显 */
 .nav-tab-center.active .tab-ico {
   background: var(--primary-fill); color: var(--on-primary);
-  border-color: var(--primary);
+  border-color: var(--primary-fill);
   transform: scale(1.12);
   animation: none;
   box-shadow: 0 6px 16px rgba(125, 95, 27, .38);
