@@ -1110,16 +1110,17 @@ html[data-fontscale="large"] { zoom: 1.15; }
 /* 启动品牌动画并发式：视频占据图标位（0.05s pop），四层标题 0.25s 起 stagger 同现，6.8s 视频播完（尾段定格帧已剪）与静态彩色獬豸图标交叉淡化（0.4s），8s 整体淡出；总时长 ~8.45s；视频不可播/reduced-motion 直接静态图标锁版 */
 #splash { position: fixed; inset: 0; z-index: 3000; background: #970a0e; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; animation: splash-out .45s ease 8s forwards; }
 #splash .sp-slot { position: relative; width: min(33vw, 132px); aspect-ratio: 576 / 720; margin: 0 auto 20px; opacity: 0; animation: splash-pop .55s cubic-bezier(.34,1.56,.64,1) .05s forwards; }
-#splash .sp-video { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,.4), 0 0 0 1px rgba(255,235,200,.28); animation: sp-veil .4s ease 6.8s forwards; }
-#splash .sp-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; animation: sp-swap-in .45s ease 6.8s forwards; }
+#splash .sp-video { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,.4), 0 0 0 1px rgba(255,235,200,.28); animation: sp-veil .7s ease-in 6.8s forwards; }
+#splash .sp-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; animation: sp-swap-in .85s cubic-bezier(.22,.61,.36,1) 6.8s forwards; }
 #splash .sp-name { font-family: var(--font-serif); font-size: 30px; font-weight: 800; letter-spacing: 8px; text-indent: 8px; color: #ffffff; opacity: 0; animation: splash-in .5s ease .25s forwards; }
 #splash .sp-sub { font-size: 13px; letter-spacing: 4px; text-indent: 4px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease .5s forwards; }
 #splash .sp-en { font-size: 12px; letter-spacing: 6px; text-indent: 6px; color: #d8b57a; opacity: 0; animation: splash-in .5s ease .75s forwards; }
 #splash .sp-slogan { font-size: 14px; color: #f3e9d9; opacity: 0; animation: splash-in .5s ease 1s forwards; }
 @keyframes splash-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes splash-pop { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: none; } }
-@keyframes sp-veil { to { opacity: 0; visibility: hidden; } }
-@keyframes sp-swap-in { from { opacity: 0; } to { opacity: 1; } }
+/* v4.0.11 切换柔化：末帧虚化淡出（镜头拉焦）+ 图标聚焦淡入带微收势——重叠窗 0.4s→0.7s 柔化姿势切换 */
+@keyframes sp-veil { to { opacity: 0; visibility: hidden; filter: blur(8px); } }
+@keyframes sp-swap-in { from { opacity: 0; filter: blur(5px); transform: scale(1.045); } to { opacity: 1; filter: blur(0); transform: scale(1); } }
 @keyframes splash-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
   #splash, #splash .sp-slot, #splash .sp-video, #splash .sp-img, #splash .sp-name, #splash .sp-sub, #splash .sp-en, #splash .sp-slogan { animation-duration: .01s; animation-delay: 0s; }
