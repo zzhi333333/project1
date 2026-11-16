@@ -67,18 +67,17 @@ window.UIKIT = (function () {
     else bindModalBasics();
   } catch (e) { }
 
-  /* 启动动画重播（v4.0.11）：设置弹层「关于助手」入口——clone 替换节点强制全部 CSS 动画
-     与 splash 视频（autoplay muted 属性随 clone 带过来）从头重放；播完 forwards 自动隐没 */
-  function replaySplash() {
-    var sp = document.getElementById("splash");
-    if (!sp) return;
-    var clone = sp.cloneNode(true);
-    sp.parentNode.replaceChild(clone, sp);
+  /* 欢迎引导重现（v4.0.11 用户澄清：要重现的是首次进入的欢迎菜单，不是 splash 动画）——
+     清除 first-run 标记并显示 guide-modal；用户点「开始使用」关闭时重新写入标记 */
+  function showWelcomeGuide() {
+    try { localStorage.removeItem("legal-first-run"); } catch (e) { }
+    var gm = document.getElementById("guide-modal");
+    if (gm) gm.classList.remove("hidden");
   }
   try {
-    var rp = document.getElementById("splash-replay");
-    if (rp) rp.addEventListener("click", replaySplash);
+    var wr = document.getElementById("welcome-replay");
+    if (wr) wr.addEventListener("click", showWelcomeGuide);
   } catch (e) { }
 
-  return { toast: toast, confirmModal: confirmModal, bindModalBasics: bindModalBasics, replaySplash: replaySplash };
+  return { toast: toast, confirmModal: confirmModal, bindModalBasics: bindModalBasics, showWelcomeGuide: showWelcomeGuide };
 })();

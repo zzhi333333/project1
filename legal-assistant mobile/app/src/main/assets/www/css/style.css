@@ -163,7 +163,6 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   50% { transform: translateY(-2px) scale(1.04); }
 }
 @media (prefers-reduced-motion: reduce) {
-  #splash-replay { display: none; }   /* 重播按钮在减动效偏好下无意义，隐藏 */
   .nav-tab-center .tab-ico { animation: none; transition: none; }
 }
 /* ---------- 意见卡逐段揭示（v3.8.0 B1）：结论→分析→法条依次登场（stagger 由 JS 设 delay） ---------- */
@@ -323,24 +322,10 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 }
 .ai-toggle.block { width: 100%; margin-top: 8px; }
 .ai-toggle input { accent-color: var(--primary); width: 17px; height: 17px; }
-/* 温度滑条金化（v4.0.11，用户反馈原生蓝）：交互控件随主题金——危险语义留红不混用；
-   轨道中性 --line，亮金 thumb，进度填充由 ai.js syncTempFill 实时渐变同步 */
-#ai-temp {
-  -webkit-appearance: none; appearance: none;
-  width: 100%; height: 6px; border-radius: 3px;
-  background: var(--line); outline: none; cursor: pointer;
-}
-#ai-temp::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: var(--temp-fill, var(--primary-fill)); border: 2px solid var(--card);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, .25); cursor: pointer;
-}
-#ai-temp::-moz-range-thumb {
-  width: 18px; height: 18px; border-radius: 50%;
-  background: var(--temp-fill, var(--primary-fill)); border: 2px solid var(--card);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, .25); cursor: pointer;
-}
+/* 温度滑条金化（v4.0.11→v4.0.12 用户二次反馈：保留原生滑条形态，仅换金色）：
+   accent-color 引用 --temp-fill（ai.js syncTempFill 按值浅金→深金插值写入），
+   原生轨道/拇指形态不变，颜色随值深浅实时变化；危险语义留红不混用 */
+#ai-temp { accent-color: var(--temp-fill, var(--primary-fill)); }
 #consult-input {
   flex: 1 1 auto; min-width: 0;
   border: 1px solid var(--line-2); background: var(--field);
