@@ -898,7 +898,13 @@ window.AI = (function () {
     document.getElementById("ai-key").value = S.apiKey;
     document.getElementById("ai-temp").value = S.temperature;
     document.getElementById("ai-temp-val").textContent = S.temperature;
+    syncTempFill();
     setStatus(S.apiKey || S.provider === "ollama" ? "已配置：" + S.provider + " / " + S.model : "尚未配置 API Key");
+  }
+  /* 温度滑条进度填充（v4.0.11 金化配套）：拖动/载入时实时同步金色渐变比例 */
+  function syncTempFill() {
+    var r = document.getElementById("ai-temp");
+    if (r) { var pct = (parseFloat(r.value) || 0) * 100; r.style.background = "linear-gradient(to right, var(--primary-fill) " + pct + "%, var(--line) " + pct + "%)"; }
   }
   function setStatus(t, cls) {
     var el = document.getElementById("ai-status");
@@ -926,6 +932,7 @@ window.AI = (function () {
     document.getElementById("ai-provider").addEventListener("change", function (e) { applyProviderPreset(e.target.value); });
     document.getElementById("ai-temp").addEventListener("input", function (e) {
       document.getElementById("ai-temp-val").textContent = e.target.value;
+      syncTempFill();
     });
     document.getElementById("ai-save").addEventListener("click", function () {
       S.provider = document.getElementById("ai-provider").value;

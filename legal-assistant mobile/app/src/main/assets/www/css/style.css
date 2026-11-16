@@ -324,6 +324,24 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 }
 .ai-toggle.block { width: 100%; margin-top: 8px; }
 .ai-toggle input { accent-color: var(--primary); width: 17px; height: 17px; }
+/* 温度滑条金化（v4.0.11，用户反馈原生蓝）：交互控件随主题金——危险语义留红不混用；
+   轨道中性 --line，亮金 thumb，进度填充由 ai.js syncTempFill 实时渐变同步 */
+#ai-temp {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 3px;
+  background: var(--line); outline: none; cursor: pointer;
+}
+#ai-temp::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--primary-fill); border: 2px solid var(--card);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .25); cursor: pointer;
+}
+#ai-temp::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--primary-fill); border: 2px solid var(--card);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .25); cursor: pointer;
+}
 #consult-input {
   flex: 1 1 auto; min-width: 0;
   border: 1px solid var(--line-2); background: var(--field);
