@@ -1059,6 +1059,7 @@ html[data-fontscale="large"] { zoom: 1.15; }
 .sc-growx { animation: sc-growx .45s ease-out; transform-origin: left center; }
 .sc-ladder-bar { animation: sc-growx .4s ease-out; transform-origin: left center; }
 @media (prefers-reduced-motion: reduce) {
+  #splash-replay { display: none; }   /* 重播按钮在减动效偏好下无意义，隐藏 */
   .sc-arc, .sc-dot, .sc-fade, .sc-growx, .sc-ladder-bar,
   .sc-ring-box svg, svg[role="img"][aria-label*="雷达"],
   .cardrise, .result-card > .result-section,

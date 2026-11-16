@@ -67,5 +67,18 @@ window.UIKIT = (function () {
     else bindModalBasics();
   } catch (e) { }
 
-  return { toast: toast, confirmModal: confirmModal, bindModalBasics: bindModalBasics };
+  /* 启动动画重播（v4.0.11）：设置弹层「关于助手」入口——clone 替换节点强制全部 CSS 动画
+     与 splash 视频（autoplay muted 属性随 clone 带过来）从头重放；播完 forwards 自动隐没 */
+  function replaySplash() {
+    var sp = document.getElementById("splash");
+    if (!sp) return;
+    var clone = sp.cloneNode(true);
+    sp.parentNode.replaceChild(clone, sp);
+  }
+  try {
+    var rp = document.getElementById("splash-replay");
+    if (rp) rp.addEventListener("click", replaySplash);
+  } catch (e) { }
+
+  return { toast: toast, confirmModal: confirmModal, bindModalBasics: bindModalBasics, replaySplash: replaySplash };
 })();

@@ -163,6 +163,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   50% { transform: translateY(-2px) scale(1.04); }
 }
 @media (prefers-reduced-motion: reduce) {
+  #splash-replay { display: none; }   /* 重播按钮在减动效偏好下无意义，隐藏 */
   .nav-tab-center .tab-ico { animation: none; transition: none; }
 }
 /* ---------- 意见卡逐段揭示（v3.8.0 B1）：结论→分析→法条依次登场（stagger 由 JS 设 delay） ---------- */
