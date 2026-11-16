@@ -169,10 +169,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 @keyframes cardrise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .cardrise { animation: cardrise .38s ease both; }
 .result-card > .result-section { animation: cardrise .38s ease both; }
-/* ---------- 衬线标题混排（v3.8.0 A3）：法律文书庄重感，正文保持无衬线 ---------- */
-.view-head h2, .report-sec-title, .result-title, .modal-title, .report-head-title {
-  font-family: var(--font-serif);
-}
+/* ---------- 衬线标题混排（v3.8.0 A3）——v4.0.11 取消：衬线收敛到品牌位（顶栏品牌/启动屏/印章），
+   标题与按钮全站无衬线（用户反馈按钮区有衬线观感）；--font-serif 令牌保留供品牌位引用 ---------- */
 /* ---------- 设置外观分段（v3.8.0：主题四选 / 字号两选） ---------- */
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg button {
