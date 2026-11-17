@@ -504,7 +504,9 @@ head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
   }
   var files = [
     { p: "index.html", tag: "web index" },
-    { p: path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "index.html"), tag: "mobile index" }
+    { p: "css/style.css", tag: "web css" },
+    { p: path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "index.html"), tag: "mobile index" },
+    { p: path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "css", "style.css"), tag: "mobile css" }
   ];
   try {
     fs.readdirSync(path.join(root, "js")).forEach(function (f) { if (f.endsWith(".js")) files.push({ p: path.join("js", f), tag: "web " + f }); });
@@ -539,9 +541,12 @@ head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
     while ((m5 = re5.exec(t))) addTitle(m5[1], f.tag + " docWin");
     if (/实际发送给模型的内容/.test(t)) addTitle("发送前预览（实际发送给模型的内容）", f.tag + " 动态");
     if (/实际发送内容/.test(t)) addTitle("发送前预览（实际发送内容）", f.tag + " 动态");
-    var re5 = /docWin("([^"]{2,30})")/g;
-    var m5;
-    while ((m5 = re5.exec(t))) addTitle(m5[1], f.tag + " docWin");
+    // ③ css content:"..." 中文（印章水印等伪元素文本——字体盲区补采集；仅 css 文件，避免误捕 js 对象字面量）
+    if (f.tag.indexOf("css") > -1) {
+      var re6 = /content:\s*"([^"]*[\u4e00-\u9fa5][^"]*)"/g;
+      var m6;
+      while ((m6 = re6.exec(t))) addTitle(m6[1], f.tag + " content");
+    }
   });
   var missing = {};
   Object.keys(extracted).forEach(function (s) {
