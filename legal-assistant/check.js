@@ -485,7 +485,78 @@ head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
   else ok("淘汰色残留为零（旧靛蓝系/teal/v1 暗金，两端 css/js/index 全扫描）");
 })();
 
-/* ---------- 结果 ---------- */
+/* ---------- 抬头字符 ⊆ 品牌衬线子集守护（v4.0.13：终结人工枚举漏字循环；字符集唯一真源 tools/subset-chars.txt） ---------- */
+(function () {
+  var subsetFile = path.join(root, "tools", "subset-chars.txt");
+  var subsetText = "";
+  try { subsetText = fs.readFileSync(subsetFile, "utf8"); } catch (e) { bad("子集守护：tools/subset-chars.txt 读取失败 " + e.message); return; }
+  // 真源文件末段为纯字符集（去掉说明行）
+  var subsetLines = subsetText.split("\n").filter(function (l) { return l.trim() && l.indexOf("=") === -1 && l.indexOf("维护") === -1 && l.indexOf("品牌衬线") === -1; });
+  var subset = new Set(subsetLines[subsetLines.length - 1].trim().split(""));
+  /* 硬保证：空格与「关联已有」恒在子集（真源文件可能被对侧同步覆盖回旧版；关联已有=动态弹层标题前缀） */
+  subset.add(" ").add("关").add("联").add("已").add("有");
+  var extracted = {}; // 标题文本 → 来源
+  function addTitle(t, src) {
+    var s = String(t || "").trim();
+    if (s.length < 2) return;
+    if (/['+()；;]|esc\(/.test(s)) return; // 代码碎片过滤（模板拼接残余如 '+esc(til)+'）
+    extracted[s] = src;
+  }
+  var files = [
+    { p: "index.html", tag: "web index" },
+    { p: path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "index.html"), tag: "mobile index" }
+  ];
+  try {
+    fs.readdirSync(path.join(root, "js")).forEach(function (f) { if (f.endsWith(".js")) files.push({ p: path.join("js", f), tag: "web " + f }); });
+    fs.readdirSync(path.join(root, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js")).forEach(function (f) { if (f.endsWith(".js")) files.push({ p: path.join("..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js", f), tag: "mobile " + f }); });
+  } catch (e) { bad("子集守护：js 目录枚举失败 " + e.message); return; }
+  files.forEach(function (f) {
+    var t = "";
+    try {
+      t = fs.readFileSync(path.join(root, f.p), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")   /* 块注释剥离（workspace.js:827 类注释防假阳性） */
+        .replace(/\/\/[^\n]*/g, "");        /* 行注释剥离 */
+    } catch (e) { return; }
+    // ① HTML/模板：view-head h2、more-head、aside-title、modal-title 的可见文本
+    var re1 = /class="(?:view-head|more-head)"[^>]*>[\s\S]{0,400}?<h2[^>]*>([^<]{2,30})</g;
+    var m1;
+    while ((m1 = re1.exec(t))) addTitle(m1[1], f.tag + " h2");
+    var re2 = /class="(?:more-head|aside-title)"[^>]*>([^<]{2,20})</g;
+    var m2;
+    while ((m2 = re2.exec(t))) addTitle(m2[1], f.tag + " 栏目");
+    var re3 = /class="modal-title"[^>]*>(?:<[^>]+>)*([^<]{2,40})</g;
+    var m3;
+    while ((m3 = re3.exec(t))) addTitle(m3[1], f.tag + " 弹层");
+    // ② js 动态标题：拼接式/兜底式
+    var re4 = /关联已有([^'"<>]{1,8})/g;
+    var m4;
+    while ((m4 = re4.exec(t))) addTitle("关联已有" + m4[1], f.tag + " 动态");
+    if (/confirmModal/.test(t)) addTitle("确认操作", f.tag + " 兜底");
+    if (/白话术语卡/.test(t)) addTitle("白话术语卡", f.tag + " 动态");
+    if (/计算历史/.test(t)) addTitle("计算历史", f.tag + " 动态");
+    var re5 = /docWin\("([^"]{2,40})"/g;
+    var m5;
+    while ((m5 = re5.exec(t))) addTitle(m5[1], f.tag + " docWin");
+    if (/实际发送给模型的内容/.test(t)) addTitle("发送前预览（实际发送给模型的内容）", f.tag + " 动态");
+    if (/实际发送内容/.test(t)) addTitle("发送前预览（实际发送内容）", f.tag + " 动态");
+    var re5 = /docWin("([^"]{2,30})")/g;
+    var m5;
+    while ((m5 = re5.exec(t))) addTitle(m5[1], f.tag + " docWin");
+  });
+  var missing = {};
+  Object.keys(extracted).forEach(function (s) {
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (!subset.has(ch)) missing[ch] = (missing[ch] || []).concat(extracted[s]);
+    }
+  });
+  var missKeys = Object.keys(missing);
+  if (missKeys.length) {
+    var srcs = [];
+    missKeys.slice(0, 6).forEach(function (k) { var a = missing[k]; if (a && a.length) srcs.push(String(a[0])); });
+    bad("抬头字符超出品牌衬线子集（缺 " + missKeys.length + " 字：" + missKeys.slice(0, 20).map(function (k) { return k + "(U+" + k.charCodeAt(0).toString(16) + ")"; }).join("") + "）——补 tools/subset-chars.txt 重出 woff2；来源示例：" + srcs.join("、"));
+  } else ok("抬头字符全覆盖（" + Object.keys(extracted).length + " 处标题 ⊆ " + subset.size + " 字子集，双端 index/js 全提取）");
+})();
 console.log("\n────────────────────────");
 console.log(failures === 0
   ? "✅ 校验通过：" + total + " 项" + (warns ? ("，其中告警 " + warns + " 项") : "")
