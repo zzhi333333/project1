@@ -373,7 +373,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .drawer-head { padding: 14px 14px 8px; border-bottom: 1px solid var(--line); }
 .drawer-section { padding: 12px 14px 8px; border-top: 1px solid var(--line); }
 .drawer-foot { padding: 10px 14px; font-size: 10.5px; margin-top: auto; border-top: 1px solid var(--line); flex: 0 0 auto; }
-.aside-title { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; letter-spacing: .5px; }
+.aside-title { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; letter-spacing: .5px; font-family: var(--font-serif); }
 .new-chat-btn {
   width: 100%; padding: 11px; border-radius: 12px;
   background: var(--primary-soft); border: 1px dashed var(--primary-border);

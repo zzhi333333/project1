@@ -121,7 +121,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   background: var(--card); border-radius: var(--radius); border: 1px solid var(--line);
   padding: 14px; align-self: start; max-height: 76vh; overflow-y: auto; position: sticky; top: 78px;
 }
-.aside-title { font-weight: 700; font-size: 13.5px; color: var(--ink); margin-bottom: 10px; }
+.aside-title { font-weight: 700; font-size: 13.5px; color: var(--ink); margin-bottom: 10px; font-family: var(--font-serif); }
 .new-chat-btn {
   width: 100%; padding: 7px; border: 1px dashed var(--primary-border); background: var(--primary-soft);
   color: var(--primary); border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 8px;
