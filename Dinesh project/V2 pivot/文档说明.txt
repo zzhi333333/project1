@@ -1,3 +1,0 @@
-EXCELAUTOPIVOT1.0 只实现透视功能
-EXCELAUTOandPIVOT1.0 实现了Excel清洗和透视功能，但是在筛选Brand的时候有遗漏，调整为如下版本确保逻辑完整
-EXCELAUTOandPIVOT1.1

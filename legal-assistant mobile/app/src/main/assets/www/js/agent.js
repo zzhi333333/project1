@@ -13,7 +13,7 @@ window.AGENT = (function () {
 
 
   /* 助手表情头像（与咨询页同款八表情，img/face-1..8.png 随机） */
-  function agentFace() { return '<div class="avatar"><img class="face" src="img/face-' + (1 + Math.floor(Math.random() * 8)) + '.png" alt=""></div>'; }
+  function agentFace(n) { return '<div class="avatar"><img class="face" src="img/face-' + (n || 1 + Math.floor(Math.random() * 8)) + '.png" alt=""></div>'; }
   /* ============ 工具：中文数字互转 ============ */
   var CN_D = "零一二三四五六七八九";
   function num2cn(n) {
@@ -1119,7 +1119,7 @@ window.AGENT = (function () {
         v.totalCitations + " 条引用核实 " + v.verifiedCount + " 条" + (v.flaggedNumbers ? "；" + v.flaggedNumbers + " 项数字待核实" : ""));
       /* 用标注版替换纯文本（多轮引用可见性随渲染保留：3.2 半采纳项） */
       var html = annotate(gen.text, v);
-      els.answer.innerHTML = (gen.note || "") + '<div class="msg bot" style="max-width:100%">' + agentFace() + '<div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
+      els.answer.innerHTML = (gen.note || "") + '<div class="msg bot" style="max-width:100%">' + agentFace(4) + '<div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
       if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
       highlightFacts(els.answer);
       renderPanel(v, gen.text);
@@ -1220,7 +1220,7 @@ window.AGENT = (function () {
           agentHistory[agentHistory.length - 1] = { role: "assistant", content: String(full || "").slice(0, 2000) };
           lastRun = Object.assign({}, lastRun, { messages: messages });
         }
-        els.answer.innerHTML = '<div class="msg bot" style="max-width:100%">' + agentFace() + '<div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
+        els.answer.innerHTML = '<div class="msg bot" style="max-width:100%">' + agentFace(4) + '<div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
         if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
         highlightFacts(els.answer);
         renderPanel(v2, full);

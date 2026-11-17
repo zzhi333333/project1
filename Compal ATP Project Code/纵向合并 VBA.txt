@@ -1,8 +1,0 @@
-Sub XXXXX()  XXXX = filename
-For Each sh In Sheets
-If sh.Name <> Sheets(1).Name Then
-ÐÐ = Sheets(1).Range("A65536").End(3).Row + 1
-sh.UsedRange.Copy Sheets(1).Range("A" & ÐÐ)
-End If
-Next
-End Sub
