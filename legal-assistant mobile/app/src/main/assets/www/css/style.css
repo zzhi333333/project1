@@ -4,7 +4,7 @@
  * 布局：顶栏 / 视图区（各视图自滚动） / 底部导航 / 侧滑抽屉 / 底部弹层
  * 配色与桌面版同源：绛红 + 暗金鎏金
  * ========================================================= */
-/* 品牌衬线 webfont（思源宋体 Bold 子集 11.5KB，仅含品牌位+抬头用字——跨设备锁定效果，免商用授权风险） */
+/* 品牌衬线 webfont（思源宋体 Bold 子集 36.8KB=204 字：品牌位+九抬头+16 弹层+2 抽屉标题全集——跨设备锁定效果，免商用授权风险；新增视图/弹层标题时需扩充字符集重出） */
 @font-face { font-family: "BrandSerif"; src: url("../fonts/brand-serif.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
   --soft: #f1f3f7; --hover: #eef0f5; --soft-2: #f8fafc; --field: #fbfcfe;
@@ -908,7 +908,8 @@ html[data-fontscale="large"] { zoom: 1.15; }
 /* 空状态獬豸（线稿淡显） */
 .empty-mascot { display: block; width: 52px; height: 52px; margin: 0 auto 8px; opacity: .5; background: currentColor; -webkit-mask: url("../img/xiezhi-line.png") center / contain no-repeat; mask: url("../img/xiezhi-line.png") center / contain no-repeat; }
 /* 首次引导标题小獬豸 */
-.guide-mascot { width: 30px; height: 30px; object-fit: contain; vertical-align: -8px; margin-right: 4px; }/* 法条语境书本图标（用户参考图原样提取 PNG，mask 跟随 currentColor） */
+.guide-mascot { width: 30px; height: 30px; object-fit: contain; vertical-align: -8px; margin-right: 4px; }
+/* 法条语境书本图标（用户参考图原样提取 PNG，mask 跟随 currentColor） */
 .ico-books { background: currentColor; -webkit-mask: url("../img/books-line.png") center / contain no-repeat; mask: url("../img/books-line.png") center / contain no-repeat; }
 
 /* ============ 线性图标（SVG sprite） ============ */

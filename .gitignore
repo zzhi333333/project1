@@ -31,14 +31,14 @@ desktop.ini
 !legal-assistant mobile/dist/
 
 # 无关桌面项目（2026-11-17 仓库卫生：误提交清除，文件保留本地工作树）
-"Dinesh project/"
-"Compal ATP Project Code/"
-"Curso/"
+Dinesh project/
+Compal ATP Project Code/
+Curso/
 requirements.txt
 重要.txt
 
 # dist 只保留最新版指导书（历史版本移出 git）
-"legal-assistant mobile/dist/*v3.4.1.docx"
-"legal-assistant mobile/dist/*v3.6.2.docx"
-"legal-assistant mobile/dist/*v3.7.4.docx"
-"legal-assistant mobile/dist/*v4.0.10.docx"
+legal-assistant mobile/dist/*v3.4.1.docx
+legal-assistant mobile/dist/*v3.6.2.docx
+legal-assistant mobile/dist/*v3.7.4.docx
+legal-assistant mobile/dist/*v4.0.10.docx

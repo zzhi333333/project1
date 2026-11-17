@@ -1,7 +1,7 @@
 /* =========================================================
  * 法律咨询助手 样式 —— 方案 A：现代靛蓝浅色（Slate + Indigo）
  * ========================================================= */
-/* 品牌衬线 webfont（思源宋体 Bold 子集 11.5KB，仅含品牌位+抬头用字——跨设备锁定效果，免商用授权风险） */
+/* 品牌衬线 webfont（思源宋体 Bold 子集 36.8KB=204 字：品牌位+九抬头+16 弹层+2 抽屉标题全集——跨设备锁定效果，免商用授权风险；新增标题需扩充字符集重出） */
 @font-face { font-family: "BrandSerif"; src: url("../fonts/brand-serif.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
   --soft: #f1f3f7; --hover: #eef0f5; --soft-2: #f8fafc; --field: #fbfcfe;
