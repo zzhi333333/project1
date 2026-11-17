@@ -2,8 +2,10 @@
  * 法律咨询助手 · 移动版样式（竖屏优先）
  * 目标机型：2780×1264 物理像素（≈460dp 宽，~2.75x），兼容 360–480dp
  * 布局：顶栏 / 视图区（各视图自滚动） / 底部导航 / 侧滑抽屉 / 底部弹层
- * 配色与桌面版同源：Slate + Indigo
+ * 配色与桌面版同源：绛红 + 暗金鎏金
  * ========================================================= */
+/* 品牌衬线 webfont（思源宋体 Bold 子集 11.5KB，仅含品牌位+抬头用字——跨设备锁定效果，免商用授权风险） */
+@font-face { font-family: "BrandSerif"; src: url("../fonts/brand-serif.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
   --soft: #f1f3f7; --hover: #eef0f5; --soft-2: #f8fafc; --field: #fbfcfe;
   --ok-soft: #ecfdf5; --ok-border: #a7f3d0;
@@ -40,7 +42,7 @@
 html { -webkit-text-size-adjust: 100%; }
 html, body { height: 100%; overscroll-behavior: none; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "MiSans", sans-serif;
   background: var(--bg); color: var(--ink);
   font-size: 15.5px; line-height: 1.6;
 }
@@ -104,7 +106,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 #view-consult.active { display: flex; flex-direction: column; }
 .view-pad { padding: 14px 14px calc(24px + env(safe-area-inset-bottom)); }
 .view-head { margin-bottom: 12px; }
-.view-head h2 { font-size: 19px; font-weight: 700; }
+.view-head h2 { font-size: 19px; font-weight: 700; font-family: var(--font-serif); }
 .view-head p { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; line-height: 1.5; }
 
 /* ---------------- 底部导航 ---------------- */
@@ -860,7 +862,7 @@ html[data-theme="warm"] {
 }
 html:not([data-theme]), html[data-theme=""] { --seal: #b03a2e; }
 :root[data-theme="dark"] { --seal: #e08573; }
-:root, html[data-theme="warm"] { --font-serif: Georgia, "Noto Serif SC", "Source Han Serif SC", "STSong", "SimSun", serif; }
+:root, html[data-theme="warm"] { --font-serif: "BrandSerif", Georgia, "Noto Serif SC", "Source Han Serif SC", serif; }
 html[data-fontscale="large"] { zoom: 1.15; }
 :root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
@@ -933,7 +935,7 @@ html[data-fontscale="large"] { zoom: 1.15; }
   box-shadow: 0 -8px 30px rgba(0, 0, 0, .18);
 }
 .more-sheet.open { transform: translateY(0); }
-.more-head { display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 15px; color: var(--ink); margin-bottom: 12px; }
+.more-head { display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 15px; color: var(--ink); margin-bottom: 12px; font-family: var(--font-serif); }
 .more-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .more-item {
   display: flex; flex-direction: column; align-items: center; gap: 7px;

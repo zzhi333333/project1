@@ -1,6 +1,8 @@
 /* =========================================================
  * 法律咨询助手 样式 —— 方案 A：现代靛蓝浅色（Slate + Indigo）
  * ========================================================= */
+/* 品牌衬线 webfont（思源宋体 Bold 子集 11.5KB，仅含品牌位+抬头用字——跨设备锁定效果，免商用授权风险） */
+@font-face { font-family: "BrandSerif"; src: url("../fonts/brand-serif.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
   --soft: #f1f3f7; --hover: #eef0f5; --soft-2: #f8fafc; --field: #fbfcfe;
   --ok-soft: #ecfdf5; --ok-border: #a7f3d0;
@@ -37,7 +39,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
   background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.65;
 }
 button { font-family: inherit; cursor: pointer; }
@@ -109,7 +111,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 /* 案件工作区（v4.0.8 修：内容未包 .container 贴视口边——CSS 等效 container 盒） */
 #view-workspace { max-width: 1180px; margin: 20px auto 40px; padding: 0 20px; }
 .view-head { margin-bottom: 16px; }
-.view-head h2 { font-size: 20px; color: var(--ink); font-weight: 700; }
+.view-head h2 { font-size: 20px; color: var(--ink); font-weight: 700; font-family: var(--font-serif); }
 .view-head p { color: var(--ink-2); font-size: 13.5px; margin-top: 3px; }
 .section-sub { font-size: 15.5px; color: var(--ink); margin: 26px 0 12px; border-left: 3px solid var(--primary); padding-left: 10px; }
 
@@ -768,7 +770,7 @@ html[data-theme="warm"] {
 }
 html:not([data-theme]), html[data-theme=""] { --seal: #b03a2e; }
 :root[data-theme="dark"] { --seal: #e08573; }
-:root, html[data-theme="warm"] { --font-serif: Georgia, "Noto Serif SC", "Source Han Serif SC", "STSong", "SimSun", serif; }
+:root, html[data-theme="warm"] { --font-serif: "BrandSerif", Georgia, "Noto Serif SC", "Source Han Serif SC", serif; }
 html[data-fontscale="large"] { zoom: 1.15; }
 
 :root[data-theme="dark"] { color-scheme: dark; }
