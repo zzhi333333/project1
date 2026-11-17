@@ -611,7 +611,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 }
 @keyframes sheet-up { from { transform: translateY(40%); opacity: .4; } to { transform: none; opacity: 1; } }
 .modal-grab { width: 40px; height: 4px; border-radius: 999px; background: var(--line-2); margin: 4px auto 10px; }
-.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; font-family: var(--font-serif); }
 .modal-body { display: flex; flex-direction: column; gap: 11px; }
 .modal-body label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--ink-2); }
 .modal-body input, .modal-body select {

@@ -489,7 +489,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   position: relative; width: min(560px, calc(100vw - 32px)); max-height: 88vh; overflow-y: auto;
   background: var(--card); border-radius: 16px; box-shadow: 0 20px 60px rgba(15, 23, 42, .25);
 }
-.modal-title { font-size: 16px; font-weight: 700; color: var(--ink); padding: 16px 20px 0; }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--ink); padding: 16px 20px 0; font-family: var(--font-serif); }
 .modal-body { padding: 14px 20px; display: flex; flex-direction: column; gap: 11px; }
 .modal-body label { font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 5px; }
 .modal-body input, .modal-body select {
