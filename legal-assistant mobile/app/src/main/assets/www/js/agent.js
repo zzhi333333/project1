@@ -361,7 +361,7 @@ window.AGENT = (function () {
       "，以及美国/欧盟经贸合规要点（涉外内容为要点指引，涉具体合规决策须提示咨询专业律师并以官方最新文本为准）";
   }
   var AGENT_PROMPT =
-    "你是「法律咨询Agent」，服务领域：" + agentDomainText() + "。你必须严格遵守以下「可核验性」规则：\n" +
+    "你是 AI 法律助手「獬小豸」（产品名「法律咨询助手」），用户问名字时答「我是獬小豸，您的法律咨询助手」。服务领域：" + agentDomainText() + "。你必须严格遵守以下「可核验性」规则：\n" +
     "1. 只能依据【资料区】提供的法条原文、案例要点和用户案情作答；【资料区】未涵盖的问题，明确回答「本工具资料未涵盖该问题，建议查询国家法律法规数据库或官方来源并咨询执业律师」，不得凭训练记忆猜测。\n" +
     "2. 引用法条必须使用《法律名》第X条的完整格式，且该法条必须出现在【资料区】中；严禁引用【资料区】之外的任何法条、司法解释、条例。\n" +
     "3. 涉及期限（多少日/月/年）、比例（百分之X）、金额、机关名称的表述，只能来自【资料区】或用户案情原文；资料区没有的数字一律不得出现，也不得换算编造。\n" +
@@ -570,11 +570,11 @@ window.AGENT = (function () {
       '.verify-panel{border:1pt solid #999;padding:8pt;font-size:10.5pt}' +
       '</style></head><body>' +
       '<h2>案件分析参考意见书</h2>' +
-      '<div class="doc-meta">法律咨询助手 · ' + dateStr + " · " + esc(r.mode) + '</div>' +
+      '<div class="doc-meta">獬小豸 · ' + dateStr + " · " + esc(r.mode) + '</div>' +
       '<div style="border-left:3pt solid #8a6a1f;padding:6pt 10pt;margin:10pt 0"><b>案情摘述：</b>' + esc(r.q) + '</div>' +
       (r.html || "") +
       (r.verify ? '<div class="verify-panel">' + esc(r.verify) + '</div>' : "") +
-      '<div class="doc-foot">免责声明：本报告由「法律咨询助手」基于公开法律信息生成，仅供参考，不构成法律意见或代理服务；具体案件请咨询执业律师。</div>' +
+      '<div class="doc-foot">免责声明：本报告由「獬小豸」基于公开法律信息生成，仅供参考，不构成法律意见或代理服务；具体案件请咨询执业律师。</div>' +
       '</body></html>';
     var fname = "法律分析意见书-" + dateStr + "-" + pad(t.getHours()) + pad(t.getMinutes()) + ".doc";
     if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) {
@@ -787,9 +787,9 @@ window.AGENT = (function () {
     var dateStr = t.getFullYear() + "-" + pad(t.getMonth() + 1) + "-" + pad(t.getDate());
     return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN"><head><meta charset="utf-8"><title>案件分析参考意见书</title>' +
       '<style>body{font-family:"Microsoft YaHei",SimSun,sans-serif;font-size:12pt;line-height:1.8;color:#111;margin:24pt}h2{font-size:16pt;text-align:center}.doc-meta{text-align:center;color:#555;font-size:10pt;border-bottom:1pt solid #999;padding-bottom:6pt}.doc-foot{margin-top:16pt;border-top:1pt solid #999;padding-top:6pt;color:#777;font-size:9.5pt}</style></head><body>' +
-      '<h2>案件分析参考意见书</h2><div class="doc-meta">法律咨询助手 · ' + dateStr + " · " + (mode === "ai" ? "AI 可核验分析" : "规则引擎报告") + '</div>' +
+      '<h2>案件分析参考意见书</h2><div class="doc-meta">獬小豸 · ' + dateStr + " · " + (mode === "ai" ? "AI 可核验分析" : "规则引擎报告") + '</div>' +
       repHtml +
-      '<div class="doc-foot">免责声明：本报告由「法律咨询助手」生成，仅供参考，不构成法律意见；具体案件请咨询执业律师。</div></body></html>';
+      '<div class="doc-foot">免责声明：本报告由「獬小豸」生成，仅供参考，不构成法律意见；具体案件请咨询执业律师。</div></body></html>';
   }
   function evidenceText() {
     var lines = ["证据准备清单", "生成日期：" + new Date().toLocaleDateString("zh-CN"), ""];
@@ -1280,11 +1280,11 @@ window.AGENT = (function () {
       'mark{background:#fff3c7}' +
       '</style></head><body>' +
       '<h2>' + title + '</h2>' +
-      '<div class="doc-meta">法律咨询助手 · ' + dateStr + ' · ' + (mode === "ai" ? "AI 可核验分析（引用经程序核验）" : "规则引擎报告（内置知识库）") + '</div>' +
+      '<div class="doc-meta">獬小豸 · ' + dateStr + ' · ' + (mode === "ai" ? "AI 可核验分析（引用经程序核验）" : "规则引擎报告（内置知识库）") + '</div>' +
       '<div class="doc-q"><b>案情摘述：</b>' + esc(els.input.value.trim().slice(0, 500)) + '</div>' +
       clone.innerHTML +
       panelHtml +
-      '<div class="doc-foot">免责声明：本报告由「法律咨询助手」基于公开法律信息生成，仅供参考，不构成法律意见或代理服务；具体案件请咨询执业律师。</div>' +
+      '<div class="doc-foot">免责声明：本报告由「獬小豸」基于公开法律信息生成，仅供参考，不构成法律意见或代理服务；具体案件请咨询执业律师。</div>' +
       '</body></html>';
     var fname = "法律分析意见书-" + dateStr + ".doc";
     /* 移动版：走原生 exportFile（系统保存选择器）；网页版：Blob 下载 */

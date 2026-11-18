@@ -600,6 +600,29 @@ T("评测·范围边界：AGENT_PROMPT 含仅法律边界与固定拒绝话术",
   if (ap.indexOf("超出了法律咨询的范围") === -1) throw new Error("AGENT_PROMPT 缺少固定拒绝话术");
   if (ap.indexOf("法律相关的数字计算") === -1) throw new Error("缺少法律计算豁免");
 });
+/* 品牌身份注入防回退（2026-11-19 用户实测：问「你叫什么名字」答不出獬小豸——prompt 层漏品牌化） */
+T("品牌身份：SYSTEM_PROMPT 注入獬小豸与问名标准句式", function () {
+  const sp = String(AI.systemPromptText());
+  if (sp.indexOf("獬小豸") === -1) throw new Error("SYSTEM_PROMPT 未注入獬小豸身份");
+  if (sp.indexOf("我是獬小豸，您的法律咨询助手") === -1) throw new Error("SYSTEM_PROMPT 缺少问名标准句式");
+  if (sp.indexOf("不自称其他名字") === -1) throw new Error("SYSTEM_PROMPT 缺少不自称约束");
+});
+T("品牌身份：AGENT_PROMPT 注入獬小豸身份", function () {
+  const ap = String(AGENT._test.agentPromptText());
+  if (ap.indexOf("獬小豸") === -1) throw new Error("AGENT_PROMPT 未注入獬小豸身份");
+  if (ap.indexOf("我是獬小豸") === -1) throw new Error("AGENT_PROMPT 缺少问名句式");
+});
+T("品牌身份：落款类全面獬小豸口径零残留（防回退）", function () {
+  const fs = require("fs");
+  for (const f of ["js/claims.js", "js/workspace.js", "js/templates.js", "js/diag.js", "js/history.js"]) {
+    const src = fs.readFileSync(path.join(__dirname, f), "utf8");
+    if (src.indexOf("法律咨询助手") !== -1) throw new Error(f + " 残留旧称呼（应为獬小豸口径）");
+    if (src.indexOf("獬小豸") === -1) throw new Error(f + " 未含獬小豸身份");
+  }
+  /* contract.js 为双名合法口径（prompt 自称獬小豸+产品名说明），正向断言 */
+  const csrc = fs.readFileSync(path.join(__dirname, "js/contract.js"), "utf8");
+  if (csrc.indexOf("AI 法律助手「獬小豸」") === -1) throw new Error("contract.js 审查 prompt 未注入獬小豸身份");
+});
 
 /* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */
 section("技能注入预算测试（fold/预算管理）");

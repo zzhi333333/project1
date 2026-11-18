@@ -382,7 +382,7 @@ window.CLAIMS = (function () {
         '方案B 需换回的条件：\n' + condsTxt.replace(/\n/g, "<br>") + '<br>' +
         '<span class="dim" style="font-size:11px">分期拖长回款不确定性上升——通常以总额上浮或条件换取为对价（自行评估）。</span>' +
         '<div style="margin-top:8px"><button class="mini-btn" id="sb-copy">复制对比文本</button> <button class="mini-btn" id="sb-ws">存入案件工作区</button></div></div>';
-      var text = "和解方案对比（谈判要素整理，不预测结果）\n\n方案A（一次性）：总额 " + fmt(a) + " 元，回款时点：签署后立即\n方案B（分 " + n + " 期）：总额 " + fmt(each * n) + " 元，每期 " + fmt(each) + " 元\n需换回的条件：\n" + conds.map(function (c, i) { return (i + 1) + ". " + c; }).join("\n") + "\n\n—— 由法律咨询助手生成，仅供参考。";
+      var text = "和解方案对比（谈判要素整理，不预测结果）\n\n方案A（一次性）：总额 " + fmt(a) + " 元，回款时点：签署后立即\n方案B（分 " + n + " 期）：总额 " + fmt(each * n) + " 元，每期 " + fmt(each) + " 元\n需换回的条件：\n" + conds.map(function (c, i) { return (i + 1) + ". " + c; }).join("\n") + "\n\n—— 由獬小豸生成，仅供参考。";
       $("sb-copy").addEventListener("click", function () {
         copy(text);
         $("sb-copy").textContent = "已复制";

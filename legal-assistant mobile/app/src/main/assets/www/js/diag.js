@@ -41,7 +41,7 @@ window.DIAG = (function () {
   }
   /* 诊断文本：四要素（版本/UA/存储/最近错误），一键复制用 */
   function text() {
-    var lines = ["== 法律咨询助手 诊断信息 ==", "时间：" + new Date().toLocaleString("zh-CN")];
+    var lines = ["== 獬小豸 诊断信息 ==", "时间：" + new Date().toLocaleString("zh-CN")];
     try {
       if (window.BRIDGE && BRIDGE.version) lines.push("App 版本：" + BRIDGE.version());
     } catch (e) { }

@@ -468,7 +468,7 @@ window.WORKSPACE = (function () {
     s += "\n\n## 关联案例\n" + (c.links.cases.length
       ? c.links.cases.map(function (r) { return "- " + r.name }).join("\n")
       : "（暂无）");
-    s += "\n\n---\n本档案由法律咨询助手在本机生成，仅供参考，不构成法律意见。\n";
+    s += "\n\n---\n本档案由獬小豸在本机生成，仅供参考，不构成法律意见。\n";
     return s;
   }
 
@@ -655,7 +655,7 @@ window.WORKSPACE = (function () {
       '<h2>证 据 目 录</h2>' +
       (caseName ? '<p style="text-align:center">案件：' + esc(caseName) + '</p>' : '') +
       '<table><thead><tr><th>序号</th><th>证据名称</th><th>来源</th><th>证明目的</th></tr></thead><tbody>' + tr + '</tbody></table>' +
-      '<div class="doc-foot">说明：本目录由法律咨询助手自动生成，证明目的为建议表述，请结合案情调整；证据原件请单独装订编页。</div></body></html>';
+      '<div class="doc-foot">说明：本目录由獬小豸自动生成，证明目的为建议表述，请结合案情调整；证据原件请单独装订编页。</div></body></html>';
   }
   function catalogWordDownload(rows) {
     var fname = "证据目录-" + (current() ? current().name : "案件") + ".doc";
@@ -916,7 +916,7 @@ window.WORKSPACE = (function () {
       '<h2>费 用 台 账</h2><p style="text-align:center">案件：' + esc(c.name) + '</p>' +
       '<table><thead><tr><th>序号</th><th>费用名</th><th>类型</th><th>发生日期</th><th>金额(元)</th><th>凭证号</th></tr></thead><tbody>' + tr +
       '</tbody></table><p style="text-align:right">合计：' + fmt(sum) + ' 元</p>' +
-      '<div class="doc-foot">说明：本台账由法律咨询助手在本机生成，纯记账用途，请以票据原件为准；不构成法律意见。</div></body></html>';
+      '<div class="doc-foot">说明：本台账由獬小豸在本机生成，纯记账用途，请以票据原件为准；不构成法律意见。</div></body></html>';
     var fname = "费用台账-" + c.name + ".doc";
     if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.exportFile) { window.BRIDGE.exportFile(fname, html); return; }
     var blob = new Blob(["\ufeff" + html], { type: "application/msword" });
@@ -1046,7 +1046,7 @@ window.WORKSPACE = (function () {
       (dl.length ? '<ul style="margin:0;padding-left:18px">' + dl.map(function (r) { return '<li>' + esc(r.date || "") + "　" + esc(r.name) + '</li>'; }).join("") + '</ul>' : '<div>（暂无）</div>') +
       '<h3 style="font-size:14px;margin:10px 0 4px">已准备文书与材料</h3>' +
       (docs.length ? '<ul style="margin:0;padding-left:18px">' + docs.map(function (r) { return '<li>' + esc(r.name) + '</li>'; }).join("") + '</ul>' : '<div>（暂无）</div>') +
-      '<div style="margin-top:14px;font-size:11px;color:#777">以上内容由法律咨询助手按用户录入信息生成，仅供个人整理使用，不构成法律意见。</div>';
+      '<div style="margin-top:14px;font-size:11px;color:#777">以上内容由獬小豸按用户录入信息生成，仅供个人整理使用，不构成法律意见。</div>';
     document.body.appendChild(wrap);
     document.body.classList.add("print-mode");
     var done = function () { document.body.classList.remove("print-mode"); wrap.remove(); window.removeEventListener("afterprint", done); };
@@ -1237,7 +1237,7 @@ window.WORKSPACE = (function () {
       var evEl = $("ws-ev-input");
       var evText = evEl && evEl.value.trim() ? evEl.value.trim() : "（未录入）";
       var files = [
-        { name: "00-交接说明.txt", content: "案件交接包（律师版）\n\n生成：法律咨询助手（本机），时间 " + new Date().toLocaleString("zh-CN") + "\n用途：供律师/法律援助快速了解案情；内容均为用户录入或程序从用户材料提取的客观数据。\n\n免责：本包内容仅供参考，不构成法律意见；材料真实性以原件为准，请由执业律师核验。" },
+        { name: "00-交接说明.txt", content: "案件交接包（律师版）\n\n生成：獬小豸（本机），时间 " + new Date().toLocaleString("zh-CN") + "\n用途：供律师/法律援助快速了解案情；内容均为用户录入或程序从用户材料提取的客观数据。\n\n免责：本包内容仅供参考，不构成法律意见；材料真实性以原件为准，请由执业律师核验。" },
         { name: "01-案件概要.md", content: "# 案件概要：" + c.name + "\n\n- 阶段：" + getStage(c) + "（自报）\n- 创建：" + c.createdAt.slice(0, 10) + "\n\n## 金额四线\n- 请求合计：" + (lg3.claimTotal != null ? fmt(lg3.claimTotal) + " 元" : "未记录") + "\n- 已支出：" + (spent3 ? fmt(spent3) + " 元" : "未记录") + "\n- 判决/调解确定：" + (lg3.resultAmount ? fmt(lg3.resultAmount) + " 元" : "未记录") + "\n- 已回收：" + ((parseFloat(lg3.recovered) || 0) > 0 ? fmt(lg3.recovered) + " 元" : "未记录") + "\n\n## 判决信息\n" + (c.result ? "- 案号：" + c.result.caseNo + "\n- 法院：" + c.result.court + "\n- 落款日：" + c.result.judgmentDate + "\n- 履行金额：" + c.result.amount + " 元" : "（未保存）") + "\n\n## 待确认事项\n" + (c.notes.length ? c.notes.map(function (n) { return "- [" + (n.done ? "x" : " ") + "] " + n.text; }).join("\n") : "（无）") + "\n" },
         { name: "02-期限与文书.txt", content: "## 期限\n" + ((c.links.deadlines || []).map(function (r) { return "- " + (r.date || "?") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 文书草稿\n" + ((c.links.docs || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联分析报告\n" + ((c.links.reports || []).map(function (r) { return "- " + (r.date || "") + " " + r.name; }).join("\n") || "（无）") + "\n\n## 关联案例\n" + ((c.links.cases || []).map(function (r) { return "- " + r.name; }).join("\n") || "（无）") + "\n" },
         { name: "03-证据目录.txt", content: evText + "\n" },

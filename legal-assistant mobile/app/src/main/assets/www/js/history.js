@@ -155,7 +155,7 @@ window.CHATHISTORY = (function () {
     if (!s) return "";
     var lines = ["# " + (s.title || "对话记录"), "",
       "导出：" + new Date().toISOString().slice(0, 10) + "｜消息 " + s.messages.length + " 条", "",
-      "> 导出自法律咨询助手。AI 回答仅供参考，不构成法律意见；引用条文以官方现行文本为准。", ""];
+      "> 导出自獬小豸。AI 回答仅供参考，不构成法律意见；引用条文以官方现行文本为准。", ""];
     s.messages.forEach(function (m) {
       var who = m.who === "user" ? "🧑 我" : m.who === "ai" ? "🤖 AI 助手" : "📋 助手";
       var body = m.text || String(m.html || "").replace(/<[^>]+>/g, " ").replace(/[ \t]+\n/g, "\n").trim();
