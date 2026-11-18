@@ -638,6 +638,21 @@ T("品牌身份：移动端 js/ 同口径零残留（复核建议采纳：防单
     if (src.indexOf(anchor) === -1) throw new Error("移动端 " + f + " 缺身份句锚点「" + anchor + "」（与 web 端漂移？）");
   }
 });
+/* 检查更新改造防回退（2026-11-19 改造：假比较换跳转发布页——防「本地双值比较+假横幅」机制回潮） */
+T("检查更新改造：跳转发布页机制在位、假横幅机制已拆除", function () {
+  const fs = require("fs");
+  const paths = [path.join(__dirname, "js", "update-check.js"), path.join(__dirname, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js", "update-check.js")];
+  for (const p of paths) {
+    const src = fs.readFileSync(p, "utf8");
+    if (src.indexOf("RELEASE_URL") === -1) throw new Error(p + " 缺 RELEASE_URL（跳转改造被回退？）");
+    if (src.indexOf("github.com/zzhi333333/project1/releases") === -1) throw new Error(p + " 发布页地址缺失");
+    if (src.indexOf("autoCheck") !== -1 || src.indexOf("buildBanner") !== -1 || src.indexOf("update-banner") !== -1)
+      throw new Error(p + " 假横幅机制（autoCheck/buildBanner/update-banner）回潮");
+    if (src.indexOf("compare(") !== -1) throw new Error(p + " 残留假比较 compare()（必等双值无检查意义）");
+  }
+  const csrc = fs.readFileSync(path.join(__dirname, "check.js"), "utf8");
+  void csrc; /* check.js 版本链九处对齐仍覆盖 version.js——与跳转改造无冲突 */
+});
 
 /* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */
 section("技能注入预算测试（fold/预算管理）");

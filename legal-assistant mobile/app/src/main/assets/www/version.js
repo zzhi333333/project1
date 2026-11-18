@@ -1,4 +1,4 @@
-/* 检查更新版本信息（出包时由 release.js 同步更新；url 为 APK 下载直链，留空=提示到发布页） */
+/* 本地版本标记（仅用于版本一致性校验与展示，不做联网检查；更新跳转地址见 update-check.js 的 RELEASE_URL，url 字段已废弃保留兼容） */
 window.APP_VERSION_INFO = {
   "version": "4.0.18",
   "code": 104,
