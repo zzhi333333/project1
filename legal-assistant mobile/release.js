@@ -102,6 +102,8 @@ const targets = [
   { file: path.join(MOB_ROOT, "README.md"), re: /legal-assistant-mobile-v[\d.]+\.apk/, to: "legal-assistant-mobile-v" + versionName + ".apk", tag: "移动 README 产物名" },
   { file: path.join(WEB_ROOT, "FEATURES.md"), re: /> 版本：v[\d.]+（/, to: "> 版本：v" + versionName + "（", tag: "FEATURES 版本头" },
   { file: path.join(MOB_ROOT, "MANUAL.md"), re: /> 版本：v[\d.]+（versionCode \d+）/, to: "> 版本：v" + versionName + "（versionCode " + newCode + "）", tag: "MANUAL 版本头" },
+  /* v4.0.17：web 顶栏 app-ver（关于段）——check 九处对齐成员，漏改复发检查更新假提示 */
+  { file: path.join(WEB_ROOT, "index.html"), re: /id="app-ver">[\d.]+</, to: 'id="app-ver">' + versionName + "<", tag: "web 顶栏 app-ver" },
   /* v4.0.17：检查更新版本信息（update-check.js 数据源）——漏改会复发「检查更新假提示」 */
   { file: path.join(WEB_ROOT, "version.js"), re: /"version": "[\d.]+"/, to: '"version": "' + versionName + '"', tag: "web version.js version" },
   { file: path.join(WEB_ROOT, "version.js"), re: /"code": \d+/, to: '"code": ' + newCode, tag: "web version.js code" },
