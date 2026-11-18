@@ -623,6 +623,21 @@ T("品牌身份：落款类全面獬小豸口径零残留（防回退）", funct
   const csrc = fs.readFileSync(path.join(__dirname, "js/contract.js"), "utf8");
   if (csrc.indexOf("AI 法律助手「獬小豸」") === -1) throw new Error("contract.js 审查 prompt 未注入獬小豸身份");
 });
+T("品牌身份：移动端 js/ 同口径零残留（复核建议采纳：防单端漏改，双端须手工同步的分支文件 check 嗅探不到内容）", function () {
+  const fs = require("fs");
+  const mob = path.join(__dirname, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www");
+  for (const f of ["js/claims.js", "js/workspace.js", "js/templates.js", "js/diag.js", "js/history.js"]) {
+    const src = fs.readFileSync(path.join(mob, f), "utf8");
+    if (src.indexOf("法律咨询助手") !== -1) throw new Error("移动端 " + f + " 残留旧称呼");
+    if (src.indexOf("獬小豸") === -1) throw new Error("移动端 " + f + " 未含獬小豸身份");
+  }
+  /* 分支文件 prompt 首句双端一致性（ai/agent/contract 不做全文 diff，锚定身份句锚点） */
+  const anchors = [["js/ai.js", "我是獬小豸，您的法律咨询助手"], ["js/agent.js", "用户问名字时答「我是獬小豸"], ["js/contract.js", "AI 法律助手「獬小豸」"]];
+  for (const [f, anchor] of anchors) {
+    const src = fs.readFileSync(path.join(mob, f), "utf8");
+    if (src.indexOf(anchor) === -1) throw new Error("移动端 " + f + " 缺身份句锚点「" + anchor + "」（与 web 端漂移？）");
+  }
+});
 
 /* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */
 section("技能注入预算测试（fold/预算管理）");
