@@ -227,10 +227,11 @@ try {
   warn("双端一致性检查未执行：" + e.message + "（移动版目录不存在时忽略）");
 }
 
-/* ---------- 10. 版本一致性（出包链五处对齐） ----------
+/* ---------- 10. 版本一致性（出包链九处对齐） ----------
    血泪教训（dea1d35）：v3.2.5 出包只改了 manifest/build.bat，APK 内 app-ver 仍自报 3.2.4。
-   出包链共 5 处版本号，此处机器比对：任何一处不一致即失败，防止漏改再发生。 */
-head("版本一致性（出包链五处对齐）");
+   出包链 5 处 + 检查更新批增补 4 处（双端 app-ver/双端 version.js，6c653b0 审核轮 P1 教训：
+   原 vAppVer 只抓 mobIndex 致 web 4.0.15 漏改无人报警）共 9 处，机器比对防漏改。 */
+head("版本一致性（出包链九处对齐）");
 (function () {
   const MOB_ROOT = path.join(root, "..", "legal-assistant mobile");
   if (!fs.existsSync(MOB_ROOT)) { warn("移动版目录不存在，跳过版本一致性检查"); return; }

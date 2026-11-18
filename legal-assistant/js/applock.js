@@ -67,8 +67,9 @@
       b.textContent = k === "" ? "" : k;
       b.setAttribute("aria-label", k === "" ? "退格" : k);
       b.addEventListener("click", function () {
-        /* 失败冷却拦截（locked 模式）：递增冷却给连续穷举加成本 */
-        if (mode === "locked" && S.failUntil > Date.now()) {
+        /* 失败冷却拦截（locked/change-old）：递增冷却给连续穷举加成本；
+         * change-old 当前被全屏门锁物理遮挡不可达（解锁即清零），此处为纵深防御 */
+        if ((mode === "locked" || mode === "change-old") && S.failUntil > Date.now()) {
           buf = ""; draw();
           err("尝试次数过多，请 " + Math.ceil((S.failUntil - Date.now()) / 1000) + " 秒后再试");
           return;
