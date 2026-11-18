@@ -101,7 +101,12 @@ const targets = [
   { file: path.join(MOB_ROOT, "README.md"), re: /版本 `[\d.]+`（versionCode \d+）/, to: "版本 `" + versionName + "`（versionCode " + newCode + "）", tag: "移动 README 版本行" },
   { file: path.join(MOB_ROOT, "README.md"), re: /legal-assistant-mobile-v[\d.]+\.apk/, to: "legal-assistant-mobile-v" + versionName + ".apk", tag: "移动 README 产物名" },
   { file: path.join(WEB_ROOT, "FEATURES.md"), re: /> 版本：v[\d.]+（/, to: "> 版本：v" + versionName + "（", tag: "FEATURES 版本头" },
-  { file: path.join(MOB_ROOT, "MANUAL.md"), re: /> 版本：v[\d.]+（versionCode \d+）/, to: "> 版本：v" + versionName + "（versionCode " + newCode + "）", tag: "MANUAL 版本头" }
+  { file: path.join(MOB_ROOT, "MANUAL.md"), re: /> 版本：v[\d.]+（versionCode \d+）/, to: "> 版本：v" + versionName + "（versionCode " + newCode + "）", tag: "MANUAL 版本头" },
+  /* v4.0.17：检查更新版本信息（update-check.js 数据源）——漏改会复发「检查更新假提示」 */
+  { file: path.join(WEB_ROOT, "version.js"), re: /"version": "[\d.]+"/, to: '"version": "' + versionName + '"', tag: "web version.js version" },
+  { file: path.join(WEB_ROOT, "version.js"), re: /"code": \d+/, to: '"code": ' + newCode, tag: "web version.js code" },
+  { file: path.join(APP, "assets", "www", "version.js"), re: /"version": "[\d.]+"/, to: '"version": "' + versionName + '"', tag: "mobile version.js version" },
+  { file: path.join(APP, "assets", "www", "version.js"), re: /"code": \d+/, to: '"code": ' + newCode, tag: "mobile version.js code" }
 ];
 targets.forEach(function (t) {
   const src = fs.readFileSync(t.file, "utf8");
@@ -200,6 +205,9 @@ const apkBuf = fs.readFileSync(apkPath);
 const idxHtml = zipReadEntry(apkBuf, "assets/www/index.html");
 if (!idxHtml || idxHtml.indexOf('id="app-ver">' + effName + "<") === -1) die("包内 index.html app-ver 不是 " + effName + "（版本漏改防线触发）");
 console.log("  ✅ 包内 app-ver = " + effName);
+const idxVer = zipReadEntry(apkBuf, "assets/www/version.js");
+if (!idxVer || idxVer.indexOf('"' + effName + '"') === -1 || idxVer.indexOf(String(newCode)) === -1) die("包内 version.js 不是 " + effName + "/" + newCode + "（检查更新漏改防线触发）");
+console.log("  ✅ 包内 version.js = " + effName + " / " + newCode);
 const idxAi = zipReadEntry(apkBuf, "assets/www/js/ai.js");
 if (!idxAi || idxAi.indexOf("updQuickVis") === -1) die("包内 ai.js 异常（updQuickVis 缺失）");
 const idxWs = zipReadEntry(apkBuf, "assets/www/js/workspace.js");
