@@ -247,6 +247,11 @@ head("版本一致性（出包链五处对齐）");
   const cManifest = grab(/android:versionCode="(\d+)"/, manifest);
   const vBuild = grab(/VERSION_NAME=([\d.]+)/, buildBat);
   const vAppVer = grab(/id="app-ver">([\d.]+)</, mobIndex);
+  /* version.js（检查更新数据源，两端各一份）——出包链第七处，防 release.js 漏同步 */
+  const vWebJs = grab(/"version":\s*"([\d.]+)"/, read(path.join(root, "version.js")));
+  const vCodeJs = grab(/"code":\s*(\d+)/, read(path.join(root, "version.js")));
+  const vMobJs = grab(/"version":\s*"([\d.]+)"/, read(path.join(MOB_ROOT, "app", "src", "main", "assets", "www", "version.js")));
+  const cMobJs = grab(/"code":\s*(\d+)/, read(path.join(MOB_ROOT, "app", "src", "main", "assets", "www", "version.js")));
   /* README/MANUAL 需取两个分组，不能用 grab（其只返回第 1 组字符串） */
   const readmeX = /版本 `([\d.]+)`（versionCode (\d+)）/i.exec(mobReadme);
   const vReadme = readmeX ? readmeX[1] : null;
@@ -255,8 +260,8 @@ head("版本一致性（出包链五处对齐）");
   const manX = /> 版本：v([\d.]+)（versionCode (\d+)）/.exec(manual);
   const vManual = manX ? manX[1] : null;
   const cManual = manX ? manX[2] : null;
-  const names = [["manifest", vManifest], ["build.bat", vBuild], ["app-ver", vAppVer], ["移动README", vReadme], ["FEATURES", vFeats], ["MANUAL", vManual]];
-  const codes = [["manifest", cManifest], ["移动README", cReadme], ["MANUAL", cManual]];
+  const names = [["manifest", vManifest], ["build.bat", vBuild], ["app-ver", vAppVer], ["移动README", vReadme], ["FEATURES", vFeats], ["MANUAL", vManual], ["web version.js", vWebJs], ["mobile version.js", vMobJs]];
+  const codes = [["manifest", cManifest], ["移动README", cReadme], ["MANUAL", cManual], ["web version.js", vCodeJs], ["mobile version.js", cMobJs]];
   const mismatch = arr => arr.filter(x => x[1] && x[1] !== arr[0][1]).map(x => x[0] + "=" + x[1]);
   const missing = arr => arr.filter(x => !x[1]).map(x => x[0]);
   const base = names[0][1];
@@ -268,7 +273,7 @@ head("版本一致性（出包链五处对齐）");
   if (badNames.length) bad("版本号不一致：基准 " + base + "，但 " + badNames.join("、") + " 不同");
   if (badCodes.length) bad("versionCode 不一致：基准 " + codes[0][1] + "，但 " + badCodes.join("、") + " 不同");
   if (!badNames.length && !badCodes.length && !missing(names).length && !missing(codes).length)
-    ok("版本链一致：" + base + "（versionCode " + codes[0][1] + "），六处对齐");
+    ok("版本链一致：" + base + "（versionCode " + codes[0][1] + "），八处对齐");
   /* 构建日期（app-build）：格式合法且不超前（release.js 出包自动刷新，此处防手改/时钟错误） */
   const buildD = grab(/id="app-build">([\d-]+)</, mobIndex);
   if (!buildD) { warn("app-build 未解析（格式变动？）"); return; }
