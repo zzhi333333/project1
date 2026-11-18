@@ -22,6 +22,20 @@
 
   var layer = null, dots = null, errEl = null, padEl = null;
   var buf = "", mode = "locked", firstPin = "", hiddenAt = 0;
+  var commitTimer = null;
+
+  /* 提交调度：验证类模式（locked/change-old）长度精确、输入即验；
+   * 设置类模式（setup/confirm/change-new/change-confirm）支持 4-6 位——
+   * 到 4 位后 700ms 无新输入才提交，期间继续按键则累加重置计时 */
+  function armCommit() {
+    if (commitTimer) { clearTimeout(commitTimer); commitTimer = null; }
+    var fixed = (mode === "locked" || mode === "change-old");
+    var min = fixed ? S.len : 4;
+    if (buf.length < min || buf.length > 6) return;
+    if (fixed) { tryPin(); return; }
+    commitTimer = setTimeout(function () { commitTimer = null; tryPin(); }, 700);
+  }
+  function disarmCommit() { if (commitTimer) { clearTimeout(commitTimer); commitTimer = null; } }
 
   function build() {
     if (layer) return;
@@ -48,17 +62,18 @@
       b.textContent = k === "" ? "" : k;
       b.setAttribute("aria-label", k === "" ? "退格" : k);
       b.addEventListener("click", function () {
-        if (k === "") { buf = buf.slice(0, -1); }
+        if (k === "") { buf = buf.slice(0, -1); disarmCommit(); }
         else if (buf.length < 6) { buf += k; }
         draw();
-        if (mode !== "setup-confirm" && buf.length >= S.len && buf.length <= 6 && k !== "") tryPin();
+        if (k !== "") armCommit();
       });
       padEl.appendChild(b);
     });
     var cancelBtn2 = layer.querySelector("#al-cancel");
     if (cancelBtn2) cancelBtn2.addEventListener("click", function () {
+      disarmCommit();
       buf = ""; firstPin = "";
-      mode = S.enabled ? "locked" : "locked";
+      mode = "locked";
       hide(); syncCheckbox();
     });
   }
@@ -81,6 +96,7 @@
   function show(m, title) {
     mode = m;
     build();
+    disarmCommit();
     buf = "";
     draw();
     err("");
@@ -107,6 +123,12 @@
       draw();
     } else if (mode === "setup-confirm") {
       if (pin === firstPin) {
+        /* 首次设置生成随机盐（8 字节 hex），防同 PIN 同哈希 */
+        if (!S.salt) {
+          var r = new Uint8Array(8);
+          crypto.getRandomValues(r);
+          S.salt = Array.prototype.map.call(r, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+        }
         sha(S.salt + pin).then(function (h) {
           S.hash = h; S.len = firstPin.length; S.enabled = true; save();
           syncCheckbox();
@@ -132,8 +154,14 @@
       draw();
     } else if (mode === "change-confirm") {
       if (pin === firstPin) {
+        /* 改 PIN 同样补盐（老数据迁移自无盐版本）+ 同步新长度 */
+        if (!S.salt) {
+          var r2 = new Uint8Array(8);
+          crypto.getRandomValues(r2);
+          S.salt = Array.prototype.map.call(r2, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+        }
         sha(S.salt + firstPin).then(function (h) {
-          S.hash = h; save();
+          S.hash = h; S.len = firstPin.length; save();
           hide(); buf = ""; mode = "locked";
           syncCheckbox();
           if (window.UIKIT && window.UIKIT.toast) window.UIKIT.toast("PIN 已修改");
@@ -159,8 +187,8 @@
     }
   });
 
-  /* 启动即锁 */
-  if (S.enabled) { show("locked"); } else { build(); }
+  /* 启动即锁（未启用不建 DOM，show() 内部懒构建；check.js stub 环境零 DOM 操作） */
+  if (S.enabled) { show("locked"); }
 
   window.APPLOCK = {
     get enabled() { return S.enabled; },
@@ -174,4 +202,11 @@
     },
     changePin: function () { if (S.enabled) show("change-old"); }
   };
+
+  /* 设置弹层控件自绑定（模块自包含；script 置于 body 底部，元素已就绪） */
+  var cb = document.getElementById("applock-enable");
+  if (cb) cb.addEventListener("change", function () { window.APPLOCK.setEnabled(cb.checked); });
+  var chgBtn = document.getElementById("applock-change");
+  if (chgBtn) chgBtn.addEventListener("click", function () { window.APPLOCK.changePin(); });
+  syncCheckbox(); /* 启动即同步（reload 后修改 PIN 按钮显隐/勾选态归位） */
 })();

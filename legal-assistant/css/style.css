@@ -1,7 +1,7 @@
 /* =========================================================
  * 法律咨询助手 样式 —— 方案 A：现代靛蓝浅色（Slate + Indigo）
  * ========================================================= */
-/* 品牌衬线 webfont（思源宋体 Bold 子集 36.8KB=204 字：品牌位+九抬头+16 弹层+2 抽屉标题全集——跨设备锁定效果，免商用授权风险；新增标题需扩充字符集重出） */
+/* 品牌衬线 webfont（思源宋体 Bold 子集 38.8KB=216 字：品牌位+九抬头+16 弹层+2 抽屉+动态弹层全集——字符集唯一真源 tools/subset-chars.txt，新增标题加字重出 woff2，check.js 抬头守护自动拦缺字） */
 @font-face { font-family: "BrandSerif"; src: url("../fonts/brand-serif.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
   --soft: #f1f3f7; --hover: #eef0f5; --soft-2: #f8fafc; --field: #fbfcfe;
@@ -1134,3 +1134,19 @@ html[data-fontscale="large"] { zoom: 1.15; }
   #splash, #splash .sp-slot, #splash .sp-video, #splash .sp-img, #splash .sp-name, #splash .sp-sub, #splash .sp-en, #splash .sp-slogan { animation-duration: .01s; animation-delay: 0s; }
   #splash .sp-video { display: none; }
 }
+
+/* 应用锁（轻量档）：全屏门锁层——高于弹层(1000)/横幅(2500)，低于 splash(3000) */
+#applock { position: fixed; inset: 0; z-index: 2800; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+#applock.hidden { display: none; }
+.al-card { width: min(320px, calc(100vw - 48px)); text-align: center; }
+.al-avatar { width: 64px; height: 64px; border-radius: 50%; margin-bottom: 10px; }
+.al-title { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
+.al-dots { font-size: 22px; letter-spacing: 10px; color: var(--ink); margin-bottom: 6px; min-height: 28px; }
+.al-err { min-height: 18px; font-size: 12.5px; color: var(--danger); margin-bottom: 8px; }
+.al-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 10px; justify-content: center; margin-top: 4px; }
+.al-key { width: 72px; height: 56px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 20px; font-weight: 600; cursor: pointer; padding: 0; }
+.al-key:active { background: var(--primary-soft); border-color: var(--primary-border); }
+.al-key.wide { visibility: hidden; }
+.al-cancel { margin-top: 16px; }
+.al-card.shake { animation: al-shake .4s ease; }
+@keyframes al-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
