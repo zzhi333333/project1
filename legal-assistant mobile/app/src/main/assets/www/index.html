@@ -722,6 +722,7 @@
       <div style="text-align:center;margin-bottom:12px"><button id="welcome-replay" class="mini-btn" title="再次显示首次进入时的欢迎引导">再次显示欢迎引导</button></div>
       <div class="more-ver">
         <div class="mv-line"><svg class="ico"><use href=#i-info></use></svg> 版本 <b id="app-ver">4.0.16</b>（<span id="app-build">2026-11-18</span>）</div>
+        <div class="mv-line"><svg class=ico><use href=#i-database></use></svg> 法律数据 <b id="legal-data-ver">v2026.11</b></div>
         <div class="mv-tips">
           <div class="mv-tip"><svg class=ico><use href=#i-agent></use></svg> 深度咨询：AI 逐项追问案情要素，齐全后一键生成可核验分析</div>
           <div class="mv-tip"><svg class=ico><use href=#i-list></use></svg> 一揽子请求计算器：勾选请求项→填参数→缺口自动转工作区待办</div>
@@ -731,6 +732,10 @@
         </div>
       </div>
       <div style="margin-top:8px"><button id="about-github" class="mini-btn"><svg class="ico"><use href="#i-link"/></svg> GitHub 开源地址 ↗</button></div>
+      <div style="font-size:12.5px;color:var(--ink-2);margin-top:8px">法律数据 <b id="legal-data-ver">v2026.11</b>　<button id="check-update" class="mini-btn">检查更新</button><span id="update-result" style="margin-left:8px"></span></div>
+      <div class="modal-section-title"><svg class="ico"><use href="#i-lock"/></svg> 应用锁</div>
+      <label class="check-line"><input id="applock-enable" type="checkbox"> 启用应用锁（4-6 位数字 PIN，启动与切后台回锁）</label>
+      <button id="applock-change" class="mini-btn hidden">修改 PIN</button>
       <div class="modal-section-title"><svg class="ico"><use href="#i-save"/></svg> 数据备份</div>
       <div class="backup-row">
         <button id="data-export" class="mini-btn">导出全部数据（可选加密）</button>
@@ -931,5 +936,8 @@
 <script src="js/theme.js"></script>
 <script src="js/main.js"></script>
 <script src="js/mobile.js"></script>
+<script src="version.js"></script>
+<script src="js/applock.js"></script>
+<script src="js/update-check.js"></script>
 </body>
 </html>
