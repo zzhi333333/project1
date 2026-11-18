@@ -3,8 +3,14 @@
  * 每个场景 = 关键词匹配 + 澄清问题 + 依据回答动态生成的结构化意见
  * result(a) 中 a 为 {问题id: 选项value} 的答案对象
  * ========================================================= */
-/* 法律数据版本标识（法条/场景库更新时同步改号；设置页关于段显示） */
+/* 法律数据版本标识（法条/场景库更新时同步改号；设置页关于段显示——js 填充防 HTML 漂移） */
 window.LEGAL_DATA_VER = "2026.11";
+(function () {
+  try {
+    var el = document.getElementById("legal-data-ver");
+    if (el) el.textContent = "v" + window.LEGAL_DATA_VER;
+  } catch (e) { /* stub 环境无 DOM 静默 */ }
+})();
 
 window.SCENARIOS = [
 

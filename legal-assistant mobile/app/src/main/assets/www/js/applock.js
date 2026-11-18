@@ -7,8 +7,13 @@
 (function () {
   var KEY = "legal-applock";
   var RELOCK_MS = 3 * 60 * 1000; /* 切后台超时回锁：3 分钟 */
-  var S = { enabled: false, salt: "", hash: "", len: 4 };
-  try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+  var S = { enabled: false, salt: "", hash: "", len: 4, failN: 0, failUntil: 0 };
+  /* 白名单赋值（不用 Object.assign：__proto__ 键原型污染面，安全模块收紧） */
+  try {
+    var raw = JSON.parse(localStorage.getItem(KEY) || "{}");
+    S.enabled = !!raw.enabled; S.salt = raw.salt || ""; S.hash = raw.hash || "";
+    S.len = raw.len || 4; S.failN = raw.failN || 0; S.failUntil = raw.failUntil || 0;
+  } catch (e) {}
   function save() { localStorage.setItem(KEY, JSON.stringify(S)); }
 
   function sha(s) {
@@ -62,6 +67,12 @@
       b.textContent = k === "" ? "" : k;
       b.setAttribute("aria-label", k === "" ? "退格" : k);
       b.addEventListener("click", function () {
+        /* 失败冷却拦截（locked 模式）：递增冷却给连续穷举加成本 */
+        if (mode === "locked" && S.failUntil > Date.now()) {
+          buf = ""; draw();
+          err("尝试次数过多，请 " + Math.ceil((S.failUntil - Date.now()) / 1000) + " 秒后再试");
+          return;
+        }
         if (k === "") { buf = buf.slice(0, -1); disarmCommit(); }
         else if (buf.length < 6) { buf += k; }
         draw();
@@ -99,7 +110,11 @@
     disarmCommit();
     buf = "";
     draw();
-    err("");
+    if (m === "locked" && S.failUntil > Date.now()) {
+      err("尝试次数过多，请 " + Math.ceil((S.failUntil - Date.now()) / 1000) + " 秒后再试");
+    } else {
+      err("");
+    }
     var cancelBtn = layer.querySelector("#al-cancel");
     if (cancelBtn) cancelBtn.classList.toggle("hidden", m === "locked");
     layer.querySelector("#al-title").textContent = title || (m === "locked" ? "已锁定" : m === "setup" ? "设置 PIN（4-6 位）" : m === "setup-confirm" ? "再次输入确认" : m === "change-old" ? "输入当前 PIN" : "设置新 PIN（4-6 位）");
@@ -112,8 +127,17 @@
     var pin = buf;
     if (mode === "locked") {
       sha(S.salt + pin).then(function (h) {
-        if (h === S.hash) { hide(); buf = ""; }
-        else { buf = ""; draw(); err("PIN 不正确，请重试"); }
+        if (h === S.hash) {
+          S.failN = 0; S.failUntil = 0; save();
+          hide(); buf = "";
+        } else {
+          /* 失败计数持久化：5 次→30 秒冷却，8 次→5 分钟（轻量穷举成本；清数据即失效边界不变） */
+          S.failN = (S.failN || 0) + 1;
+          S.failUntil = S.failN >= 8 ? Date.now() + 5 * 60 * 1000 : S.failN >= 5 ? Date.now() + 30 * 1000 : 0;
+          save();
+          buf = ""; draw();
+          err(S.failUntil ? "PIN 不正确（已错 " + S.failN + " 次），请 " + Math.ceil((S.failUntil - Date.now()) / 1000) + " 秒后再试" : "PIN 不正确，请重试");
+        }
       }).catch(function (e) { err(e.message); });
     } else if (mode === "setup") {
       if (pin.length < 4) { err("PIN 至少 4 位"); buf = ""; draw(); return; }
