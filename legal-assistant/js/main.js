@@ -4,6 +4,19 @@
 (function () {
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
+  /* 领域 → 求助渠道映射（C3 行动指引化轻量版）：结果卡尾部统一追加，12348 全领域兜底 */
+  var HOPLINE = {
+    labor: "12333（人社热线·劳动监察投诉）",
+    gig: "12333（人社热线）｜12351（工会维权）",
+    jiashi: "12338（妇联维权热线）",
+    minfa: "12345（市民热线）",
+    minsusong: "12345（市民热线·诉讼服务）",
+    zulin: "12345（市民热线·住建投诉）",
+    company: "12345（市民热线·市场监管）",
+    biaozhu: "12315（知识产权/消费投诉）",
+    trade: "12345（商务咨询）"
+  };
+
   /* ---------- 视图切换（C5：hash 路由——刷新保持页签、可分享定位；v3.6.0 工作区独立页） ---------- */
   var views = ["consult", "agent", "contract", "workspace", "laws", "tools", "cases", "faq"];
   function switchView(name) {
@@ -206,6 +219,7 @@
         relatedLinks(scenario) +
         quickFollowUps(rid) +
         '<div class="result-deadline">⏰ <b>时效提示：</b>' + esc(r.deadline) + '</div>' +
+        '<div class="result-deadline" style="margin-top:6px">☎ <b>求助渠道：</b>12348（公共法律服务·法律援助）' + (HOPLINE[scenario.domain] ? "｜" + HOPLINE[scenario.domain] : "") + '</div>' +
         '<div class="result-ai-row">' +
           '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-ai></use></svg> AI 深度解读</button>' +
           '<button class="mini-btn primary deep-btn" data-deep="' + rid + '"><svg class=ico><use href=#i-agent></use></svg> 转深度核验分析</button>' +

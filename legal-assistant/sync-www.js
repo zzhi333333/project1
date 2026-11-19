@@ -23,7 +23,6 @@ const MOBILE_WWW = path.join(WEB_ROOT, "..", "legal-assistant mobile", "app", "s
 const BRANCH_FILES = {
   "js/ai.js": true,        /* 原生网络桥直连 / 流式差异 */
   "js/analysis.js": true,  /* 移动端导出分支 */
-  "js/consult.js": true,   /* 移动端布局分支 */
   "js/main.js": true,      /* 移动端布局/导航分支 */
   "js/online.js": true     /* 传输层整体不同（原生桥 vs 本地代理） */
 };

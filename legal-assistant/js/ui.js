@@ -14,6 +14,9 @@ window.UIKIT = (function () {
       if (old) old.remove();
       var b = document.createElement("div");
       b.id = "uikit-toast";
+      /* 无障碍：warn 用 role=alert（打断播报），其余 status/polite（排队播报）——读屏此前全程静默 */
+      if (kind === "warn") { b.setAttribute("role", "alert"); }
+      else { b.setAttribute("role", "status"); b.setAttribute("aria-live", "polite"); }
       b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:3000;" +
         "padding:9px 16px;border-radius:10px;font-size:13px;max-width:86vw;line-height:1.6;box-shadow:0 6px 24px rgba(0,0,0,.25);" +
         (kind === "warn" ? "background:#2b1c1e;border:1px solid #4a2729;color:#fecaca;"
@@ -25,21 +28,41 @@ window.UIKIT = (function () {
     } catch (e) { }
   }
 
-  /* 危险操作确认（此前原生 confirm / 两段武装按钮 / 零确认三种并存，收敛到统一样式） */
+  /* 危险操作确认（此前原生 confirm / 两段武装按钮 / 零确认三种并存，收敛到统一样式）
+   * 焦点管理：打开聚焦取消键（防误触），Tab 在两键间圈闭，关闭还焦到触发元素 */
   function confirmModal(title, text, okLabel) {
     return new Promise(function (resolve) {
+      var opener = document.activeElement;
       var m = document.createElement("div");
       m.className = "modal";
+      m.setAttribute("role", "dialog");
+      m.setAttribute("aria-modal", "true");
+      m.setAttribute("aria-label", title || "确认操作");
       m.style.zIndex = "2500";
       m.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="width:min(420px,calc(100vw - 40px))">' +
         '<div class="modal-title">' + esc(title || "确认操作") + '</div>' +
         '<div class="modal-body"><div style="font-size:13.5px;line-height:1.8">' + esc(text || "") + '</div></div>' +
         '<div class="modal-foot"><button data-uikit-no>取消</button><button class="primary" data-uikit-yes>' + esc(okLabel || "确认") + '</button></div></div>';
       document.body.appendChild(m);
-      function done(v) { m.remove(); resolve(v); }
+      var noBtn = m.querySelector("[data-uikit-no]");
+      var yesBtn = m.querySelector("[data-uikit-yes]");
+      function done(v) {
+        m.remove();
+        document.removeEventListener("keydown", trap, true);
+        try { if (opener && opener.focus) opener.focus(); } catch (e2) { }
+        resolve(v);
+      }
+      /* Tab 圈闭：焦点只在取消/确认两键间循环 */
+      function trap(e) {
+        if (e.key !== "Tab") return;
+        if (e.shiftKey && document.activeElement === noBtn) { e.preventDefault(); yesBtn.focus(); }
+        else if (!e.shiftKey && document.activeElement === yesBtn) { e.preventDefault(); noBtn.focus(); }
+      }
+      document.addEventListener("keydown", trap, true);
       m.querySelector(".modal-mask").addEventListener("click", function () { done(false); });
-      m.querySelector("[data-uikit-no]").addEventListener("click", function () { done(false); });
-      m.querySelector("[data-uikit-yes]").addEventListener("click", function () { done(true); });
+      noBtn.addEventListener("click", function () { done(false); });
+      yesBtn.addEventListener("click", function () { done(true); });
+      try { noBtn.focus(); } catch (e) { }
     });
   }
 

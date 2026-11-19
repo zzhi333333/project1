@@ -529,7 +529,8 @@ window.AI = (function () {
   function streamBubble(box) {
     var div = document.createElement("div");
     div.className = "msg bot";
-    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-ai></use></svg></div><div class="bubble ai-stream"><span class="ai-text"></span><span class="ai-cursor">▍</span></div>';
+    /* aria-live：读屏播报流式回答（polite 不打断；ai-atomic=false 增量区域）——此前读屏全程静默 */
+    div.innerHTML = '<div class="avatar"><svg class=ico><use href=#i-ai></use></svg></div><div class="bubble ai-stream" aria-live="polite" aria-atomic="false"><span class="ai-text"></span><span class="ai-cursor" aria-hidden="true">▍</span></div>';
     setStopUI(true);
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
