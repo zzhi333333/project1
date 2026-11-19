@@ -187,6 +187,7 @@
           '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-ai></use></svg> AI 深度解读</button>' +
           '<button class="mini-btn primary deep-btn" data-deep="' + rid + '"><svg class=ico><use href=#i-agent></use></svg> 转深度核验分析</button>' +
           '<button class="mini-btn doc-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-file></use></svg> 生成文书</button>' +
+          '<button class="mini-btn ws-save-btn" data-rid="' + rid + '" title="存入当前案件工作区（无案件时自动新建）">存入案件</button>' +
           '<button class="mini-btn ev-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-contract></use></svg> 证据清单</button>' +
           (window.TOOLS ? window.TOOLS.toolBtnForScenario(scenario.id, rid) : "") +
           '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助"><svg class=ico><use href=#i-tup></use></svg></button>' +
@@ -995,6 +996,26 @@
     var fbLike = e.target.closest ? e.target.closest(".fb-like") : null;
     var fbBad = e.target.closest ? e.target.closest(".fb-bad") : null;
     if (fbLike || fbBad) return;   /* 反馈由 bindFeedback 的专属监听处理 */
+    /* 存入案件工作区（v4.0.21）：无激活案件时一键建案——意见卡文本归集到 docs 组 */
+    var wsSave = e.target.closest ? e.target.closest(".ws-save-btn") : null;
+    if (wsSave) {
+      var entry0 = (window.AI_RESULTS || [])[parseInt(wsSave.getAttribute("data-rid"), 10)] || {};
+      var r0 = entry0.r || {};
+      var title0 = (entry0.name || "咨询意见").slice(0, 30);
+      var body0 = "【咨询意见】" + title0 + "\n结论：" + (r0.summary || "") + "\n【具体分析】\n" + (r0.analysis || []).map(function (x) { return "· " + x; }).join("\n") + "\n【行动建议】\n" + (r0.advice || []).map(function (x) { return "· " + x; }).join("\n") + "\n【时效提示】" + (r0.deadline || "") + "\n（生成于 " + new Date().toLocaleDateString("zh-CN") + "）";
+      var entryWs = { name: "咨询意见：" + title0, date: new Date().toISOString().slice(0, 10), draft: body0.slice(0, 4000) };
+      if (!window.WORKSPACE || !window.WORKSPACE.current()) {
+        window.WORKSPACE.create(title0);
+        window.WORKSPACE.attach("docs", entryWs);
+        wsSave.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已新建案件并存入";
+      } else {
+        window.WORKSPACE.attach("docs", entryWs);
+        wsSave.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已存入案件工作区";
+      }
+      wsSave.disabled = true;
+      setTimeout(function () { wsSave.disabled = false; wsSave.textContent = "存入案件"; }, 2200);
+      return;
+    }
     var btn = e.target.closest ? e.target.closest(".doc-btn") : null;
     if (!btn) return;
     var entry = (window.AI_RESULTS || [])[parseInt(btn.getAttribute("data-rid"), 10)];

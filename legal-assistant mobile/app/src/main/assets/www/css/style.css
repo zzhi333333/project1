@@ -864,6 +864,7 @@ html:not([data-theme]), html[data-theme=""] { --seal: #b03a2e; }
 :root[data-theme="dark"] { --seal: #e08573; }
 :root, html[data-theme="warm"] { --font-serif: "BrandSerif", Georgia, "Noto Serif SC", "Source Han Serif SC", serif; }
 html[data-fontscale="large"] { zoom: 1.15; }
+html[data-fontscale="large2"] { zoom: 1.3; }   /* v4.0.21 特大档 */
 :root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-theme="dark"]) {

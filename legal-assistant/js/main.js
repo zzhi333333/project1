@@ -210,6 +210,7 @@
           '<button class="mini-btn primary result-ai-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-ai></use></svg> AI 深度解读</button>' +
           '<button class="mini-btn primary deep-btn" data-deep="' + rid + '"><svg class=ico><use href=#i-agent></use></svg> 转深度核验分析</button>' +
           '<button class="mini-btn doc-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-file></use></svg> 生成文书</button>' +
+          '<button class="mini-btn ws-save-btn" data-rid="' + rid + '" title="存入当前案件工作区（无案件时自动新建）">存入案件</button>' +
           '<button class="mini-btn ev-btn" data-rid="' + rid + '"><svg class=ico><use href=#i-contract></use></svg> 证据清单</button>' +
           (window.TOOLS ? window.TOOLS.toolBtnForScenario(scenario.id, rid) : "") +
           '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助"><svg class=ico><use href=#i-tup></use></svg></button>' +
@@ -872,6 +873,23 @@
     /* TTS 朗读按钮（v4.0.21）：再点停止 */
     var ttsBtn = div.querySelector(".tts-btn");
     if (ttsBtn) ttsBtn.addEventListener("click", function () { speakCard(div); });
+    /* 存入案件工作区（v4.0.21）：无激活案件时一键建案——意见卡文本归集到 docs 组 */
+    var wsSave = div.querySelector(".ws-save-btn");
+    if (wsSave) wsSave.addEventListener("click", function () {
+      var title = (scenario.name || "咨询意见").slice(0, 30);
+      var body = "【咨询意见】" + title + "\n结论：" + (r.summary || "") + "\n【具体分析】\n" + (r.analysis || []).map(function (x) { return "· " + x; }).join("\n") + "\n【行动建议】\n" + (r.advice || []).map(function (x) { return "· " + x; }).join("\n") + "\n【时效提示】" + (r.deadline || "") + "\n（生成于 " + new Date().toLocaleDateString("zh-CN") + "）";
+      var entry = { name: "咨询意见：" + title, date: new Date().toISOString().slice(0, 10), draft: body.slice(0, 4000) };
+      if (!window.WORKSPACE || !window.WORKSPACE.current()) {
+        window.WORKSPACE.create(title);
+        window.WORKSPACE.attach("docs", entry);
+        wsSave.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已新建案件并存入";
+      } else {
+        window.WORKSPACE.attach("docs", entry);
+        wsSave.innerHTML = "<svg class=ico><use href=#i-checkc></use></svg> 已存入案件工作区";
+      }
+      wsSave.disabled = true;
+      setTimeout(function () { wsSave.disabled = false; wsSave.textContent = "存入案件"; }, 2200);
+    });
     var like = div.querySelector(".fb-like");
     var bad = div.querySelector(".fb-bad");
     if (!like || !bad) return;

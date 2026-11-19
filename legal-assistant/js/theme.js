@@ -25,7 +25,7 @@
   function applyFont(fs) {
     var de = document.documentElement;
     if (!de) return;
-    if (fs === "large") de.setAttribute("data-fontscale", "large");
+    if (fs) de.setAttribute("data-fontscale", fs);   /* v4.0.21：任意档位（large=1.15 / large2=1.3 特大） */
     else de.removeAttribute("data-fontscale");
   }
   function get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }

@@ -1022,7 +1022,7 @@ T("检索别名：无别名词不误扩（「竞业限制」正常检索且 last
 });
 section("AI 体验纵深测试（js/ai.js P1/P2 · js/history.js P4/P5）");
 vm.runInContext(fs.readFileSync(path.join(root, "js", "history.js"), "utf8"), sandbox, { filename: "js/history.js" });
-T("P1 trimHistory：字符预算内从新到旧保留且至少保留一对", function () {
+T("P1 trimHistory：预算截断→摘要行置顶+最近一对保留（v4.0.21 摘要压缩）", function () {
   const th = sandbox.window.AI.trimHistory;
   const hist = [
     { role: "user", content: "a".repeat(100) },
@@ -1031,8 +1031,10 @@ T("P1 trimHistory：字符预算内从新到旧保留且至少保留一对", fun
     { role: "assistant", content: "d".repeat(100) }
   ];
   const out = th(hist, 250);
-  if (out.length !== 2) throw new Error("预算 250 应只保留最近一对：" + out.length);
-  if (out[0].content[0] !== "c") throw new Error("保留错误：应为最新的 c/d 对");
+  if (out.length !== 3) throw new Error("预算 250 应为摘要行+最近一对共 3 条：" + out.length);
+  if (out[0].content.indexOf("【此前对话摘要】") !== 0) throw new Error("首条应为摘要行");
+  if (out[1].content[0] !== "c") throw new Error("摘要后应为最新的 c/d 对");
+  if (out[0].content.indexOf("a") === -1) throw new Error("摘要应含被挤出轮次要点");
   if (th(hist, 99999).length !== 4) throw new Error("宽预算应全保留");
 });
 T("P2 restoreFromTranscript：按会话消息重建 AI 记忆（user/ai 成对）", function () {

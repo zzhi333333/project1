@@ -702,13 +702,34 @@ window.AI = (function () {
     var base = (PROVIDERS[S.provider] && PROVIDERS[S.provider].ctxChars) || 12000;
     return Math.floor(base * 0.5);
   }
+  /* 会话摘要压缩（v4.0.21）：预算截断时把被挤出的成对问答压成「结论句+要点」摘要行置顶，
+     替代直接丢弃——长会话早期结论不失忆；摘要只摘原文明示内容（规则版，无模型依赖） */
+  function summarizeTurn(role, content) {
+    var c = String(content || "").replace(/\s+/g, " ").trim();
+    if (!c) return "";
+    var sent = c.split(/[。！？\n]/).filter(function (x) { return x.length > 8; });
+    var head = sent.slice(0, 3).join("。");
+    if (head.length > 200) head = head.slice(0, 200);
+    return "（此前" + (role === "user" ? "用户问题要点" : "回答要点") + "：" + head + "）";
+  }
   function trimHistory(hist, budget) {
-    var out = [], used = 0;
+    var out = [], used = 0, dropped = [];
     for (var i = hist.length - 1; i >= 0; i--) {
       var c = String(hist[i] && hist[i].content || "");
-      if (used + c.length > budget && out.length >= 2) break;   /* 至少保留最近一对问答 */
+      if (used + c.length > budget && out.length >= 2) {
+        dropped.unshift(hist[i]);   /* 被挤出的轮次按序收集 */
+        continue;
+      }
       used += c.length;
       out.unshift(hist[i]);
+    }
+    if (dropped.length) {
+      var sums = [];
+      for (var d = 0; d < dropped.length; d++) {
+        var s = summarizeTurn(dropped[d] && dropped[d].role, dropped[d] && dropped[d].content);
+        if (s) sums.push(s);
+      }
+      if (sums.length) out.unshift({ role: "user", content: "【此前对话摘要】" + sums.join("\n") });
     }
     return out;
   }
