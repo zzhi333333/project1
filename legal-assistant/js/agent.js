@@ -44,7 +44,8 @@ window.AGENT = (function () {
     return total + section + num;
   }
   function normLaw(name) {
-    return String(name || "").replace(/[《》\s]/g, "").replace(/中华人民共和国/g, "");
+    /* 版本号段（全角/半角括号）一并剥离——laws.js 标注「（2012修正）」后仍能与 flk 缓存 title「(2012修正)」互认 */
+    return String(name || "").replace(/[《》\s]/g, "").replace(/中华人民共和国/g, "").replace(/[（(][^（）()]*[）)]/g, "");
   }
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 

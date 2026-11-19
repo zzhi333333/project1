@@ -468,7 +468,7 @@ head("资料时效门禁（reviewedAt / 节假日表年份覆盖）");
   try { limTxt = fs.readFileSync(path.join(root, "js", "limitation.js"), "utf8"); } catch (e) { bad("limitation.js 不可读"); return; }
   var y = String(new Date().getFullYear());
   if (new RegExp('"' + y + '"\\s*:\\s*\\[').test(limTxt)) ok(y + " 年法定节假日表已收录");
-  else warn(y + " 年法定节假日表未收录——时效顺延仅按周末近似（宁少勿错），请对照国务院办公厅通知补充 limitation.js HOLIDAY/WORKDAY");
+  else bad(y + " 年法定节假日表未收录——时效顺延将退化为仅周末判断，会算错法定节假日顺延（已连续两年漏补），必须补齐 limitation.js HOLIDAY/WORKDAY 后重新构建");
 })();
 
 /* ---------- 淘汰色残留扫描（防回归：旧靛蓝系/teal/v1 暗金在 UI 文件应清零；现役金系 #8a6a1f/#e4c88f/#d8b57a 与域语义色除外） ---------- */

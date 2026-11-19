@@ -653,6 +653,57 @@ T("检查更新改造：跳转发布页机制在位、假横幅机制已拆除",
   const csrc = fs.readFileSync(path.join(__dirname, "check.js"), "utf8");
   void csrc; /* check.js 版本链九处对齐仍覆盖 version.js——与跳转改造无冲突 */
 });
+/* 非AI模式身份应答（2026-11-19 需求：关 AI 问名字答不出——consult.js 关键词引擎无身份意图） */
+T("非AI模式身份应答：consult.js 含身份意图前置拦截（双端）", function () {
+  const fs2 = require("fs");
+  const paths = [path.join(__dirname, "js", "consult.js"), path.join(__dirname, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js", "consult.js")];
+  for (const p of paths) {
+    const src = fs2.readFileSync(p, "utf8");
+    if (src.indexOf("獬小豸") === -1) throw new Error(p + " 非AI模式未注入獬小豸身份");
+    if (src.indexOf("isIdentityQuestion") === -1) throw new Error(p + " 缺身份意图识别函数");
+  }
+});
+T("身份拦截不误伤法律问题（vm 沙箱实测）", function () {
+  const vm = require("vm");
+  const fs2 = require("fs");
+  const src = fs2.readFileSync(path.join(__dirname, "js", "consult.js"), "utf8");
+  const m = src.match(/function isIdentityQuestion[\s\S]*?\n  \}/);
+  if (!m) throw new Error("isIdentityQuestion 未找到");
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(m[0] + "\n;__f = isIdentityQuestion;", ctx);
+  const f = ctx.__f;
+  ["你叫什么名字", "你是谁", "您是谁", "你是AI吗", "你是机器人吗", "你是ChatGPT吗", "介绍一下你自己", "你的名字是什么", "你是AI助手吗"].forEach(function (q) {
+    if (!f(q)) throw new Error("应识别为身份询问但未命中：" + q);
+  });
+  ["公司名字能随便起吗", "我被人打了叫什么名字的罪", "劳动合同到期不续签有补偿吗", "你们公司叫什么名字", "公司让你的名字出现在合同里怎么办", "你被公司辞退了怎么办"].forEach(function (q) {
+    if (f(q)) throw new Error("误判为身份询问（法律问题被吃掉）：" + q);
+  });
+});
+T("2026 法定节假日表已收录（双端 limitation.js）", function () {
+  const fs2 = require("fs");
+  const paths = [path.join(__dirname, "js", "limitation.js"), path.join(__dirname, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "js", "limitation.js")];
+  for (const p of paths) {
+    const src = fs2.readFileSync(p, "utf8");
+    if (src.indexOf('"2026"') === -1) throw new Error(p + " 缺 2026 节假日表");
+    if (src.indexOf("2026-10-01") === -1 || src.indexOf("2026-10-07") === -1) throw new Error(p + " 2026 国庆数据不完整");
+    if (src.indexOf("2026-10-10") === -1) throw new Error(p + " 2026 调休补班日缺失");
+  }
+});
+T("gig 新就业形态领域注册在位（双端 gig.js + index script + DOMAIN_SVG）", function () {
+  const fs2 = require("fs");
+  const roots = [__dirname, path.join(__dirname, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www")];
+  for (const root of roots) {
+    const gig = fs2.readFileSync(path.join(root, "js", "domains", "gig.js"), "utf8");
+    if (gig.indexOf('id: "gig"') === -1) throw new Error(root + " gig.js 未注册");
+    if (gig.indexOf("gig-injury") === -1 || gig.indexOf("gig-nosign") === -1) throw new Error(root + " gig 场景缺失");
+    const idx = fs2.readFileSync(path.join(root, "index.html"), "utf8");
+    if (idx.indexOf("js/domains/gig.js") === -1) throw new Error(root + " index.html 未挂载 gig.js");
+    const reg = fs2.readFileSync(path.join(root, "js", "registry.js"), "utf8");
+    if (reg.indexOf('gig: "i-d-labor"') === -1) throw new Error(root + " DOMAIN_SVG 缺 gig 映射");
+  }
+});
+
 
 /* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */
 section("技能注入预算测试（fold/预算管理）");

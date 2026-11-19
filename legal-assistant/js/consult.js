@@ -37,11 +37,35 @@
     return list.filter(function (x) { return x.score >= 1.5; }).map(function (x) { return x.s; });
   }
 
+  /* ---------- 身份/问候意图识别（非 AI 模式的社交应答）：只处理「问名字/问身份」窄场景，不做通用闲聊 ----------
+   * 不进 DomainRegistry 关键词表——关键词参与领域加权投票，塞「名字」会污染法律领域分数
+   * （「公司名字能随便起吗」会被误判成身份询问）。前置拦截 + 直接 return 是唯一干净做法。 */
+  function isIdentityQuestion(t) {
+    var s = (t || "").replace(/[\s，。？！、,.?!~]/g, "");
+    if (/你(是谁|叫什么|叫啥|是哪位)|您(是谁|叫什么|叫啥|是哪位)/.test(s)) return true;
+    /* 「你的名字」单独短句才算身份询问——法律语境（「公司让你的名字出现在合同里」）会被整句误吃 */
+    if (s.length <= 12 && /你(的)?名字|您(的)?名字/.test(s)) return true;
+    if (/介绍一下(你|您)自己|自我介绍/.test(s)) return true;
+    if (/你是(什么|啥)(AI|ai|机器人|助手|程序|软件|模型)/.test(s)) return true;
+    if (/你是(AI|ai|机器人|真人|人类|模型|ChatGPT|chatgpt|GPT|gpt)/.test(s)) return true;
+    return false;
+  }
+
   /* ---------- 对外接口 ---------- */
   function startConsult(text) {
     text = (text || "").trim();
     if (!text) return;
     UI.appendUser(text);
+    /* 身份意图前置拦截（非 AI 模式也能自报「獬小豸」） */
+    if (isIdentityQuestion(text)) {
+      UI.appendBot(
+        "我是<b>獬小豸</b>，您的法律咨询助手。<br>" +
+        "我可以帮您梳理劳动争议、公司法、专利等法律问题，给出分析 + 法条 + 行动建议。<br>" +
+        "请描述您遇到的情况，从左侧「快捷咨询」的场景开始也可以。",
+        null
+      );
+      return;
+    }
     var cls = classifyDomain(text);
     var matches = matchScenarios(text, cls.domain);
 
