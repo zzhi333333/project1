@@ -162,6 +162,25 @@
     });
   }
 
+  /* TTS 朗读（v4.0.21）：意见卡系统语音朗读（speechSynthesis 零依赖离线）——
+     跳过 svg/徽标取纯文本；再点停止；无 TTS 引擎（部分国产 ROM）降级提示 */
+  function speakCard(div) {
+    if (!window.speechSynthesis) {
+      if (window.UIKIT && window.UIKIT.toast) window.UIKIT.toast("当前环境不支持语音朗读");
+      return;
+    }
+    if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+    var parts = [];
+    var title = div.querySelector(".result-title");
+    if (title) parts.push(title.textContent);
+    div.querySelectorAll(".result-section").forEach(function (s) { parts.push(s.textContent); });
+    var dl = div.querySelector(".result-deadline");
+    if (dl) parts.push(dl.textContent);
+    var u = new SpeechSynthesisUtterance(parts.join("。").slice(0, 1800));
+    u.lang = "zh-CN"; u.rate = 0.95;
+    speechSynthesis.speak(u);
+  }
+
   function appendResult(scenario, r, answers, transcript) {
     var d = window.DOMAINS[scenario.domain];
     /* 注册结果供 AI 深度解读 / 文书生成 / 深度核验跳转使用 */
@@ -195,6 +214,7 @@
           (window.TOOLS ? window.TOOLS.toolBtnForScenario(scenario.id, rid) : "") +
           '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助"><svg class=ico><use href=#i-tup></use></svg></button>' +
           '<button class="mini-btn fb-bad" data-rid="' + rid + '" title="需改进"><svg class=ico><use href=#i-tdn></use></svg></button>' +
+          '<button class="mini-btn tts-btn" data-rid="' + rid + '" title="朗读此分析（再点停止）">朗读</button>' +
           '<button class="mini-btn print-card-btn" data-rid="' + rid + '" title="打印此分析"><svg class=ico><use href=#i-print></use></svg></button>' +
           '<span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span>' +
         '</div>' +
@@ -849,6 +869,9 @@
     } catch (e) { /* 存储失败静默 */ }
   }
   function bindFeedback(div, rid) {
+    /* TTS 朗读按钮（v4.0.21）：再点停止 */
+    var ttsBtn = div.querySelector(".tts-btn");
+    if (ttsBtn) ttsBtn.addEventListener("click", function () { speakCard(div); });
     var like = div.querySelector(".fb-like");
     var bad = div.querySelector(".fb-bad");
     if (!like || !bad) return;

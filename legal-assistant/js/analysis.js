@@ -538,6 +538,16 @@ window.ANALYSIS = (function () {
     var cls = window.CONSULT.classify(text);
     var domain = cls.domain || domainHint || "labor";
     var tokens = tokenize(text);
+    /* v4.0.21：别名扩展接入——口语词（N+1/撤三/砍头息等）的规范词并入打分 token，提升法条命中 */
+    try {
+      if (window.LAWSEARCH && window.LAWSEARCH.expandAlias) {
+        var ex = window.LAWSEARCH.expandAlias(text);
+        for (var ei = 0; ei < ex.expansions.length; ei++) {
+          var exTokens = tokenize(ex.expansions[ei]);
+          for (var ti = 0; ti < exTokens.length; ti++) tokens.push(exTokens[ti]);
+        }
+      }
+    } catch (e) { }
     var scenarios = topScenarios(text, domain, 2);
     var laws = topLaws(text, tokens, scenarios, domain, 5);
     var cases = topCases(text, domain, 2);

@@ -192,11 +192,16 @@ window.AGENT = (function () {
   }
 
   /* 综合核验：三级制 —— ①来源可定位(tier1) ②原文已核对(tier2) ③结论支持（数字断言） */
-  function verifyText(answerText, ctxText, fullTexts) {
+  function verifyText(answerText, ctxText, fullTexts, userText) {
     var cits = parseCitations(answerText);
     var citResults = cits.map(function (c) {
       var v = verifyLocal(c);
-      if ((!v || v.status !== "ok") && fullTexts) {
+      /* v4.0.21 用户粘贴条文标注（堵核验盲区）：引用未命中本地/官方库，但法名出现在用户粘贴的
+         案情/材料中 → 标 status="user"（annotate 渲染「用户提供·未核实」，不冒充已核验） */
+      if ((!v || v.status !== "ok") && userText && userText.indexOf(c.law) > -1) {
+        v = { status: "user", law: c.law, text: "" };
+      }
+      if ((!v || v.status === "fail") && fullTexts) {
         var o = verifyOnline(c, fullTexts);
         if (o) v = o;
       }
@@ -251,6 +256,9 @@ window.AGENT = (function () {
       } else if (r.status === "law-only") {
         badge = " <svg class=ico><use href=#i-warn></use></svg>"; cls = "cite-warn";
         tip = "仅定位到该法律，未能定位到该条文号——请核对条文号是否准确";
+      } else if (r.status === "user") {
+        badge = " <svg class=ico><use href=#i-warn></use></svg>"; cls = "cite-warn";
+        tip = "用户提供的条文（出现在您粘贴的案情/材料中）——未经官方文本核实，请以官方最新文本为准";
       } else {
         badge = " <svg class=ico><use href=#i-warn></use></svg>"; cls = "cite-warn";
         tip = "未能核实该引用，请到法条检索页人工确认";
@@ -365,7 +373,7 @@ window.AGENT = (function () {
     "你是 AI 法律助手「獬小豸」（产品名「法律咨询助手」），用户问名字时答「我是獬小豸，您的法律咨询助手」。服务领域：" + agentDomainText() + "。你必须严格遵守以下「可核验性」规则：\n" +
     "1. 只能依据【资料区】提供的法条原文、案例要点和用户案情作答；【资料区】未涵盖的问题，明确回答「本工具资料未涵盖该问题，建议查询国家法律法规数据库或官方来源并咨询执业律师」，不得凭训练记忆猜测。\n" +
     "2. 引用法条必须使用《法律名》第X条的完整格式，且该法条必须出现在【资料区】中；严禁引用【资料区】之外的任何法条、司法解释、条例。\n" +
-    "3. 涉及期限（多少日/月/年）、比例（百分之X）、金额、机关名称的表述，只能来自【资料区】或用户案情原文；资料区没有的数字一律不得出现，也不得换算编造。\n" +
+    "3. 涉及期限（多少日/月/年）、比例（百分之X）、金额、机关名称的表述，只能来自【资料区】或用户案情原文；资料区没有的数字一律不得出现。例外：赔偿金额等可由资料区/案情数字经算术运算得出的结果，必须列出算式并配合【计算请求】行调用内置计算器复核（见第 8 条），不得无依据换算或编造。\n" +
     "4. 严禁编造案例名称、案号、政策文件名、统计数据。\n" +
     "5. 对不确定的事实，明确标注「需核实」。\n" +
     "6. 回答结构（律师意见书式）：\n" +
@@ -375,7 +383,8 @@ window.AGENT = (function () {
     "  ④ 对方抗辩预案：给出对方可能的 2–3 个抗辩及我方应对与所需反驳证据（若用户为被主张方则给出我方抗辩思路）。\n" +
     "  ⑤ 行动建议 → 时效提醒 → 末尾注明「以上仅供参考，不构成法律意见」。\n" +
     "你的回答将被程序逐条核验引用与数字，未核实内容会被标注并要求重新生成，请确保每一句法律断言都有资料区依据。\n" +
-    "7. 范围边界：仅回答与法律相关的问题（法律咨询、法条、程序、维权、证据、文书、赔偿与时效计算等）；与法律无关的问题（闲聊、纯数学/科学/编程题、医疗、历史、娱乐等）不回答其内容本身，也不延伸相关知识，按固定话术拒绝：「这个问题超出了法律咨询的范围——本助手只解答法律问题。您可以换个法律问题问我，例如：工资被拖欠怎么办？租房押金不退如何维权？离婚财产怎么分割？」法律相关的数字计算（如赔偿金额、时效天数）属于法律问题，应正常作答。";
+    "7. 范围边界：仅回答与法律相关的问题（法律咨询、法条、程序、维权、证据、文书、赔偿与时效计算等）；与法律无关的问题（闲聊、纯数学/科学/编程题、医疗、历史、娱乐等）不回答其内容本身，也不延伸相关知识，按固定话术拒绝：「这个问题超出了法律咨询的范围——本助手只解答法律问题。您可以换个法律问题问我，例如：工资被拖欠怎么办？租房押金不退如何维权？离婚财产怎么分割？」法律相关的数字计算（如赔偿金额、时效天数）属于法律问题，应正常作答。\n" +
+    "8. 赔偿金额计算协议：需要给出经济补偿/赔偿金等金额结论时，在正文之前输出一行【计算请求】（格式：计算项id|参数名=数值|…，可多行），系统会用内置计算器实算并把结果标注在你的回答下方，你的正文金额必须与实算一致。可用计算项：severance2n（违法解除 2N，参数 salary=月工资、years=年限）、severanceN（经济补偿 N，salary、years）、doublewage（未签合同二倍工资，salary、months 月数≤11）、overtime（加班费，salary、wd 延时小时、we 休息日小时、hd 节假日小时）、annual（未休年假 200%，salary、days 天数）、arrears（拖欠工资，amount 金额）。示例：【计算请求】severance2n|salary=10000|years=3";
 
   function buildContextBlock(q, c) {
     var s = "\n\n【用户案情/问题】\n" + q;
@@ -654,6 +663,32 @@ window.AGENT = (function () {
   ];
   function round2(n) { return Math.round(n * 100) / 100; }
   function fmt(n) { var v = parseFloat(n); return isFinite(v) ? v.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) : "0"; }
+
+  /* 工具调用校验档（v4.0.21）：扫描 AI 输出的【计算请求】行 → ARBITRATION_ITEMS 内置计算器实算
+     → 与正文后 260 字内金额比对 → verified 卡底部标注 ✓一致/⚠请核对。解析失败不阻断渲染。 */
+  function appendToolCheck(container, full) {
+    var re = /【计算请求】\s*([a-zA-Z0-9]+)\s*\|([^】\n]+)】?/g;
+    var m;
+    while ((m = re.exec(full))) {
+      var item = null;
+      for (var i = 0; i < ARBITRATION_ITEMS.length; i++) { if (ARBITRATION_ITEMS[i].id === m[1]) { item = ARBITRATION_ITEMS[i]; break; } }
+      if (!item) continue;
+      var p = {};
+      m[2].split("|").forEach(function (kv) { var eq = kv.indexOf("="); if (eq > 0) p[kv.slice(0, eq).trim()] = kv.slice(eq + 1).trim(); });
+      var result = item.calc(p), formula = item.formula(p);
+      var tail = full.slice(m.index + m[0].length, m.index + m[0].length + 260);
+      var nums = tail.match(/[\d,，]+\s*(?:元|万元)/g) || [];
+      var matched = false;
+      for (var j = 0; j < nums.length; j++) {
+        var num = parseFloat(nums[j].replace(/[^\d.]/g, ""));
+        if (!isFinite(num)) continue;
+        if (Math.abs(num - result) < 1) { matched = true; break; }
+        if (nums[j].indexOf("万") > -1 && Math.abs(num * 10000 - result) < 100) { matched = true; break; }
+      }
+      container.insertAdjacentHTML("beforeend",
+        '<div class="tool-check ' + (matched ? "tool-ok" : "tool-warn") + '">⚙ 实算复核（' + esc(item.name) + "）：" + esc(formula) + " = <b>" + esc(fmt(result)) + "</b> 元" + (matched ? "，与回答金额一致 ✓" : "——回答中未检出一致金额，请以本实算为准并核对") + "</div>");
+    }
+  }
 
   function openArbitrationList() {
     var old = document.getElementById("arb-list-modal");
@@ -1115,12 +1150,13 @@ window.AGENT = (function () {
         return;
       }
       stepState(2, "run", "正在逐条核验引用与数字断言…");
-      var v = verifyText(gen.text, lastRun.ctxText, lastRun.fullTexts);
+      var v = verifyText(gen.text, lastRun.ctxText, lastRun.fullTexts, lastRun.q);
       stepState(2, v.allOk ? "done" : "warn",
         v.totalCitations + " 条引用核实 " + v.verifiedCount + " 条" + (v.flaggedNumbers ? "；" + v.flaggedNumbers + " 项数字待核实" : ""));
       /* 用标注版替换纯文本（多轮引用可见性随渲染保留：3.2 半采纳项） */
       var html = annotate(gen.text, v);
       els.answer.innerHTML = (gen.note || "") + '<div class="msg bot" style="max-width:100%">' + agentFace(4) + '<div class="bubble ai-stream verified" style="flex:1">' + html + "</div></div>";
+      appendToolCheck(els.answer.querySelector(".bubble.ai-stream") || els.answer, gen.text);
       if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
       highlightFacts(els.answer);
       renderPanel(v, gen.text);
@@ -1192,7 +1228,7 @@ window.AGENT = (function () {
 
   function strictRegenerate() {
     if (!lastRun) return;
-    var v = verifyText(els.answer.innerText, lastRun.ctxText, lastRun.fullTexts);
+    var v = verifyText(els.answer.innerText, lastRun.ctxText, lastRun.fullTexts, lastRun.q);
     var badList = v.citations.filter(function (x) { return x.status !== "ok"; }).map(function (x) { return "《" + x.cit.law + "》" + (x.cit.articleNum != null ? "第" + x.cit.articleNum + "条" : ""); });
     var badNums = v.numbers.filter(function (x) { return !x.ok; }).map(function (x) { return x.claim.raw; });
     var warn = "你上一次回答中以下内容未能通过程序核验：引用 " + (badList.join("、") || "无") + "；数字断言 " + (badNums.join("、") || "无") +
@@ -1212,7 +1248,7 @@ window.AGENT = (function () {
       .then(function () {
         if (myToken !== runToken) return;
         stepState(1, "done", "严格模式生成完毕");
-        var v2 = verifyText(full, lastRun.ctxText, lastRun.fullTexts);
+        var v2 = verifyText(full, lastRun.ctxText, lastRun.fullTexts, lastRun.q);
         stepState(2, v2.allOk ? "done" : "warn", v2.totalCitations + " 条引用核实 " + v2.verifiedCount + " 条" + (v2.flaggedNumbers ? "；" + v2.flaggedNumbers + " 项数字待核实" : ""));
         /* 方案 A 一致性收口（外部审核发现）：严格模式是对同一问题的修正——
            替换 agentHistory 最后一组 assistant（避免同一问题残留两份矛盾回答），
@@ -1222,6 +1258,7 @@ window.AGENT = (function () {
           lastRun = Object.assign({}, lastRun, { messages: messages });
         }
         els.answer.innerHTML = '<div class="msg bot" style="max-width:100%">' + agentFace(4) + '<div class="bubble ai-stream verified" style="flex:1">' + annotate(full, v2) + "</div></div>";
+        appendToolCheck(els.answer.querySelector(".bubble.ai-stream") || els.answer, full);
         if (window.GLOSSARY && window.GLOSSARY.highlight) window.GLOSSARY.highlight(els.answer);
         highlightFacts(els.answer);
         renderPanel(v2, full);

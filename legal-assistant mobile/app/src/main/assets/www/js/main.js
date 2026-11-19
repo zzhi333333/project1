@@ -140,6 +140,24 @@
     });
   }
 
+  /* TTS 朗读（v4.0.21）：意见卡系统语音朗读——再点停止；无 TTS 引擎降级提示 */
+  function speakCard(div) {
+    if (!window.speechSynthesis) {
+      if (window.UIKIT && window.UIKIT.toast) window.UIKIT.toast("当前环境不支持语音朗读");
+      return;
+    }
+    if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+    var parts = [];
+    var title = div.querySelector(".result-title");
+    if (title) parts.push(title.textContent);
+    div.querySelectorAll(".result-section").forEach(function (s) { parts.push(s.textContent); });
+    var dl = div.querySelector(".result-deadline");
+    if (dl) parts.push(dl.textContent);
+    var u = new SpeechSynthesisUtterance(parts.join("。").slice(0, 1800));
+    u.lang = "zh-CN"; u.rate = 0.95;
+    speechSynthesis.speak(u);
+  }
+
   function appendResult(scenario, r, answers, transcript) {
     var d = window.DOMAINS[scenario.domain];
     /* 注册结果供 AI 深度解读 / 文书生成 / 深度核验跳转使用 */
@@ -173,6 +191,7 @@
           (window.TOOLS ? window.TOOLS.toolBtnForScenario(scenario.id, rid) : "") +
           '<button class="mini-btn fb-like" data-rid="' + rid + '" title="有帮助"><svg class=ico><use href=#i-tup></use></svg></button>' +
           '<button class="mini-btn fb-bad" data-rid="' + rid + '" title="需改进"><svg class=ico><use href=#i-tdn></use></svg></button>' +
+          '<button class="mini-btn tts-btn" data-rid="' + rid + '" title="朗读此分析（再点停止）">朗读</button>' +
           '<button class="mini-btn print-card-btn" data-rid="' + rid + '" title="打印此分析"><svg class=ico><use href=#i-print></use></svg></button>' +
           '<span class="result-disclaimer">仅供参考，不构成法律意见 · 完整声明见页脚</span>' +
         '</div>' +
@@ -957,6 +976,13 @@
     if (evBtn) {
       var evEntry = (window.AI_RESULTS || [])[parseInt(evBtn.getAttribute("data-rid"), 10)];
       if (evEntry) openEvidenceModal(evEntry);
+      return;
+    }
+    /* TTS 朗读按钮（v4.0.21）：委托到 speakCard（closest 找所在意见卡消息） */
+    var ttsBtn = e.target.closest ? e.target.closest(".tts-btn") : null;
+    if (ttsBtn) {
+      var ttsMsg = ttsBtn.closest(".msg");
+      if (ttsMsg) speakCard(ttsMsg);
       return;
     }
     var pBtn = e.target.closest ? e.target.closest(".print-card-btn") : null;

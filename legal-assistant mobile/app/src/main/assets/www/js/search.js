@@ -193,6 +193,7 @@
   window.LAWSEARCH = {
     refreshNow: function () { if (_refresh) _refresh(); },
     search: search,   /* 评测与外部调用（test.js 别名金问题） */
+    expandAlias: expandAlias,   /* v4.0.21：AI matchContext 同源别名扩展（口语词→规范词命中法条） */
     init: function () {
       var input = document.getElementById("law-search-input");
       var btn = document.getElementById("law-search-btn");

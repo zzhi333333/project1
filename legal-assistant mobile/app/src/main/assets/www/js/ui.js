@@ -79,5 +79,16 @@ window.UIKIT = (function () {
     if (wr) wr.addEventListener("click", showWelcomeGuide);
   } catch (e) { }
 
+  /* splash 可跳过（v4.0.21）：点击启动页任意处提前淡出——老用户不必等满 8 秒；
+     pointer-events 已在 css 开为 auto，淡出后 forwards visibility:hidden 不挡主界面 */
+  try {
+    var sk = document.getElementById("splash");
+    if (sk) sk.addEventListener("click", function () {
+      sk.style.transition = "opacity .35s ease";
+      sk.style.opacity = "0";
+      setTimeout(function () { sk.style.visibility = "hidden"; }, 380);
+    });
+  } catch (e) { }
+
   return { toast: toast, confirmModal: confirmModal, bindModalBasics: bindModalBasics, showWelcomeGuide: showWelcomeGuide };
 })();

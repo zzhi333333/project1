@@ -376,7 +376,8 @@ window.AI = (function () {
     "⑥同一问题存在多种解释或法律路径时，用条件分支表述——「若 A 情形则…；若 B 情形则…」，不要擅自替用户选定事实；" +
     "⑦回答正文之后，另起一行输出推荐追问（严格格式，不要加其他文字）：「【推荐追问】问题1｜问题2｜问题3」——3 个针对本次回答内容的具体追问，必须贴合用户当前问题与回答（如工伤咨询就追问工伤认定/待遇/停工留薪期，不要给无关领域的通用问题）；" +
     "⑧范围边界：你只回答与法律相关的问题（法律咨询、法条解读、诉讼与仲裁程序、维权路径、证据与文书、赔偿金额与时效计算等）。与法律无关的问题（闲聊、纯数学/科学/编程题、医疗、历史、娱乐等）一律不要回答其内容本身，也不要延伸任何相关知识，按以下固定话术拒绝：「这个问题超出了法律咨询的范围——本助手只解答法律问题。您可以换个法律问题问我，例如：工资被拖欠怎么办？租房押金不退如何维权？离婚财产怎么分割？」注意：法律相关的数字计算（如赔偿金额、时效天数、利息）属于法律问题，应正常回答；" +
-    "⑨结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
+    "⑨篇幅控制：一般案情回答控制在 600 字内，复杂案情不超过 1200 字；每个争点引用 1-3 条核心条文即可，避免堆砌引用与重复表述。" +
+    "⑩结尾提醒：以上分析仅供参考，不构成正式法律意见。" +
     "使用简体中文，条理清晰，适度使用小标题与列表。";
 
   function buildContext(text, budget, domainHint) {
@@ -764,11 +765,10 @@ window.AI = (function () {
       }
     }
     var ctx = buildContext(sendText, Math.floor(ctxBudget() * 0.6), domainHint);
+    /* v4.0.21：追问规则并入 SYSTEM_PROMPT ⑤（原此处重复拼接两份口径略异的追问指令，token 冗余） */
     var messages = [{ role: "system", content: SYSTEM_PROMPT + ctx +
       (window.INTAKE && window.INTAKE.isActive() ? window.INTAKE.promptBlock() : "") +
-      (window.INTAKE && window.INTAKE.isActive() ? "" : langPrompt()) +
-      "\n【追问规则】若用户描述的关键事实明显不足（未说明时间、金额、合同状态、双方关系等核心要素），" +
-      "请先合并提出最多两个关键追问，等用户补充后再给完整分析；若信息已足够，直接分析，不要为追问而追问。" }]
+      (window.INTAKE && window.INTAKE.isActive() ? "" : langPrompt()) }]
       .concat(trimHistory(aiHistory, ctxBudget()))
       .concat([{ role: "user", content: chatImg ? imageContent(chatImg[0].dataUrl, sendText) : sendText }]);
     var full = "";
