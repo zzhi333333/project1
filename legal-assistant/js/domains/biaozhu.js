@@ -101,7 +101,7 @@ window.DomainRegistry.registerDomain({
           ]}
       ],
       result: function (a) {
-        var laws = ["bq-copyright-auto", "bq-damages", "bq-avoid", "bq-notice"];
+        var laws = ["bq-copyright-auto", "bq-damages", "bq-avoid", "bz-notice"];
         var analysis = [
           "维权四步标准链：①权利固定——创作底稿、源文件、首次发表记录（或版权登记证书）；②侵权证据固定——公证处公证或可信时间戳（网页删除后无凭据，<b>先取证后投诉</b>）；③平台投诉下架（止损）；④索赔（和解/行政投诉/诉讼）。"
         ];

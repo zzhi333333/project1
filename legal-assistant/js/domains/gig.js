@@ -84,22 +84,33 @@ window.DomainRegistry.registerDomain({
         ]}
       ],
       result: function (a) {
-        var out = { headline: "先确认保障渠道，再定索赔路径", summary: "", items: [] };
+        var out = { headline: "先确认保障渠道，再定索赔路径", summary: "", analysis: [], laws: ["gig-3fen"], advice: [], deadline: "" };
         if (a.rel === "contract") {
           out.summary = "已签劳动合同 → 走标准工伤认定，权益最完整。";
-          out.items.push("30 日内要求单位向人社局申请工伤认定；单位不申请，你可在 1 年内自行申请。");
+          out.laws.push("gig-gs14");
+          out.analysis.push("已签劳动合同，属「符合确立劳动关系情形」，直接适用《工伤保险条例》工伤认定，无需先行确认关系。");
+          out.analysis.push("单位应在事故发生之日起 30 日内向人社局申请工伤认定；单位不申请的，您可在 1 年内自行申请（工伤保险条例第17条）。");
+          out.advice.push("第一时间就医并确保病历记载受伤时间、地点、原因；交通事故立即报警取得《事故责任认定书》。");
+          out.advice.push("30 日内盯住单位申报工伤；留存劳动合同、工资流水、派单记录备查。");
         } else if (a.ins === "yes" || a.ins === "maybe") {
           out.summary = "未签劳动合同但可能已被投保职业伤害保障 → 直接走职业伤害保障渠道，不要求劳动关系。";
-          out.items.push("向平台索取参保凭证，或到当地人社部门查询本人职业伤害保障参保记录。");
-          out.items.push("职业伤害保障由平台按单缴费，确认后可直接申请待遇，无需先打赢劳动关系官司。");
+          out.laws.push("gig-zy");
+          out.analysis.push("职业伤害保障是「新型工伤保险」：平台按日参保、按单计费，不以存在劳动关系为前提。");
+          out.analysis.push("2026-07-01 起试点在全国 31 个省份和新疆生产建设兵团推开，覆盖出行、即时配送、同城货运 3 个行业。");
+          out.advice.push("向平台索取参保凭证，或到当地人社部门查询本人职业伤害保障参保记录。");
+          out.advice.push("确认参保后直接按经办规程申请待遇；同时留存接单记录、事故现场证据。");
         } else {
           out.summary = "无劳动合同、无保障 → 需先争取劳动关系认定，路径最长但可行。";
-          out.items.push("收集证据：派单记录、考勤/排班截图、平台处罚通知、工服工牌、同站骑手证言。");
-          out.items.push("向劳动仲裁委申请确认劳动关系，再申请工伤认定。");
+          out.laws.push("gig-ld");
+          out.analysis.push("按劳社部发〔2005〕12号三要素主张事实劳动关系：主体资格、受平台劳动管理并获取报酬、劳动是平台业务组成部分。");
+          out.analysis.push("「合作协议/个体户注册」不当然排除劳动关系——司法实践看实质管理（排班/考勤/罚款/统一着装），不看协议名称。");
+          out.advice.push("收集证据：派单记录、考勤/排班截图、平台处罚通知、工服工牌、同站骑手证言。");
+          out.advice.push("先向劳动仲裁委申请确认劳动关系，确认后再申请工伤认定。");
         }
         if (a.when === "off") {
-          out.items.push("⚠️ 已下线期间受伤通常不认定为工作原因，主张难度较大，建议咨询当地法律援助。");
+          out.analysis.push("⚠️ 已下线期间受伤通常难以认定为「工作原因」，主张难度较大，建议咨询当地法律援助（12348）。");
         }
+        out.deadline = "工伤认定个人申请期限 1 年（工伤保险条例第17条）；职业伤害保障待遇申请按平台投保地经办规程，建议受伤后尽早（30 日内）主张。";
         return out;
       }
     },
@@ -120,19 +131,26 @@ window.DomainRegistry.registerDomain({
         ]}
       ],
       result: function (a) {
-        var out = { headline: "管理强度决定能否主张劳动关系", summary: "", items: [] };
+        var out = { headline: "管理强度决定能否主张劳动关系", summary: "", analysis: [], laws: ["gig-3fen", "gig-ld"], advice: [], deadline: "" };
         if (a.manage === "strong") {
           out.summary = "存在强管理 → 即便签的是合作/个体户协议，仍可能被认定劳动关系。";
-          out.items.push("「注册个体户」不当然排除劳动关系，法院看实质管理，不看协议名称。");
-          out.items.push("可主张：未签书面劳动合同的二倍工资、社保补缴、经济补偿。");
+          out.laws.push("ht-82");
+          out.analysis.push("排班、考勤、罚款、统一着装等实质管理行为符合事实劳动关系三要素——法院看实质不看协议名称。");
+          out.analysis.push("「注册个体户」不当然排除劳动关系；属三分法「符合确立劳动关系情形」，本应订立劳动合同。");
+          out.advice.push("可主张：未签书面劳动合同的二倍工资（最多 11 个月）、社保补缴、解除时的经济补偿。");
+          out.advice.push("凭工资流水 + 管理证据向劳动仲裁委申请确认劳动关系。");
         } else if (a.manage === "weak") {
           out.summary = "弱管理 → 可能落入「不完全符合确立劳动关系情形」，走三分法中间档。";
-          out.items.push("可要求平台订立书面协议、明确报酬与保障，但难以主张完整劳动权益。");
-          out.items.push("优先争取职业伤害保障覆盖。");
+          out.analysis.push("仅有派单和评分、无人身从属性强管理的，属指导意见第2条（二）类：平台应订立书面协议，合理确定双方权利义务。");
+          out.advice.push("可要求平台订立书面协议，明确报酬结算与保障；但难以主张完整劳动权益（经济补偿/加班费）。");
+          out.advice.push("优先争取职业伤害保障覆盖——确认平台是否已按单为您投保。");
         } else {
           out.summary = "完全自主 → 一般按民事关系处理，社保需自行以灵活就业身份缴纳。";
-          out.items.push("可以灵活就业人员身份自行参加职工养老、医疗保险（多数地区已放开户籍限制）。");
+          out.analysis.push("完全自主接单、无劳动管理的，属三分法（三）类：个人依托平台自主经营，按民事法律调整，不成立劳动关系。");
+          out.advice.push("可以灵活就业人员身份自行参加职工养老、医疗保险（多数地区已放开户籍限制）。");
+          out.advice.push("报酬纠纷按合作协议/民事合同主张，保留结算记录与沟通凭证。");
         }
+        out.deadline = "劳动仲裁时效 1 年；社保补缴投诉不受此时效限制，建议尽早向社保稽核部门投诉。";
         return out;
       }
     }

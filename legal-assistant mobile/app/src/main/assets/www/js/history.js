@@ -11,8 +11,11 @@ window.CHATHISTORY = (function () {
   var MAX = 50;
   var sessions = [];
   var currentId = null;
+  var persistTimer = null;   /* 写合并：每条消息不再触发全量 JSON 序列化（写放大优化） */
+  var dirty = false;         /* 内存态有未落盘变更时，load() 跳过重读防覆盖丢消息 */
 
   function load() {
+    if (dirty) return; /* 有未落盘变更：内存态优先，防 debounce 期间 load 旧值覆盖（全删后 length=0 同样防复活） */
     try {
       if (window.STORE) sessions = STORE.get(KEY, []);
       else sessions = JSON.parse(localStorage.getItem(KEY) || "[]");
@@ -23,7 +26,7 @@ window.CHATHISTORY = (function () {
     if (currentId && !find(currentId)) currentId = null;
   }
 
-  function persist() {
+  function persistNow() {
     /* 经 STORE 门面写入（v3.4.9）：配额溢出时 LRU 先清可再生的法条全文缓存再重试——
        此前直连 localStorage 使最大宗的会话键游离于配额回收之外。load 同理走门面。 */
     var ok = false;
@@ -31,6 +34,7 @@ window.CHATHISTORY = (function () {
       if (window.STORE) ok = STORE.set(KEY, sessions);
       else { localStorage.setItem(KEY, JSON.stringify(sessions)); ok = true; }
       if (ok && currentId) { try { localStorage.setItem(CUR, currentId); } catch (e2) { } }
+      if (ok) dirty = false;
     } catch (e) {
       ok = false;
     }
@@ -50,6 +54,21 @@ window.CHATHISTORY = (function () {
       }
     }
   }
+
+  /* 写合并：800ms 尾延迟；页面隐藏/关闭前强制落盘兜底（防尾部消息丢失） */
+  function persist() {
+    dirty = true;
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(function () { persistTimer = null; persistNow(); }, 800);
+  }
+  function flushPersist() {
+    if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; persistNow(); }
+  }
+  try {
+    document.addEventListener("visibilitychange", function () { if (document.hidden) flushPersist(); });
+    window.addEventListener("beforeunload", flushPersist);
+    window.addEventListener("pagehide", flushPersist);
+  } catch (e) { }
 
   function find(id) {
     for (var i = 0; i < sessions.length; i++) if (sessions[i].id === id) return sessions[i];
@@ -87,9 +106,19 @@ window.CHATHISTORY = (function () {
     sessions.unshift(s);
     trim();
     currentId = s.id;
-    persist();
+    persistNow();
     if (rerender !== false && window.renderSessionList) window.renderSessionList();
     return s;
+  }
+
+  var listTimer = null;
+  /* 列表重建限频合并：消息级追加 1.2s 内只重建一次（结构性变化仍即时刷新） */
+  function scheduleListRender() {
+    if (listTimer) return;
+    listTimer = setTimeout(function () {
+      listTimer = null;
+      if (window.renderSessionList) window.renderSessionList();
+    }, 1200);
   }
 
   function record(entry) {
@@ -103,14 +132,14 @@ window.CHATHISTORY = (function () {
       if (text && (s.title === "新对话" || !s.title)) s.title = text.slice(0, 18);
     }
     persist();
-    if (window.renderSessionList) window.renderSessionList();
+    scheduleListRender();
   }
 
   function remove(id) {
     load();
     sessions = sessions.filter(function (s) { return s.id !== id; });
     if (currentId === id) currentId = null;
-    persist();
+    persistNow();
   }
 
   /* 归档 / 取消归档；归档当前会话时自动把当前指针移到最近的未归档会话 */
@@ -125,7 +154,7 @@ window.CHATHISTORY = (function () {
         if (!sessions[i].archived) { currentId = sessions[i].id; break; }
       }
     }
-    persist();
+    persistNow();
   }
 
   function switchTo(id) {
@@ -133,7 +162,7 @@ window.CHATHISTORY = (function () {
     var s = find(id);
     if (!s) return null;
     currentId = id;
-    persist();
+    persistNow();
     return s;
   }
 
@@ -145,7 +174,7 @@ window.CHATHISTORY = (function () {
     for (var i = s.messages.length - 1; i >= 0; i--) {
       if (s.messages[i].who === who) { s.messages.splice(i, 1); break; }
     }
-    persist();
+    persistNow();
   }
 
   /* 会话导出 Markdown（v3.5.0）：text 优先，bot 无 text 时回退去标签 */

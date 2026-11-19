@@ -93,13 +93,42 @@ window.AGENT = (function () {
     }
     return ALL_LAWS_CACHE;
   }
+  /* 废止法名黑名单（精确等值匹配，防子串误伤：《劳动合同法》含「合同法」不触发）——
+   * 此前《合同法》经短名子串匹配撞上《劳动合同法》拿绿勾 ✓（废止法假绿勾盲区） */
+  var ABOLISHED_MAP = {
+    "合同法": "《民法典》合同编",
+    "婚姻法": "《民法典》婚姻家庭编",
+    "继承法": "《民法典》继承编",
+    "物权法": "《民法典》物权编",
+    "侵权责任法": "《民法典》侵权责任编",
+    "担保法": "《民法典》物权编/合同编及担保制度司法解释",
+    "民法通则": "《民法典》总则编",
+    "民法总则": "《民法典》总则编",
+    "收养法": "《民法典》婚姻家庭编",
+    "经济合同法": "《民法典》合同编",
+    "技术合同法": "《民法典》合同编"
+  };
+  function abolishedTip(cit) {
+    var norm = normLaw(cit.law);
+    if (ABOLISHED_MAP[norm]) return "「" + cit.law + "」已废止，现行依据为" + ABOLISHED_MAP[norm] + "，请核验是否应更新引用";
+    return null;
+  }
+
   function verifyLocal(cit) {
+    var ab = abolishedTip(cit);
+    if (ab) return { status: "fail", law: cit.law, text: "", tip: ab };
     var norm = normLaw(cit.law);
     var matches = allLaws().filter(function (l) {
       var ls = normLaw(l.lawShort), lf = normLaw(l.law);
       return ls.indexOf(norm) > -1 || norm.indexOf(ls) > -1 || lf.indexOf(norm) > -1 || norm.indexOf(lf) > -1;
     });
     if (!matches.length) return null;
+    /* 等值优先排序：法名完全相等的排前，防短名子串撞长名取错条目 */
+    matches.sort(function (a, b) {
+      var aEq = (normLaw(a.lawShort) === norm || normLaw(a.law) === norm) ? 0 : 1;
+      var bEq = (normLaw(b.lawShort) === norm || normLaw(b.law) === norm) ? 0 : 1;
+      return aEq - bEq;
+    });
     if (cit.articleNum == null) return { status: "ok", source: "本地知识库", law: matches[0].law, text: "" };
     for (var i = 0; i < matches.length; i++) {
       var l = matches[i];
@@ -145,9 +174,11 @@ window.AGENT = (function () {
     return { tier: 1, textChecked: false };
   }
 
-  /* 数字断言核验：期限/比例/倍数/金额须在资料区有依据 */
+  /* 数字断言核验：期限/比例/倍数/金额须在资料区有依据
+   * 阿拉伯数字 + 中文数字（十五日/四倍/百分之二十——此前中文族 100% 逃逸核验） */
   function parseNumberClaims(text) {
     var out = [];
+    var CN = "[一二三四五六七八九十百零两]+";
     var patterns = [
       /(\d+(?:\.\d+)?)\s*(%|％)/g,
       /(\d+(?:\.\d+)?)\s*倍/g,
@@ -155,10 +186,20 @@ window.AGENT = (function () {
       /(\d+)\s*(?:日|天)/g,
       /(\d+)\s*年(?!限$|龄)/g,
       /(\d+(?:\.\d+)?)\s*万元/g,
-      /(\d+)\s*元/g
+      /(\d+)\s*元/g,
+      /* 中文数字族（捕获组 1 = 中文数字，归一后与阿拉伯同路径查证） */
+      [new RegExp("(" + CN + ")\\s*(?:日|天)", "g"), true],
+      [new RegExp("(" + CN + ")\\s*个?月(?!薪|工资)", "g"), true],
+      [new RegExp("(" + CN + ")\\s*年(?!限)", "g"), true],
+      [new RegExp("(" + CN + ")\\s*倍", "g"), true],
+      [new RegExp("百分之(" + CN + ")", "g"), true],
+      [new RegExp("(" + CN + ")\\s*万元", "g"), true],
+      [new RegExp("(" + CN + ")\\s*元", "g"), true]
     ];
     var seen = {};
-    patterns.forEach(function (re) {
+    patterns.forEach(function (p) {
+      var re = Array.isArray(p) ? p[0] : p;
+      var isCn = Array.isArray(p);
       var m;
       while ((m = re.exec(text))) {
         var full = m[0], n = m[1];
@@ -169,22 +210,27 @@ window.AGENT = (function () {
         var k = full + "@" + idx;
         if (seen[k]) continue;
         seen[k] = 1;
-        out.push({ raw: full, num: n, snippet: text.slice(Math.max(0, idx - 12), idx + full.length + 12).trim() });
+        var numVal = isCn ? cn2num(n) : parseFloat(n);
+        if (isNaN(numVal)) continue;
+        out.push({ raw: full, num: numVal, snippet: text.slice(Math.max(0, idx - 12), idx + full.length + 12).trim() });
       }
     });
     return out;
   }
   function verifyNumberClaim(claim, ctxText) {
-    var n = claim.num, forms = [];
+    var num = claim.num, forms = [];
     var ar = String(claim.raw);
-    var num = parseFloat(n);
     var cn = num2cn(num);
-    forms.push(ar, cn + ar.replace(/^[\d.]+/, ""));
-    if (/%|％/.test(ar)) { forms.push("百分之" + cn); }
+    forms.push(ar);
+    if (!/^[一二三四五六七八九十百零两]/.test(ar)) forms.push(cn + ar.replace(/^[\d.]+/, ""));
+    /* 中文数字原样也在资料区查证（资料区多为中文数字表述） */
+    forms.push(ar.replace(/^(百分之)?/, ""));
+    if (/%|％/.test(ar)) { forms.push("百分之" + cn, cn + "%"); }
     if (/个?月/.test(ar)) { forms.push(cn + "个月", cn + "月"); }
     if (/日|天/.test(ar)) { forms.push(cn + "日", cn + "天"); }
     if (/年/.test(ar)) { forms.push(cn + "年"); }
     if (/万元/.test(ar)) { forms.push(cn + "万", num + "万"); }
+    if (/元/.test(ar) && !/万元/.test(ar)) { forms.push(num + "元"); }
     for (var i = 0; i < forms.length; i++) {
       if (forms[i] && ctxText.indexOf(forms[i]) > -1) return true;
     }
@@ -1555,7 +1601,10 @@ window.AGENT = (function () {
       historyLen: function () { return agentHistory.length; },
       clearHistory: function () { agentHistory = []; lastRun = null; },
       agentHistoryView: function () { return agentHistory.slice(); },
-      agentPromptText: function () { return AGENT_PROMPT; }
+      agentPromptText: function () { return AGENT_PROMPT; },
+      parseNumberClaims: parseNumberClaims,
+      verifyNumberClaim: verifyNumberClaim,
+      verifyLocal: verifyLocal
     }
   };
 })();

@@ -703,6 +703,73 @@ T("gig 新就业形态领域注册在位（双端 gig.js + index script + DOMAIN
     if (reg.indexOf('gig: "i-d-labor"') === -1) throw new Error(root + " DOMAIN_SVG 缺 gig 映射");
   }
 });
+/* ===== 第一批 P1 五件防回退（2026-11-20：gig 崩溃/孤儿陷阱/写放大/核验盲区） ===== */
+T("全场景 result 结构合规：四字段齐+法条零死链（745 组合枚举）", function () {
+  const vm2 = require("vm");
+  const fs3 = require("fs");
+  const ctx2 = { window: {}, console };
+  vm2.createContext(ctx2);
+  const domainsDir = path.join(__dirname, "js", "domains");
+  const domFiles = fs3.readdirSync(domainsDir).map(d => "js/domains/" + d);
+  ["js/registry.js"].concat(domFiles, ["js/data/scenarios.js", "js/data/laws.js", "js/data/laws-extra.js"]).forEach(f => {
+    vm2.runInContext(fs3.readFileSync(path.join(__dirname, f), "utf8"), ctx2, { filename: f });
+  });
+  const lawIds = new Set();
+  ctx2.window.DomainRegistry.metas().forEach(m => {
+    ((ctx2.window.DomainRegistry.get(m.id) || {}).laws || []).forEach(l => lawIds.add(l.id));
+  });
+  (ctx2.window.LAWS || []).forEach(l => lawIds.add(l.id));
+  let fails2 = 0, combos = 0;
+  ctx2.window.SCENARIOS.forEach(s => {
+    let combosList = [{}];
+    (s.questions || []).forEach(q => {
+      const next = [];
+      combosList.forEach(base => q.options.forEach(o => next.push(Object.assign({}, base, { [q.id]: o.value }))));
+      combosList = next;
+    });
+    combosList.forEach(a => {
+      combos++;
+      let r;
+      try { r = s.result(a); } catch (e) { throw new Error(s.id + " result 抛错：" + e.message); }
+      ["headline", "summary", "analysis", "laws", "advice", "deadline"].forEach(k => {
+        if (r[k] === undefined) throw new Error(s.id + " 缺字段 " + k + "（gig 结构回退？）");
+      });
+      if (!Array.isArray(r.analysis) || !Array.isArray(r.advice) || !Array.isArray(r.laws)) throw new Error(s.id + " analysis/laws/advice 非数组");
+      (r.laws || []).forEach(id => {
+        if (!lawIds.has(id)) throw new Error(s.id + " 死链法条 " + id);
+      });
+    });
+  });
+  if (combos < 700) throw new Error("组合数异常（" + combos + "），枚举逻辑可能失效");
+});
+T("核验盲区：中文数字断言入核验 + 废止法名黑名单", function () {
+  const vm2 = require("vm");
+  const fs3 = require("fs");
+  const ctx2 = { window: {}, console, Date };
+  ctx2.window = ctx2;
+  ctx2.document = { addEventListener() {}, getElementById: () => null, body: { appendChild() {} }, createElement: () => ({ style: {}, classList: { add() {}, remove() {} } }) };
+  ctx2.localStorage = { getItem: () => null, setItem() {}, removeItem() {}, length: 0, key: () => null };
+  ctx2.navigator = { userAgent: "node" };
+  vm2.createContext(ctx2);
+  ["js/registry.js", "js/data/laws.js", "js/data/laws-extra.js", "js/agent.js"].forEach(f => {
+    vm2.runInContext(fs3.readFileSync(path.join(__dirname, f), "utf8"), ctx2, { filename: f });
+  });
+  const AG = ctx2.window.AGENT;
+  const cls = AG._test.parseNumberClaims("应在十五日内申请，赔偿三倍工资");
+  if (!cls.some(c => c.num === 15)) throw new Error("中文数字「十五日」逃逸核验");
+  if (!cls.some(c => c.num === 3)) throw new Error("中文数字「三倍」逃逸核验");
+  const v1 = AG.verifyText("根据《合同法》第107条，当事人应当履行。", "资料区……", null);
+  const c1 = (v1.citations || []).find(x => x.cit && x.cit.law.indexOf("合同法") > -1 && x.cit.law.indexOf("劳动") === -1);
+  if (!c1 || c1.status !== "fail") throw new Error("《合同法》废止法名未判 fail（假绿勾回潮）");
+  const v2 = AG.verifyText("根据《劳动合同法》第82条，应支付二倍工资。", "资料区……", null);
+  if ((v2.citations || [])[0] && v2.citations[0].status === "fail") throw new Error("《劳动合同法》被黑名单误伤");
+});
+T("verify-apk.js 常驻门禁在位（出包快照落后收口）", function () {
+  const p = path.join(__dirname, "..", "legal-assistant mobile", "tools", "verify-apk.js");
+  const src = fs.readFileSync(p, "utf8");
+  if (src.indexOf("verify-apk") === -1 || src.indexOf("实质不一致") === -1) throw new Error("verify-apk.js 缺失或被改坏");
+});
+
 
 
 /* ---------- 14b. 技能注入预算行为断言（截断/预算耗尽/停用排除） ---------- */

@@ -28,6 +28,12 @@ const BRANCH_FILES = {
   "js/online.js": true     /* 传输层整体不同（原生桥 vs 本地代理） */
 };
 
+/* 移动专属合法文件（不参与反向孤儿校验与 script 清单比对） */
+const MOBILE_ONLY = {
+  "js/mobile.js": true,
+  "js/bridge.js": true
+};
+
 function listWebJs() {
   const out = [];
   const walk = (rel) => {
@@ -42,7 +48,31 @@ function listWebJs() {
   return out.sort();
 }
 
-/* 返回 { same:[], drift:[{file,reason}], branch:[] }；reason: missing | empty | diff */
+function listMobileJs() {
+  const out = [];
+  const walk = (rel) => {
+    const abs = path.join(MOBILE_WWW, rel);
+    fs.readdirSync(abs, { withFileTypes: true }).forEach(function (d) {
+      const r = path.join(rel, d.name);
+      if (d.isDirectory()) walk(r);
+      else if (d.name.endsWith(".js")) out.push(r.replace(/\\/g, "/"));
+    });
+  };
+  walk("js");
+  return out.sort();
+}
+
+/* 两端 index.html 的 <script src> 清单（domains 等子目录一并覆盖） */
+function listScriptTags(htmlPath) {
+  const s = fs.readFileSync(htmlPath, "utf8");
+  const out = [];
+  const re = /<script[^>]*\ssrc="([^"]+\.js)"/g;
+  let m;
+  while ((m = re.exec(s)) !== null) out.push(m[1]);
+  return out;
+}
+
+/* 返回 { same:[], drift:[{file,reason}], branch:[] }；reason: missing | empty | diff | extra | script-missing | script-extra */
 function checkSync() {
   const res = { same: [], drift: [], branch: [] };
   listWebJs().forEach(function (rel) {
@@ -54,6 +84,24 @@ function checkSync() {
     if (b.length === 0) { res.drift.push({ file: rel, reason: "empty" }); return; }
     if (Buffer.compare(a, b) !== 0) { res.drift.push({ file: rel, reason: "diff" }); return; }
     res.same.push(rel);
+  });
+  /* 反向孤儿校验：mobile 多出的文件若非移动专属白名单，报 extra——
+   * 曾实锤：mobile 同时存在 minusong.js（被 index 加载、不在同源清单永不更新）与 minsusong.js（孤儿），内容静默分叉 */
+  listMobileJs().forEach(function (rel) {
+    if (MOBILE_ONLY[rel]) return;
+    if (BRANCH_FILES[rel]) return; /* 分支文件两端都有，不属孤儿 */
+    if (!fs.existsSync(path.join(WEB_ROOT, rel))) res.drift.push({ file: rel, reason: "extra" });
+  });
+  /* script 清单比对：两端 index.html 挂载差集必须恰为移动专属白名单 */
+  const webTags = listScriptTags(path.join(WEB_ROOT, "index.html"));
+  const mobTags = listScriptTags(path.join(MOBILE_WWW, "index.html"));
+  webTags.forEach(function (t) {
+    if (mobTags.indexOf(t) === -1 && !MOBILE_ONLY[t])
+      res.drift.push({ file: t, reason: "script-missing" });
+  });
+  mobTags.forEach(function (t) {
+    if (webTags.indexOf(t) === -1 && !MOBILE_ONLY[t])
+      res.drift.push({ file: t, reason: "script-extra" });
   });
   return res;
 }
@@ -80,7 +128,13 @@ if (require.main === module) {
   if (res.drift.length) {
     console.log("  ❌ 漂移 " + res.drift.length + " 个文件：");
     res.drift.forEach(function (d) {
-      console.log("     - " + d.file + "（" + (d.reason === "missing" ? "移动版缺失" : d.reason === "empty" ? "移动版为空文件" : "内容不一致") + "）");
+      const label = d.reason === "missing" ? "移动版缺失"
+        : d.reason === "empty" ? "移动版为空文件"
+        : d.reason === "extra" ? "移动端孤儿文件（web 无此文件，永不更新）"
+        : d.reason === "script-missing" ? "移动版 index.html 未挂载此脚本"
+        : d.reason === "script-extra" ? "移动版 index.html 挂载了 web 没有的脚本"
+        : "内容不一致";
+      console.log("     - " + d.file + "（" + label + "）");
     });
     if (process.argv.indexOf("--fix") > -1) {
       const fixed = fixSync();
