@@ -178,7 +178,7 @@ window.AGENT = (function () {
    * 阿拉伯数字 + 中文数字（十五日/四倍/百分之二十——此前中文族 100% 逃逸核验） */
   function parseNumberClaims(text) {
     var out = [];
-    var CN = "[一二三四五六七八九十百零两]+";
+    var CN = "[一二三四五六七八九十百千零两]+"; /* 千在位：cn2num U 映射支持，五千元/一千二百元不再逃逸 */
     var patterns = [
       /(\d+(?:\.\d+)?)\s*(%|％)/g,
       /(\d+(?:\.\d+)?)\s*倍/g,
