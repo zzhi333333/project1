@@ -758,6 +758,11 @@ T("核验盲区：中文数字断言入核验 + 废止法名黑名单", function
   const cls = AG._test.parseNumberClaims("应在十五日内申请，赔偿三倍工资");
   if (!cls.some(c => c.num === 15)) throw new Error("中文数字「十五日」逃逸核验");
   if (!cls.some(c => c.num === 3)) throw new Error("中文数字「三倍」逃逸核验");
+  /* 千位补字防回退（对侧验证报告建议）：五千元/三千元/一千二百元全入列 */
+  const clsK = AG._test.parseNumberClaims("赔偿五千元及三千元误工费，共一千二百元");
+  [5000, 3000, 1200].forEach(n => {
+    if (!clsK.some(c => c.num === n)) throw new Error("中文千位数字 " + n + " 逃逸核验");
+  });
   const v1 = AG.verifyText("根据《合同法》第107条，当事人应当履行。", "资料区……", null);
   const c1 = (v1.citations || []).find(x => x.cit && x.cit.law.indexOf("合同法") > -1 && x.cit.law.indexOf("劳动") === -1);
   if (!c1 || c1.status !== "fail") throw new Error("《合同法》废止法名未判 fail（假绿勾回潮）");
