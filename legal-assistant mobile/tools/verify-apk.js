@@ -35,18 +35,23 @@ function listEntries(buf) {
     const nameLen = buf.readUInt16LE(off + 28), extraLen = buf.readUInt16LE(off + 30), commLen = buf.readUInt16LE(off + 32);
     const lho = buf.readUInt32LE(off + 42);
     const name = buf.slice(off + 46, off + 46 + nameLen).toString("utf8");
-    if (name.startsWith("assets/www/") && !name.endsWith("/")) names.push({ name, method, csize, lho, nameLen, extraLen });
+    /* aapt2 zipalign 会在 local header 加对齐 padding：local extraLen ≠ central extraLen——
+       数据偏移必须用 local header 自己的 nameLen/extraLen（central 值会产生 NUL 前缀错位） */
+    const lNameLen = buf.readUInt16LE(lho + 26), lExtraLen = buf.readUInt16LE(lho + 28);
+    if (name.startsWith("assets/www/") && !name.endsWith("/")) names.push({ name, method, csize, lho, lNameLen, lExtraLen });
     off += 46 + nameLen + extraLen + commLen;
   }
   return names;
 }
 function readEntry(buf, e) {
-  const data = buf.slice(e.lho + 30 + e.nameLen + e.extraLen, e.lho + 30 + e.nameLen + e.extraLen + e.csize);
+  const data = buf.slice(e.lho + 30 + e.lNameLen + e.lExtraLen, e.lho + 30 + e.lNameLen + e.lExtraLen + e.csize);
   return e.method === 0 ? data : zlib.inflateRawSync(data);
 }
 
 /* 行尾归一（包内/工作树 CRLF 差异不算实质漂移，但会单独提示） */
 const norm = b => b.toString("utf8").replace(/\r\n/g, "\n");
+/* 标点级差异（末尾分号有无/行首缩进）——语义等价，归 soft（release.js 对齐写入曾引入前导空格+缺分号） */
+const normSoft = b => norm(b).replace(/;\s*$/, "").split("\n").map(l => l.trim()).join("\n");
 /* 二进制资源：aapt2 打包可能无损重编码（等价但字节流不同）——长度相等视为等价，长度不等才 hard */
 const BINARY = /\.(png|jpe?g|webm|mp4|woff2?|ico)$/i;
 
@@ -75,7 +80,7 @@ const srcFiles = [];
 })("");
 
 const pkgMap = new Map(entries.map(e => [e.name.slice("assets/www/".length), e]));
-let same = 0, onlyPkg = [], onlySrc = [], diffHard = [], diffEol = [], recomp = [];
+let same = 0, onlyPkg = [], onlySrc = [], diffHard = [], diffEol = [], recomp = [], diffPunct = [];
 
 for (const rel of srcFiles) {
   if (!pkgMap.has(rel)) { onlySrc.push(rel); continue; }
@@ -88,6 +93,7 @@ for (const rel of srcFiles) {
     continue;
   }
   if (norm(a) === norm(b)) diffEol.push(rel);
+  else if (normSoft(a) === normSoft(b)) diffPunct.push(rel);
   else diffHard.push(rel);
 }
 for (const rel of pkgMap.keys()) if (!srcFiles.includes(rel)) onlyPkg.push(rel);
@@ -100,6 +106,9 @@ if (recomp.length) {
 }
 if (diffEol.length) {
   console.log("  ⚠ 仅行尾差异 " + diffEol.length + " 个（不算漂移）：" + diffEol.slice(0, 5).join(", ") + (diffEol.length > 5 ? " 等" : ""));
+}
+if (diffPunct.length) {
+  console.log("  ⚠ 仅尾部标点差异 " + diffPunct.length + " 个（语义等价）：" + diffPunct.join(", "));
 }
 if (diffHard.length) {
   console.log("  ❌ 实质不一致 " + diffHard.length + " 个（出包后源码有新改动=待出下一版；若源码无改动则此包禁止发布）：");
