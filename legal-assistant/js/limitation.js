@@ -47,7 +47,7 @@ window.LIMITATION = (function () {
       start: "自判决书送达之日起", interrupt: "不可延展；逾期未上诉即生效。上诉状可通过原审法院提出", law: "《民事诉讼法》第171条" },
     { id: "shangsu-cd", cat: "proc", name: "裁定上诉期", days: 10, period: "10 日",
       start: "自裁定书送达之日起", interrupt: "不可延展", law: "《民事诉讼法》第171条" },
-    { id: "zhixing-2y", cat: "proc", name: "申请强制执行", days: 730, period: "2 年",
+    { id: "zhixing-2y", cat: "proc", name: "申请强制执行", days: 730, years: 2, period: "2 年（按年计，非 730 天）",
       start: "自法律文书规定履行期间的最后一日起算；分期履行的自最后一期履行期限届满之日起算；未规定履行期间的，自法律文书生效之日起算",
       interrupt: "适用诉讼时效中止、中断的规定（申请执行、对方承诺履行等可中断）", law: "《民事诉讼法》第250条" },
     { id: "zaishen", cat: "proc", name: "申请再审（民事）", days: null, period: "6 个月",
@@ -126,8 +126,8 @@ window.LIMITATION = (function () {
   var curCat = "all";
 
   function ruleHtml(r) {
-    var daysChip = r.days != null
-      ? '<button class="mini-btn primary" data-sx-days="' + r.days + '" data-sx-name="' + esc(r.name) + '"><svg class=ico><use href=#i-calendar></use></svg> 按此时效倒计时</button>'
+    var daysChip = (r.days != null || r.years != null)
+      ? '<button class="mini-btn primary" data-sx-' + (r.years != null ? "years=" + JSON.stringify(r.years) : "days=" + JSON.stringify(r.days)) + ' data-sx-name="' + esc(r.name) + '"><svg class=ico><use href=#i-calendar></use></svg> 按此时效倒计时</button>'
       : '<span class="prop warn">天数因案而异，请对照上述起算点判断</span>';
     return '<div class="flk-item sx-rule" data-sx-cat="' + r.cat + '">' +
       '<div class="flk-title">' + esc(r.name) + '<span class="prop" style="margin-left:8px">' + esc(r.period) + '</span></div>' +
@@ -147,11 +147,15 @@ window.LIMITATION = (function () {
     });
     if (!list.length) { box.innerHTML = '<div class="empty">没有匹配的时效规则，可换个关键词或分类。</div>'; return; }
     box.innerHTML = list.map(ruleHtml).join("");
-    box.querySelectorAll("[data-sx-days]").forEach(function (b) {
+    box.querySelectorAll("[data-sx-days], [data-sx-years]").forEach(function (b) {
       b.addEventListener("click", function () {
-        var days = b.getAttribute("data-sx-days");
         if (window.TOOLS && window.TOOLS.jumpTo) {
-          window.TOOLS.jumpTo("dl", { "dl-type": "custom", "dl-days": days });
+          /* years 优先（zhixing-2y 按年计，非 730 天近似——对侧审核口径修正） */
+          const y = b.getAttribute("data-sx-years");
+          const pre = y != null
+            ? { "dl-type": "custom", "dl-years": y }
+            : { "dl-type": "custom", "dl-days": b.getAttribute("data-sx-days") };
+          window.TOOLS.jumpTo("dl", pre);
           closeCenter();
         }
       });

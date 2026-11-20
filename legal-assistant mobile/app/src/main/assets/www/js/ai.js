@@ -127,7 +127,8 @@ window.AI = (function () {
           : (Array.isArray(m.content)
             ? "[本条含图片附件（原图随消息发送给模型）]\n" + m.content.filter(function (p) { return p.type === "text"; }).map(function (p) { return p.text; }).join("")
             : String(m.content || ""));
-        return "──── " + tag + " ────\n" + body.slice(0, 4000);
+        const cut = body.length > 4000 ? "\n（⚠️ 以上已截断，实际发送 " + body.length + " 字）" : "";
+        return "──── " + tag + " ────\n" + body.slice(0, 4000) + cut;
       }).join("\n\n");
       if (cbSkip) cbSkip.checked = false;
       modal.classList.remove("hidden");
@@ -156,10 +157,19 @@ window.AI = (function () {
     if (!cfg.apiKey && cfg.provider !== "ollama") { setStopUI(false); return Promise.reject(new Error("未配置 API Key，请点击右上角「AI 模型」设置。")); }
     var temp = parseFloat(cfg.temperature);
     if (isNaN(temp)) temp = 0.5;
-    /* 隐私：发送前脱敏（默认开）+ 发送前预览（默认关，可在设置开启） */
+    /* 隐私：发送前脱敏（默认开）+ 发送前预览（默认关，可在设置开启）
+     * 数组消息（图文同发）逐段脱敏：对侧审核 P0——typeof string 短路曾致图文消息
+     * 整条放行（文字部分也不脱敏，redact:true 形同虚设）。图片 base64 本体正则
+     * 打不到（像素不是文本），原图外发依赖发送前预览明示。 */
     messages = messages.map(function (m) {
-      /* 脱敏仅作用于字符串消息；图片消息 content 为数组（图片本体不经脱敏，预览中明示） */
-      return m.role === "user" && cfg.redact && typeof m.content === "string" ? Object.assign({}, m, { content: redactPII(m.content) }) : m;
+      if (m.role !== "user" || !cfg.redact) return m;
+      if (typeof m.content === "string") return Object.assign({}, m, { content: redactPII(m.content) });
+      if (Array.isArray(m.content)) {
+        return Object.assign({}, m, { content: m.content.map(function (p) {
+          return p && p.type === "text" ? Object.assign({}, p, { text: redactPII(p.text) }) : p;
+        }) });
+      }
+      return m;
     });
     var proceed = maybePreview(messages);
     var ctrl = new AbortController();

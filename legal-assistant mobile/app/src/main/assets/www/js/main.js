@@ -87,6 +87,12 @@
       if (!window.WORKSPACE || !window.CHATHISTORY) return;
       var cur = window.CHATHISTORY.current();
       if (!cur || !cur.id) return;
+      /* 证据串案修复：会话归属一次定格——已绑定其他案件的会话不随当前激活案件漂移 */
+      var bound = window.WORKSPACE.caseOfSession ? window.WORKSPACE.caseOfSession(cur.id) : null;
+      if (bound) {
+        var curId = window.WORKSPACE.currentId();
+        if (bound.id !== curId) return;
+      }
       var firstUser = (cur.messages || []).filter(function (m) { return m.who === "user"; })[0];
       var name = (firstUser && firstUser.text ? String(firstUser.text) : (cur.name || "咨询会话")).replace(/\s+/g, " ").trim().slice(0, 40);
       window.WORKSPACE.attach("sessions", { id: cur.id, name: name || "咨询会话", date: new Date().toISOString().slice(0, 10) });
@@ -811,7 +817,9 @@
       text += "☐ " + (i + 1) + ". " + x + "\n";
     });
     text += "\n提示：电子证据保留原始载体，书面证据保留原件或核对无误的复印件；证据清单随起诉/仲裁材料一并提交。";
-    /* 证据三性自检（真实性/合法性/关联性）：交互式勾选 + 按证据类型的取证提示 */
+    /* 证据三性自检（真实性/合法性/关联性）：交互式勾选 + 按证据类型的取证提示
+       证据串案修复（对侧审核 P0）：勾选按「案件 → 场景 → 证据文本 hash」三级隔离存储，
+       同一场景不同案件互不串；旧结构一次性迁移到「未分类」（__uncategorized）不丢弃 */
     var EV_TIPS = [
       [/聊天|微信|短信|通话记录/, "保留原始载体（手机原件），勿只截图；关键页面录屏并加时间戳"],
       [/录音|录像/, "保留原始音频/视频文件；取得方式须合法（双方对话可录，窃听私密空间不可）"],
@@ -821,13 +829,62 @@
       [/证人/, "证人原则上需要出庭作证"],
       [/裁决书|判决书|仲裁/, "已生效文书可直接作为证据使用"]
     ];
+    function evHash(s) {
+      var h = 5381, i;
+      for (i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+      return "ev" + h.toString(36);
+    }
+    function evKeyOf(text) { return evHash(String(text || "")); }
+    function evCaseId() { return (window.WORKSPACE && window.WORKSPACE.currentId()) || "__uncategorized"; }
+    function evCaseLabel() {
+      var cid = evCaseId();
+      if (cid === "__uncategorized") return "未分类（未激活案件）";
+      var c = window.WORKSPACE && window.WORKSPACE.current ? window.WORKSPACE.current() : null;
+      return (c && c.name) || "未分类（未激活案件）";
+    }
+    function evChecksRead(scenarioId, evList) {
+      var all = {};
+      try { all = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}"); } catch (e) { all = {}; }
+      var KNOWN = {};
+      (window.SCENARIOS || []).forEach(function (s) { KNOWN[s.id] = 1; });
+      var migrated = false;
+      Object.keys(all).forEach(function (k) {
+        if (KNOWN[k]) { all.__uncategorized = all.__uncategorized || {}; all.__uncategorized[k] = all[k]; delete all[k]; migrated = true; }
+      });
+      if (migrated) { try { localStorage.setItem("legal-ev-checks", JSON.stringify(all)); } catch (e2) {} }
+      var perCase = all[evCaseId()] || {};
+      var byKey = perCase[scenarioId] || {};
+      var out = {};
+      Object.keys(byKey).forEach(function (k) {
+        if (/^\d+$/.test(k)) { var i2 = parseInt(k, 10); if (evList[i2]) out[evKeyOf(evList[i2])] = byKey[k]; }
+        else out[k] = byKey[k];
+      });
+      return out;
+    }
+    function evChecksAll() {
+      var all = {};
+      try { all = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}"); } catch (e) { all = {}; }
+      return all;
+    }
+    function evChecksWrite(scenarioId, evList, stateByKey) {
+      const all = evChecksAll();
+      const caseId = evCaseId();
+      all[caseId] = all[caseId] || {};
+      const per = {};
+      evList.forEach(function (x, i) {
+        const k = evKeyOf(x);
+        if (stateByKey[k]) per[k] = stateByKey[k];
+      });
+      all[caseId][scenarioId] = per;
+      try { localStorage.setItem("legal-ev-checks", JSON.stringify(all)); } catch (e) {}
+    }
     var checks = {};
-    try { checks = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}")[entry.scenarioId] || {}; } catch (e) {}
+    try { checks = evChecksRead(entry.scenarioId, evList); } catch (e) { checks = {}; }
     var listHtml = evList.map(function (x, i) {
       var tip = "";
       EV_TIPS.forEach(function (t) { if (!tip && t[0].test(x)) tip = t[1]; });
-      var st = checks[i] || {};
-      return '<div class="ev-check-row" data-i="' + i + '">' +
+      var st = checks[evKeyOf(x)] || {};
+      return '<div class="ev-check-row" data-i="' + i + '" data-ekey="' + evKeyOf(x) + '">' +
         '<div class="ev-check-name">' + (i + 1) + ". " + x + '</div>' +
         '<div class="ev-tri">' +
           ["真实性", "合法性", "关联性"].map(function (k) {
@@ -842,17 +899,17 @@
       '<div style="margin:8px 0"><button class="mini-btn" id="ev-save-checks">保存勾选状态</button> <span id="ev-saved-tip" class="dim" style="font-size:11.5px"></span></div>';
     document.getElementById("doc-list").querySelectorAll(".ev-tri input").forEach(function (cb) {
       cb.addEventListener("change", function () {
-        var i = cb.closest(".ev-check-row").getAttribute("data-i");
-        checks[i] = checks[i] || {};
-        checks[i][cb.getAttribute("data-k")] = cb.checked;
+        var row = cb.closest(".ev-check-row");
+        var ekey = row.getAttribute("data-ekey");
+        checks[ekey] = checks[ekey] || {};
+        checks[ekey][cb.getAttribute("data-k")] = cb.checked;
       });
     });
     document.getElementById("ev-save-checks").addEventListener("click", function () {
       try {
-        var all = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}");
-        all[entry.scenarioId] = checks;
-        localStorage.setItem("legal-ev-checks", JSON.stringify(all));
-        document.getElementById("ev-saved-tip").textContent = "已保存到本机";
+        evChecksWrite(entry.scenarioId, evList, checks);
+        var caseName = evCaseLabel ? evCaseLabel() : "未分类（未激活案件）";
+        document.getElementById("ev-saved-tip").textContent = "已保存到案件「" + caseName + "」";
       } catch (e) { /* 忽略 */ }
     });
     document.getElementById("doc-text").value = text;

@@ -562,6 +562,11 @@ window.ANALYSIS = (function () {
       var inp = row.querySelector(".tl-date");
       var days = parseInt(quick.getAttribute("data-days"), 10);
       var d = new Date(Date.now() + days * 86400000);
+      /* 复用 limitation.js 节假日顺延（对侧审核：同一套法律规则两套算法——裸加不走顺延） */
+      if (window.LIMITATION && window.LIMITATION.postponeIfRest) {
+        const p = window.LIMITATION.postponeIfRest(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+        if (p && p.date) d = p.date;
+      }
       inp.value = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
       return;
     }

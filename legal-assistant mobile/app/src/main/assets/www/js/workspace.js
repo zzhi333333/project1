@@ -450,6 +450,19 @@ window.WORKSPACE = (function () {
     withCurrent(function (c) { c.notes.splice(i, 1); });
   }
 
+  /* 会话归属查询（证据串案修复 P0）：返回已绑定该会话的案件（跨案件防分身用）——
+     遍历全部案件（含归档），命中 links.sessions 即返回；未绑定返回 null */
+  function caseOfSession(sessionId) {
+    var d = load();
+    for (var i = 0; i < d.list.length; i++) {
+      var arr = (d.list[i].links && d.list[i].links.sessions) || [];
+      for (var j = 0; j < arr.length; j++) {
+        if (arr[j].id === sessionId) return d.list[i];
+      }
+    }
+    return null;
+  }
+
   /* 案件档案导出（.md 文本返回，下载由调用端处理） */
   function toMarkdown(c) {
     var s = "# 案件档案：" + c.name + "\n\n创建：" + c.createdAt.slice(0, 10) + "　导出：" + new Date().toISOString().slice(0, 10) + "\n";
@@ -1373,6 +1386,7 @@ window.WORKSPACE = (function () {
     list: list, current: current, currentId: currentId,
     create: create, rename: rename, remove: remove, setCurrent: setCurrent,
     attach: attach, purgeReports: purgeReports, addNote: addNote, toggleNote: toggleNote, removeNote: removeNote,
+    caseOfSession: caseOfSession,
     /* B1/B2/B4：阶段/判决落盘/台账 */
     setStage: setStage, STAGE_KEYS: STAGE_KEYS, STAGE_CHECKLIST: STAGE_CHECKLIST, setCaseResult: setCaseResult, getCaseResult: getCaseResult, clearCaseResult: clearCaseResult,
     setClaimTotal: setClaimTotal, addSpent: addSpent, removeSpent: removeSpent,

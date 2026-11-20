@@ -228,7 +228,15 @@ const git = (gitArgs, allowFail) => {
   if (r.status !== 0 && !allowFail) die("git " + gitArgs.join(" ") + " 失败：" + (r.stderr || r.stdout));
   return r;
 };
-git(["add", "-A"]);
+/* 显式暂存（对侧审核 P1：git add -A 不受 cwd 限制，仓库根未跟踪文件/密钥会被误提交
+ * ——实测 cd 子目录下 -A 等价于 :/ 仓库根作用域。只暂存发布链明确文件+暂存区白名单硬门禁 */
+git(["add", "--", "version.js", "app/build.gradle", "app/src/main/AndroidManifest.xml",
+  "app/src/main/assets/www", "dist/legal-assistant-mobile-v" + versionName + ".apk",
+  "LEGAL_CHANGELOG.md", "FEATURES.md", "MANUAL.md", "README.md"]);
+const staged = spawnSync("git", ["diff", "--cached", "--name-only"], { encoding: "utf8", cwd: WEB_ROOT }).stdout.split("\n").filter(Boolean);
+const ALLOWED_STAGE = /^(version\.js|app\/build\.gradle|app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|dist\/legal-assistant-mobile-v|LEGAL_CHANGELOG\.md|FEATURES\.md|MANUAL\.md|README\.md)/;
+const illegalStaged = staged.filter(f => !ALLOWED_STAGE.test(f));
+if (illegalStaged.length) die("暂存区含非发布文件，已中止（git add -A 曾致仓库根文件误提交）：\n  " + illegalStaged.join("\n  "));
 const msg = commitMsg || ("移动端 v" + versionName + "（versionCode " + newCode + "）出包：release.js 流水线（版本对齐自动化+包内双验证）");
 git(["commit", "-m", msg]);
 const pushed = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" }).stdout.trim();

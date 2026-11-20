@@ -68,7 +68,8 @@ public class MainActivity extends Activity {
     private String pendingExportCb = null;
     private String pendingExportContent = null;
     private ValueCallback<Uri[]> pendingFileChooser = null;
-    private Intent pendingShareIntent = null;   /* 分享/快捷 intent：onPageFinished 页面就绪后统一注入 */
+    private Intent pendingShareIntent = null;   /* 分享/快捷 intent：页面就绪后统一注入 */
+    private boolean pageReady = false;          /* onPageFinished 置 true，onPageStarted 重置 */
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -115,11 +116,13 @@ public class MainActivity extends Activity {
                两路统一：intent 先存 pending，onPageFinished 一次性注入。 */
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (pendingShareIntent != null) {
-                    Intent i = pendingShareIntent;
-                    pendingShareIntent = null;
-                    handleShareIntent(i);
-                }
+                pageReady = true;
+                deliverPendingShare();
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                pageReady = false;   /* 页面重建/reload 期间不得投递（误投到未就绪页面） */
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
@@ -361,6 +364,14 @@ public class MainActivity extends Activity {
 
     /* ---------- G4/G5：分享接收与桌面快捷方式 ---------- */
 
+    /* 分享投递统一出口：页面就绪立即投，未就绪排队等 onPageFinished（冷/热启动两场景统一） */
+    private void deliverPendingShare() {
+        if (!pageReady || pendingShareIntent == null) return;
+        Intent i = pendingShareIntent;
+        pendingShareIntent = null;
+        handleShareIntent(i);
+    }
+
     /* 启动 URL：shortcut intent 带 hash extra（冷启动）；分享文本经 handleShareIntent 注入 */
     private String launchUrl(Intent intent) {
         String url = START_URL;
@@ -389,7 +400,10 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         /* singleTask：热启动时 shortcut/分享经 onNewIntent 到达；页面可能尚未稳定，稍候注入 */
-        if (Intent.ACTION_SEND.equals(intent.getAction())) pendingShareIntent = intent;
+        if (Intent.ACTION_SEND.equals(intent.getAction())) {
+            pendingShareIntent = intent;
+            deliverPendingShare();   /* 热启动页面已就绪：立即投递（回归修复——此前只存不消费，热启动分享必然丢失） */
+        }
     }
 
     @Override

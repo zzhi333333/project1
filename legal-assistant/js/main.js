@@ -103,12 +103,20 @@
   }
 
   /* 方向一补全：咨询会话自动绑定激活案件（工作区「关联会话」回看用）。
-     attach() 按 id 去重，重复发送不会产生重复条目；未激活案件时 attach 静默无操作 */
+     attach() 按 id 去重，重复发送不会产生重复条目；未激活案件时 attach 静默无操作。
+     证据串案修复（对侧审核 P0）：会话归属一次定格——已绑定其他案件的会话不再随
+     当前激活案件漂移（防「同一会话出现在两个案件的关联里」的串案分身） */
   function bindSessionToCase() {
     try {
       if (!window.WORKSPACE || !window.CHATHISTORY) return;
       var cur = window.CHATHISTORY.current();
       if (!cur || !cur.id) return;
+      var bound = window.WORKSPACE.caseOfSession(cur.id);
+      if (bound) {
+        /* 已有归属：仅当归属=当前激活案件时重发 attach（去重无害）；归属为其他案件则跳过 */
+        var curId = window.WORKSPACE.currentId();
+        if (bound.id !== curId) return;
+      }
       var firstUser = (cur.messages || []).filter(function (m) { return m.who === "user"; })[0];
       var name = (firstUser && firstUser.text ? String(firstUser.text) : (cur.name || "咨询会话")).replace(/\s+/g, " ").trim().slice(0, 40);
       window.WORKSPACE.attach("sessions", { id: cur.id, name: name || "咨询会话", date: new Date().toISOString().slice(0, 10) });
@@ -930,6 +938,59 @@
   }
 
   /* ---------- 证据清单文档 ---------- */
+  /* 证据串案修复（对侧审核 P0）：三性勾选按「案件 → 场景 → 证据」三级隔离存储。
+     evidenceKey=证据文本 hash（EVIDENCE_MAP 无稳定 id，hash 防序号漂移）；
+     旧结构 {scenarioId:{序号:state}} 一次性迁移到「未分类」案件（__uncategorized），不丢弃。 */
+  function evHash(s) {
+    var h = 5381, i;
+    for (i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+    return "ev" + h.toString(36);
+  }
+  function evKeyOf(text) { return evHash(String(text || "")); }
+  function evCaseId() { return (window.WORKSPACE && window.WORKSPACE.currentId()) || "__uncategorized"; }
+  function evCaseLabel() {
+    var cid = evCaseId();
+    if (cid === "__uncategorized") return "未分类（未激活案件）";
+    var c = window.WORKSPACE && window.WORKSPACE.current ? window.WORKSPACE.current() : null;
+    return (c && c.name) || "未分类（未激活案件）";
+  }
+  function evChecksAll() {
+    var all = {};
+    try { all = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}"); } catch (e) { all = {}; }
+    /* 旧结构迁移：顶层键命中已知场景 id → 归入「未分类」案件（一次性，迁移后重写） */
+    var KNOWN = {};
+    (window.SCENARIOS || []).forEach(function (s) { KNOWN[s.id] = 1; });
+    var migrated = false;
+    Object.keys(all).forEach(function (k) {
+      if (KNOWN[k]) { all.__uncategorized = all.__uncategorized || {}; all.__uncategorized[k] = all[k]; delete all[k]; migrated = true; }
+    });
+    if (migrated) { try { localStorage.setItem("legal-ev-checks", JSON.stringify(all)); } catch (e2) {} }
+    return all;
+  }
+  function evChecksRead(scenarioId, evList) {
+    var all = evChecksAll();
+    var perCase = all[evCaseId()] || {};
+    var byKey = perCase[scenarioId] || {};
+    /* 迁移映射：旧序号 → 新 evidenceKey（按 evList 位置对应） */
+    var out = {};
+    Object.keys(byKey).forEach(function (k) {
+      if (/^\d+$/.test(k)) { var i = parseInt(k, 10); if (evList[i]) out[evKeyOf(evList[i])] = byKey[k]; }
+      else out[k] = byKey[k];
+    });
+    return out;
+  }
+  function evChecksWrite(scenarioId, evList, stateByKey) {
+    var all = evChecksAll();
+    var caseId = evCaseId();
+    all[caseId] = all[caseId] || {};
+    var per = {};
+    evList.forEach(function (x, i) {
+      var k = evKeyOf(x);
+      if (stateByKey[k]) per[k] = stateByKey[k];
+    });
+    all[caseId][scenarioId] = per;
+    try { localStorage.setItem("legal-ev-checks", JSON.stringify(all)); } catch (e) {}
+  }
   function openEvidenceModal(entry) {
     var evList = (window.ANALYSIS && window.ANALYSIS.EVIDENCE_MAP && window.ANALYSIS.EVIDENCE_MAP[entry.scenarioId]) || [];
     if (!evList.length && entry.r && entry.r.advice) evList = entry.r.advice;
@@ -950,12 +1011,13 @@
       [/裁决书|判决书|仲裁/, "已生效文书可直接作为证据使用"]
     ];
     var checks = {};
-    try { checks = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}")[entry.scenarioId] || {}; } catch (e) {}
+    try { checks = evChecksRead(entry.scenarioId, evList); } catch (e) { checks = {}; }
+    var evCaseName = evCaseLabel();
     var listHtml = evList.map(function (x, i) {
       var tip = "";
       EV_TIPS.forEach(function (t) { if (!tip && t[0].test(x)) tip = t[1]; });
-      var st = checks[i] || {};
-      return '<div class="ev-check-row" data-i="' + i + '">' +
+      var st = checks[evKeyOf(x)] || {};
+      return '<div class="ev-check-row" data-i="' + i + '" data-ekey="' + evKeyOf(x) + '">' +
         '<div class="ev-check-name">' + (i + 1) + ". " + x + '</div>' +
         '<div class="ev-tri">' +
           ["真实性", "合法性", "关联性"].map(function (k) {
@@ -970,17 +1032,19 @@
       '<div style="margin:8px 0"><button class="mini-btn" id="ev-save-checks">保存勾选状态</button> <span id="ev-saved-tip" class="dim" style="font-size:11.5px"></span></div>';
     document.getElementById("doc-list").querySelectorAll(".ev-tri input").forEach(function (cb) {
       cb.addEventListener("change", function () {
-        var i = cb.closest(".ev-check-row").getAttribute("data-i");
-        checks[i] = checks[i] || {};
-        checks[i][cb.getAttribute("data-k")] = cb.checked;
+        var row = cb.closest(".ev-check-row");
+        var ekey = row.getAttribute("data-ekey");
+        checks[ekey] = checks[ekey] || {};
+        checks[ekey][cb.getAttribute("data-k")] = cb.checked;
       });
     });
     document.getElementById("ev-save-checks").addEventListener("click", function () {
       try {
-        var all = JSON.parse(localStorage.getItem("legal-ev-checks") || "{}");
-        all[entry.scenarioId] = checks;
-        localStorage.setItem("legal-ev-checks", JSON.stringify(all));
-        document.getElementById("ev-saved-tip").textContent = "已保存到本机";
+        /* 证据串案修复（对侧审核 P0）：按案件隔离存储（caseId → scenarioId → 证据 hash），
+           无激活案件时归入「未分类」，tip 明示归属 */
+        evChecksWrite(entry.scenarioId, evList, checks);
+        const caseName = evCaseName || "未分类（未激活案件）";
+        document.getElementById("ev-saved-tip").textContent = "已保存到案件「" + caseName + "」";
       } catch (e) { /* 忽略 */ }
     });
     document.getElementById("doc-text").value = text;

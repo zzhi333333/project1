@@ -161,6 +161,7 @@
     var date = $("dl-date").value;
     var type = $("dl-type").value;
     var days = type === "custom" ? parseFloat($("dl-days").value) : parseFloat(type);
+    var years = parseFloat(($("dl-years")||{value:""}).value) || 0;
     var out = $("dl-result");
     if (!date || !days || days <= 0) {
       out.innerHTML = '<div class="tool-warn">请填写事件日期并选择时效类型（自定义需填写天数）。</div>';
@@ -168,7 +169,15 @@
     }
     var start = new Date(date + "T00:00:00");
     if (isNaN(start)) { out.innerHTML = '<div class="tool-warn">日期格式有误。</div>'; return; }
-    var deadline = new Date(start.getTime() + days * 86400000);
+    var deadline;
+    if (years > 0) {
+      /* 按年月加（民法典 201 条口径：到期月对应日为最后一日，非按天累加——跨闰年 730 天会差 1 天） */
+      var ty = start.getFullYear() + Math.floor(years), tm = start.getMonth(), tday = start.getDate();
+      deadline = new Date(ty, tm, tday);
+      if (deadline.getMonth() !== tm) deadline = new Date(ty, tm + 1, 0);
+    } else {
+      deadline = new Date(start.getTime() + days * 86400000);
+    }
     /* 节假日顺延（民诉法 85 条：届满日是节假日的顺延至其后第一日；limitation.js 提供官方放假表） */
     var postponedNote = "";
     if (window.LIMITATION && window.LIMITATION.postponeIfRest) {
