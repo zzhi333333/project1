@@ -3,7 +3,7 @@
  * ========================================================= */
 (function () {
   function $(id) { return document.getElementById(id); }
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   /* 规则版本：内置计算规则的最后复核标记（资料复核机制的一部分，改动规则时同步更新） */
   var RULE_VER = "R2026-11";
   function fmt(n) {

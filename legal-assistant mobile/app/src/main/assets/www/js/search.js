@@ -3,9 +3,7 @@
  * 关键词打分：法名/条号/标题/标签/正文 命中加权，支持高亮
  * ========================================================= */
 (function () {
-  function esc(s) {
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function highlight(text, kw) {
     if (!kw) return esc(text);
     var safe = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

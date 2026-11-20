@@ -4,7 +4,7 @@
  * 未知信息以【】占位，草稿仅供参考，须结合事实修改。
  * ========================================================= */
 window.DOCTPL = (function () {
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   var T = [];
 
   function reg(t) { T.push(t); }

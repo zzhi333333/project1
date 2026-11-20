@@ -2,7 +2,7 @@
  * 全局搜索 gsearch.js —— 一处搜索 法条 / 讲堂 / 场景 / 案例
  * ========================================================= */
 (function () {
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   function open() {
     document.getElementById("gsearch-modal").classList.remove("hidden");

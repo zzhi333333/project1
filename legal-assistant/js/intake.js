@@ -7,7 +7,7 @@
  * 要素判定由本地规则驱动（可靠、可离线核验）；AI 负责自然追问。
  * ========================================================= */
 window.INTAKE = (function () {
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   var ELEMENTS = [
     { key: "parties", label: "当事人关系", hint: "对方是谁（公司/个人）、你们之间是什么关系（劳动关系/合同/借贷/婚姻…）" },

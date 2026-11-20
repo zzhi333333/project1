@@ -23,7 +23,7 @@ window.ANALYSIS = (function () {
     });
     return out;
   }
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   /* ---------------- 案情要素提取 ---------------- */
   function extractFacts(text) {

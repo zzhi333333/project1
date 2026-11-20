@@ -9,9 +9,7 @@
  * ========================================================= */
 window.SVGCHART = (function () {
 
-  function esc(s) {
-    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   /* ---------- ring(pct, opts)：圆环进度 ----------
      pct 0–1（自动钳制）；颜色按剩余比例分档（opts.color 可覆盖，过期态用灰红满圈区分紧急亮红）；

@@ -93,9 +93,7 @@ window.ONLINE = (function () {
   }
 
   /* ---------- UI 绑定 ---------- */
-  function esc(s) {
-    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   var STATUS_MAP = { "1": "已废止", "2": "已被修改", "3": "有效", "4": "尚未生效" };
 

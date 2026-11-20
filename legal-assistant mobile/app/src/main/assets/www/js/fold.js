@@ -5,7 +5,7 @@
  * 打印/导出前调 openAll(root) 强制展开，保证内容完整。
  * ========================================================= */
 window.REPORTFOLD = (function () {
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   /* 重内容区块（按标题文本匹配折叠）；轻量区（要素/定性/风险/争点/抗辩）保持展开 */
   var FOLD_BY_TITLE = [

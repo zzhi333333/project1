@@ -2,7 +2,7 @@
  * 主逻辑 main.js —— 路由、聊天渲染、对话历史、案例/FAQ渲染、模块装配
  * ========================================================= */
 (function () {
-  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   /* 领域 → 求助渠道映射（C3 行动指引化轻量版）：结果卡尾部统一追加，12348 全领域兜底 */
   var HOPLINE = {

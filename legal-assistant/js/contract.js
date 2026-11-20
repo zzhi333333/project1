@@ -119,7 +119,7 @@ window.CONTRACT = (function () {
 
   var currentType = "labor";
 
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   /* ---------------- 存入案件工作区（文书草稿） ----------------
      此前审查结果只能页内看、刷新即丢（FEATURES 曾宣称自动归集但未实现）。

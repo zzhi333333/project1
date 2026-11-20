@@ -4,7 +4,7 @@
  * 解释为通俗化表述，不构成法律定义，以权威解释为准。
  * ========================================================= */
 window.GLOSSARY = (function () {
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   var TERMS = [
     { t: "N", en: "Severance pay: one month's wage per full year of service", p: "经济补偿金的俗称：工作每满 1 年给 1 个月工资，半年以上不满 1 年算 1 年、不满半年算半个月。" },
     { t: "N+1", en: "Severance plus payment in lieu of notice (PILON)", p: "N 之外再多给 1 个月工资（代通知金）——适用于单位无过失辞退但没有提前 30 天书面通知的情形。" },

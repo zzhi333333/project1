@@ -68,6 +68,7 @@ public class MainActivity extends Activity {
     private String pendingExportCb = null;
     private String pendingExportContent = null;
     private ValueCallback<Uri[]> pendingFileChooser = null;
+    private Intent pendingShareIntent = null;   /* 分享/快捷 intent：onPageFinished 页面就绪后统一注入 */
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -105,6 +106,19 @@ public class MainActivity extends Activity {
                     return true;
                 }
                 return false;
+            }
+
+            /* 分享冷启动修复（P1-1）：页面就绪后统一消费 pending intent——
+               onCreate 冷启动只 loadUrl 不注入文本（此前分享文本全丢），
+               onNewIntent 的 600ms postDelayed 是时序猜测（页面慢时不够）。
+               两路统一：intent 先存 pending，onPageFinished 一次性注入。 */
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (pendingShareIntent != null) {
+                    Intent i = pendingShareIntent;
+                    pendingShareIntent = null;
+                    handleShareIntent(i);
+                }
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
@@ -197,11 +211,14 @@ public class MainActivity extends Activity {
         });
 
         web.addJavascriptInterface(new Bridge(), "AndroidBridge");
+        Intent i0 = getIntent();
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
         } else {
-            web.loadUrl(launchUrl(getIntent()));
+            web.loadUrl(launchUrl(i0));
         }
+        /* 分享/快捷 intent 统一存 pending，onPageFinished 页面就绪后注入（restoreState 分支同样适用） */
+        if (i0 != null && Intent.ACTION_SEND.equals(i0.getAction())) pendingShareIntent = i0;
     }
 
     @Override
@@ -371,7 +388,7 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         /* singleTask：热启动时 shortcut/分享经 onNewIntent 到达；页面可能尚未稳定，稍候注入 */
-        ui.postDelayed(() -> handleShareIntent(intent), 600);
+        if (Intent.ACTION_SEND.equals(intent.getAction())) pendingShareIntent = intent;
     }
 
     @Override
@@ -402,10 +419,45 @@ public class MainActivity extends Activity {
         String error;
     }
 
+    /* ---------- 原生桥 URL 白名单（P0-3）----------
+     * 桥是 file:// 页面唯一的网络出口，JS 被注入时攻击者可借桥任意出网/打内网。
+     * 规则：①AI/法条等公网端点必须 https；②localhost/127.0.0.1 豁免（本地 Ollama，http 明文属合理）；
+     * ③其余一律拒绝。新增 AI 服务商域名须同步维护 ALLOWED_HOSTS（ai.js PROVIDERS 表对照）。 */
+    private static final java.util.Set<String> ALLOWED_HOSTS = new java.util.HashSet<>(java.util.Arrays.asList(
+            /* 法条/检索 */
+            "flk.npc.gov.cn",
+            /* AI 服务商（与 ai.js PROVIDERS 对照，新增 provider 须同步） */
+            "api.zhipuai.de", "open.bigmodel.cn", "api.deepseek.com", "api.moonshot.cn",
+            "dashscope.aliyuncs.com", "api.openai.com", "api.siliconflow.cn",
+            "openrouter.ai", "generativelanguage.googleapis.com",
+            "api.together.xyz", "api.groq.com", "api.mistral.ai"
+    ));
+
+    private String bridgeUrlBlocked(String url) {
+        try {
+            URL u = new URL(url);
+            String host = u.getHost() == null ? "" : u.getHost().toLowerCase();
+            String proto = u.getProtocol() == null ? "" : u.getProtocol().toLowerCase();
+            boolean loopback = host.equals("localhost") || host.equals("127.0.0.1") || host.equals("[::1]");
+            if (loopback) return null;                                  /* 本地 Ollama：http 明文豁免 */
+            if (!proto.equals("https")) return "仅允许 https（本地 Ollama 除外）";
+            if (!ALLOWED_HOSTS.contains(host)) return "域名不在白名单（" + host + "）";
+            return null;                                                /* null = 放行 */
+        } catch (Exception e) {
+            return "URL 无法解析";
+        }
+    }
+
     private Result doRequest(String cbId, String method, String url, String headersJson, String body, ChunkSink sink, int readTimeout, boolean binary) {
         Result r = new Result();
         HttpURLConnection conn = null;
         try {
+            String blocked = bridgeUrlBlocked(url);
+            if (blocked != null) {
+                r.status = 403;
+                r.error = "原生桥拒绝该地址：" + blocked;
+                return r;
+            }
             URL u = new URL(url);
             conn = (HttpURLConnection) u.openConnection();
             if (cbId != null) active.put(cbId, conn);

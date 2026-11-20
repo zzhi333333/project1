@@ -47,7 +47,7 @@ window.AGENT = (function () {
     /* 版本号段（全角/半角括号）一并剥离——laws.js 标注「（2012修正）」后仍能与 flk 缓存 title「(2012修正)」互认 */
     return String(name || "").replace(/[《》\s]/g, "").replace(/中华人民共和国/g, "").replace(/[（(][^（）()]*[）)]/g, "");
   }
-  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   /* ============ flk 全文缓存（会话级） ============ */
   var LAW_TEXT_CACHE = {};
