@@ -2,8 +2,8 @@
 # =========================================================
 # 法律咨询助手（移动版）一键构建脚本 —— Git Bash / Linux / macOS
 # 依赖：JDK 17+、Android SDK（build-tools + platforms/android-34）
-#   默认安装位置：C:/Users/zz333/android/{jdk-*,sdk}
-#   可用环境变量覆盖：JAVA_HOME、ANDROID_SDK
+#   SDK 路径支持环境变量覆盖：JAVA_HOME、ANDROID_SDK（不再写死用户目录）
+#   版本号自动读 AndroidManifest（防过期）；签名口令支持 LA_SIGN_PASS 环境变量
 # 输出：dist/legal-assistant-mobile-v<version>.apk
 # =========================================================
 set -euo pipefail
@@ -13,9 +13,10 @@ APP="$ROOT/app/src/main"
 OUT="$ROOT/build"
 DIST="$ROOT/dist"
 KS="$ROOT/tools/debug.keystore"
-KS_PASS="pass:legal123"
-VERSION_NAME="2.2"
-VERSION_CODE="16"
+LA_SIGN_PASS="${LA_SIGN_PASS:-legal123}"   # 环境变量优先，缺省兼容旧 keystore
+KS_PASS="pass:$LA_SIGN_PASS"
+VERSION_NAME="$(grep -o 'android:versionName="[^"]*"' "$APP/AndroidManifest.xml" | head -1 | cut -d'"' -f2)"
+VERSION_CODE="$(grep -o 'android:versionCode="[^"]*"' "$APP/AndroidManifest.xml" | head -1 | cut -d'"' -f2)"
 
 # ---------- 工具链定位 ----------
 JDK="${JAVA_HOME:-}"
@@ -67,8 +68,8 @@ jar cf "$OUT/classes.jar" -C "$OUT/obj" .
 
 # 6. 签名密钥（首次自动生成，固定密钥以便覆盖安装）
 if [ ! -f "$KS" ]; then
-  echo "🔑 生成签名密钥 tools/debug.keystore（密码 legal123）"
-  keytool -genkeypair -keystore "$KS" -storepass legal123 -keypass legal123 \
+  echo "🔑 生成签名密钥 tools/debug.keystore（密码 $LA_SIGN_PASS（可用环境变量 LA_SIGN_PASS 覆盖））"
+  keytool -genkeypair -keystore "$KS" -storepass "$LA_SIGN_PASS" -keypass "$LA_SIGN_PASS" \
     -alias legalassistant -keyalg RSA -keysize 2048 -validity 10950 \
     -dname "CN=Legal Assistant, OU=Personal, O=zz333, C=CN" >/dev/null 2>&1
 fi

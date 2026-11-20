@@ -179,6 +179,12 @@ window.AI = (function () {
     /* 预览确认 → 探测代理 → 发送；取消预览时整个调用拒绝 */
     var chain = proceed.then(function (finalMessages) {
       body.messages = finalMessages;
+      /* AI 走桥（安全五件后续）：App 内 file:// 页面 fetch 完全不可用（实测 Failed to fetch）——
+         WebView 跨域开关已关闭，代理探测/直连双路皆死；唯一网络出口=原生桥 BRIDGE.stream。
+         停止按钮：ctrl.abort() 对桥无效，stopCurrent 已补 BRIDGE.cancelActive 路径 */
+      if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.stream) {
+        return postViaBridge(cfg, body).then(function () { return acc; });
+      }
       return detectProxy().then(function (pb) {
         var viaProxy = pb !== false;
         var p;
@@ -207,7 +213,12 @@ window.AI = (function () {
     var timedOut = false, timedOutStage = "", toId = null;
     function armTimeout(ms, stage) {
       clearTimeout(toId);
-      toId = setTimeout(function () { timedOut = true; timedOutStage = stage || ""; try { ctrl.abort(); } catch (e) { } }, ms || STREAM_IDLE_MS);
+      toId = setTimeout(function () {
+        timedOut = true; timedOutStage = stage || "";
+        /* 走桥时 ctrl.abort() 对原生流无效——同步 cancelActive 真正断流 */
+        if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.cancelActive) window.BRIDGE.cancelActive();
+        try { ctrl.abort(); } catch (e) { }
+      }, ms || STREAM_IDLE_MS);
     }
     function disarm() { clearTimeout(toId); }
     function timeoutMsg() {
@@ -252,6 +263,33 @@ window.AI = (function () {
           throw new Error(hint || ("直连返回 " + r.status + "：" + t.slice(0, 300)));
         }); }
         return readStream(r, function (d) { armTimeout(STREAM_IDLE_MS, "stream"); emit(d); }).then(disarm, function (e) { disarm(); throw e; });
+      }, function (e) { disarm(); throw e; });
+    }
+    /* AI 走桥（App 内唯一网络出口）：原生 stream 推 SSE 原始网络块（data: {...} 行），
+       此处按 readStream 同款行解析出 delta.content 喂给 emit；上游 ≥400 走 statusHint 人话 */
+    function postViaBridge(cfg, b) {
+      armTimeout(FIRST_BYTE_MS, "first");
+      var url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+      var headers = { "Content-Type": "application/json", "Authorization": "Bearer " + (cfg.apiKey || "") };
+      var payload = JSON.stringify({ model: cfg.model, messages: b.messages, temperature: b.temperature, stream: true });
+      return window.BRIDGE.stream("POST", url, headers, payload, function (rawChunk) {
+        armTimeout(STREAM_IDLE_MS, "stream");
+        String(rawChunk).split("\n").forEach(function (line) {
+          line = line.trim();
+          if (!line || line.indexOf("data:") !== 0) return;
+          var data = line.slice(5).trim();
+          if (data === "[DONE]") return;
+          try {
+            var j = JSON.parse(data);
+            var ch = j.choices && j.choices[0];
+            var d = (ch && ch.delta && ch.delta.content) || "";
+            if (d) emit(d);
+          } catch (e) { /* 不完整 JSON 块（合批切断处）由下一块补齐解析 */ }
+        });
+      }).then(function (r) {
+        disarm();
+        if (r.status >= 400) throw new Error(statusHint(r.status, r.text) || ("上游返回 " + r.status + "：" + (r.text || "").slice(0, 300)));
+        return r.text || "";
       }, function (e) { disarm(); throw e; });
     }
     function friendly(e1, e2) {
@@ -392,7 +430,7 @@ window.AI = (function () {
     }).join("\n");
     /* A-1 对话 RAG 约束（与 agent 版资料区同款硬约束）：回答引用法条须与资料一致，
        资料未涵盖的问题如实说明——不得凭训练记忆编造条文号或数字 */
-    if (c.laws.length) s += "\n【核验约束】回答中引用法条时须与上述「相关法条」一致（法名+条号）；上述资料未涵盖的问题，如实告知「本资料未涉及，建议咨询执业律师」，不得凭训练记忆编造条文编号或具体数字。";
+    if (c.laws.length) s += "\n【核验约束·引用六维】①来源真实：只引用上方资料区可查的法条；②条文准确：法名+条号+内容三对应；③版本有效：引用现行有效版本，已废止法名（合同法/婚姻法等）一律不引；④适用范围：确认地区/主体/法律关系匹配；⑤事实匹配：本案事实须满足条文构成要件；⑥例外抗辩：不利因素与对方抗辩必须提及。资料未涵盖的问题，如实告知「本资料未涉及，建议咨询执业律师」，不得凭训练记忆编造条文编号或数字。";
     /* 用户技能：启用的技能追加专项分析框架（位于核验约束之后，免责声明由代码级追加） */
     if (window.SKILLS && window.SKILLS.promptBlock) s += window.SKILLS.promptBlock();
     if (budget && s.length > budget) s = s.slice(0, budget) + "\n（系统资料过长已截断——完整条文请到法条页检索）";
@@ -1153,7 +1191,12 @@ window.AI = (function () {
   }
 
   function resetHistory() { aiHistory = []; }
-  function stopCurrent() { if (activeCtrl) activeCtrl.abort(); }
+  function stopCurrent() {
+    /* AI 走桥后：ctrl.abort() 对原生流无效——桥模式走 cancelActive（reject 含 abort，
+       aiChat 的 catch 判 /abort/ 显示「已停止生成」）；浏览器 fetch 路径仍走 abort */
+    if (window.BRIDGE && window.BRIDGE.available && window.BRIDGE.cancelActive) window.BRIDGE.cancelActive();
+    if (activeCtrl) activeCtrl.abort();
+  }
 
   /* ---------------- 数据备份：导出 / 导入 ----------------
      v3：按 store.js 键注册表导出全部 backup:true 的键（对话/工作区/报告/案例/日历等）；

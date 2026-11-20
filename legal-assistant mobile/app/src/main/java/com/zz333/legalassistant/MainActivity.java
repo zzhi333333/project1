@@ -85,9 +85,10 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);          /* localStorage：AI 配置 + 对话历史 */
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(false);
-        /* file:// 下直接 fetch/XHR 的双保险；正常联网都走 AndroidBridge */
-        s.setAllowFileAccessFromFileURLs(true);
-        s.setAllowUniversalAccessFromFileURLs(true);
+        /* AI 走桥+flk 走桥后页面内 fetch/XHR 全部下线——两个跨域开关关闭（file 跨域放行收口）。
+         * 若未来需页面直连，须重新评估白名单方案（参见 AI 走桥改造记录） */
+        s.setAllowFileAccessFromFileURLs(false);
+        s.setAllowUniversalAccessFromFileURLs(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE); /* 允许 http 自定义端点/Ollama */
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
@@ -504,11 +505,31 @@ public class MainActivity extends Activity {
                     char[] buf = new char[2048];
                     StringBuilder full = new StringBuilder();
                     int n;
+                    /* 自适应合批（A 报告 P0-1 打回重审后定稿）：首块立即推（保首字延迟），
+                     * 后续按 30ms 窗口或 ≥12 字符合批——JNI 桥调用每 chunk evaluateJavascript
+                     * 代价高，但固定 50ms 窗口会伤首字延迟与打字机自然感 */
+                    StringBuilder batch = new StringBuilder();
+                    long lastPush = 0;
                     while ((n = br.read(buf)) > 0) {
                         String piece = new String(buf, 0, n);
                         if (full.length() < 4_000_000) full.append(piece);
-                        if (sink != null) sink.accept(piece);
+                        if (sink != null) {
+                            if (lastPush == 0) {
+                                sink.accept(piece);            /* 首块立即推 */
+                                lastPush = System.currentTimeMillis();
+                                batch.setLength(0);
+                            } else {
+                                batch.append(piece);
+                                long now = System.currentTimeMillis();
+                                if (now - lastPush >= 30 || batch.length() >= 12) {
+                                    sink.accept(batch.toString());
+                                    batch.setLength(0);
+                                    lastPush = now;
+                                }
+                            }
+                        }
                     }
+                    if (batch.length() > 0 && sink != null) sink.accept(batch.toString()); /* 冲刷尾块 */
                     br.close();
                     r.text = full.toString();
                 }

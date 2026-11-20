@@ -16,6 +16,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const SIGN_PASS = process.env.LA_SIGN_PASS || "legal123";  /* 口令环境变量化（明文不入 git 的硬编码兜底仍兼容旧 keystore） */
 const { spawnSync } = require("child_process");
 const crypto = require("crypto");
 const zlib = require("zlib");
@@ -160,8 +161,8 @@ runBat(path.join(env.bt, "d8.bat"), ["--release", "--lib", path.join(env.plat, "
 run(aapt, ["add", path.join(OUT, "unsigned.apk"), "classes.dex"], { cwd: path.join(OUT, "dex") });
 run(path.join(env.bt, "zipalign.exe"), ["-f", "4", path.join(OUT, "unsigned.apk"), path.join(OUT, "aligned.apk")]);
 const apkPath = path.join(DIST, "legal-assistant-mobile-v" + effName + ".apk");
-runBat(path.join(env.bt, "apksigner.bat"), ["sign", "--ks", KS, "--ks-pass", "pass:legal123",
-  "--key-pass", "pass:legal123", "--out", apkPath, path.join(OUT, "aligned.apk")]);
+runBat(path.join(env.bt, "apksigner.bat"), ["sign", "--ks", KS, "--ks-pass", "pass:" + SIGN_PASS,
+  "--key-pass", "pass:" + SIGN_PASS, "--out", apkPath, path.join(OUT, "aligned.apk")]);
 runBat(path.join(env.bt, "apksigner.bat"), ["verify", apkPath]);
 /* 清理 dist 内旧版本包与签名 sidecar（.idsig；验证通过后执行；dry 模式不动工作区） */
 if (!DRY) fs.readdirSync(DIST).filter(f => (f.endsWith(".apk") || f.endsWith(".apk.idsig")) && f !== path.basename(apkPath) && f !== path.basename(apkPath) + ".idsig").forEach(f => {

@@ -303,6 +303,8 @@ head("分支文件特征嗅探（DIFF 文件防单端漏改）");
   const ONLINE_MOBILE_EXTRA = ["htmlToText", "flkBridgeSearch", "flkBridgeDetail", "signed", "b64ToBytes", "zipExtract", "docxBytesToText", "flkBridgeText", "bingBridgeSearch", "caseBridgeSearch"];
   /* main.js 移动端合法缺失的函数：浏览器语音识别块（voice-btn 已删+原生桥移除后减重清理，web 端保留） */
   const MAIN_MOBILE_MISSING = ["setMicUI", "startRec", "stopRec"];
+  /* ai.js 移动端合法独有：AI 走桥（BRIDGE.stream 是 App 内唯一网络出口，web 走 fetch/代理不实现桥版） */
+  const AI_MOBILE_ONLY = ["postViaBridge"];
   const branchFiles = Object.keys(sync.BRANCH_FILES || {});
   if (!branchFiles.length) { warn("sync-www 未暴露分支清单，跳过嗅探"); return; }
   let sniffBad = 0;
@@ -324,6 +326,10 @@ head("分支文件特征嗅探（DIFF 文件防单端漏改）");
       const illegal = diffs.filter(n => !(cw[n] && !cm[n] && MAIN_MOBILE_MISSING.indexOf(n) > -1));
       if (!illegal.length) ok(rel + " 差异均为合法减重缺失（" + diffs.length + " 个，MAIN_MOBILE_MISSING 白名单内）");
       else { bad(rel + " 出现白名单外函数差异：" + illegal.join(", ") + "；语音减重外的新差异请两端补齐或更新 MAIN_MOBILE_MISSING"); sniffBad++; }
+    } else if (rel === "js/ai.js") {
+      const illegal = diffs.filter(n => !(cm[n] && !cw[n] && AI_MOBILE_ONLY.indexOf(n) > -1));
+      if (!illegal.length) ok(rel + " 差异均为合法 AI 走桥独有（" + diffs.length + " 个，AI_MOBILE_ONLY 白名单内）");
+      else { bad(rel + " 出现白名单外函数差异：" + illegal.join(", ") + "；AI 走桥外的新差异请两端补齐或更新 AI_MOBILE_ONLY"); sniffBad++; }
     } else {
       bad(rel + " 两端函数集不一致：" + diffs.map(n => n + " web=" + (cw[n] || 0) + " mob=" + (cm[n] || 0)).join("; "));
       sniffBad++;

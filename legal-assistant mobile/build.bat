@@ -1,4 +1,5 @@
 @echo off
+if "%LA_SIGN_PASS%"=="" set "LA_SIGN_PASS=legal123"   
 rem =========================================================
 rem 法律咨询助手（移动版）一键构建脚本 —— Windows CMD
 rem 依赖：JDK 17+、Android SDK（build-tools + platforms/android-34）
@@ -69,12 +70,12 @@ if errorlevel 1 goto :fail
 
 rem 6. 签名密钥（首次自动生成，固定密钥以便覆盖安装）
 if not exist "%KS%" (
-  echo 🔑 生成签名密钥 tools\debug.keystore（密码 legal123）
-  keytool -genkeypair -keystore "%KS%" -storepass legal123 -keypass legal123 -alias legalassistant -keyalg RSA -keysize 2048 -validity 10950 -dname "CN=Legal Assistant, OU=Personal, O=zz333, C=CN" >nul 2>&1
+  echo 🔑 生成签名密钥 tools\debug.keystore（密码 %LA_SIGN_PASS%（可设环境变量 LA_SIGN_PASS 覆盖））
+  keytool -genkeypair -keystore "%KS%" -storepass "%LA_SIGN_PASS%" -keypass "%LA_SIGN_PASS%" -alias legalassistant -keyalg RSA -keysize 2048 -validity 10950 -dname "CN=Legal Assistant, OU=Personal, O=zz333, C=CN" >nul 2>&1
 )
 
 set "APK=%DIST%\legal-assistant-mobile-v%VERSION_NAME%.apk"
-call "%BT%\apksigner.bat" sign --ks "%KS%" --ks-pass pass:legal123 --key-pass pass:legal123 --out "%APK%" "%OUT%\aligned.apk"
+call "%BT%\apksigner.bat" sign --ks "%KS%" --ks-pass pass:%LA_SIGN_PASS% --key-pass pass:%LA_SIGN_PASS% --out "%APK%" "%OUT%\aligned.apk"
 if errorlevel 1 goto :fail
 call "%BT%\apksigner.bat" verify "%APK%"
 if errorlevel 1 goto :fail
