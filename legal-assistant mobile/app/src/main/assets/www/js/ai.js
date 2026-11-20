@@ -272,9 +272,15 @@ window.AI = (function () {
       var url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
       var headers = { "Content-Type": "application/json", "Authorization": "Bearer " + (cfg.apiKey || "") };
       var payload = JSON.stringify({ model: cfg.model, messages: b.messages, temperature: b.temperature, stream: true });
-      return window.BRIDGE.stream("POST", url, headers, payload, function (rawChunk) {
+      /* 跨块缓冲（对侧审核 P1）：原生合批会把 SSE 行从中间切断，残留必须留到下一块拼接——
+         此前每块独立 split 丢弃残留致合批切断处 delta 永久丢失（随机缺字）。与 web readStream 同构。 */
+      var sseBuf = "";
+      function parseSseChunk(rawChunk, isLast) {
         armTimeout(STREAM_IDLE_MS, "stream");
-        String(rawChunk).split("\n").forEach(function (line) {
+        sseBuf += String(rawChunk);
+        var lines = sseBuf.split("\n");
+        sseBuf = isLast ? "" : lines.pop(); /* 非尾块：残留行留 buffer；尾块（[DONE] 后）冲刷全部 */
+        lines.forEach(function (line) {
           line = line.trim();
           if (!line || line.indexOf("data:") !== 0) return;
           var data = line.slice(5).trim();
@@ -284,9 +290,13 @@ window.AI = (function () {
             var ch = j.choices && j.choices[0];
             var d = (ch && ch.delta && ch.delta.content) || "";
             if (d) emit(d);
-          } catch (e) { /* 不完整 JSON 块（合批切断处）由下一块补齐解析 */ }
+          } catch (e) { /* 单行 JSON 异常（非切断导致）按块跳过 */ }
         });
+      }
+      return window.BRIDGE.stream("POST", url, headers, payload, function (rawChunk) {
+        parseSseChunk(rawChunk, false);
       }).then(function (r) {
+        parseSseChunk("", true); /* 流结束冲刷残留缓冲 */
         disarm();
         if (r.status >= 400) throw new Error(statusHint(r.status, r.text) || ("上游返回 " + r.status + "：" + (r.text || "").slice(0, 300)));
         return r.text || "";

@@ -464,6 +464,9 @@ public class MainActivity extends Activity {
             if (cbId != null) active.put(cbId, conn);
             conn.setConnectTimeout(12000);
             conn.setReadTimeout(readTimeout);
+            /* 禁重定向（对侧审核 P2）：白名单只校验入口 URL，开放重定向可 302 绕过——
+               AI/API 场景无需跟随重定向，禁用后白名单不可被 Location 跳转绕过 */
+            conn.setInstanceFollowRedirects(false);
             conn.setRequestMethod(method == null || method.isEmpty() ? "GET" : method.toUpperCase());
             /* 默认桌面 UA（flk / 搜索引擎更友好），JS 侧可覆盖 */
             conn.setRequestProperty("User-Agent", DESKTOP_UA);

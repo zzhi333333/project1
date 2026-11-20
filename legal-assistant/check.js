@@ -304,7 +304,7 @@ head("分支文件特征嗅探（DIFF 文件防单端漏改）");
   /* main.js 移动端合法缺失的函数：浏览器语音识别块（voice-btn 已删+原生桥移除后减重清理，web 端保留） */
   const MAIN_MOBILE_MISSING = ["setMicUI", "startRec", "stopRec"];
   /* ai.js 移动端合法独有：AI 走桥（BRIDGE.stream 是 App 内唯一网络出口，web 走 fetch/代理不实现桥版） */
-  const AI_MOBILE_ONLY = ["postViaBridge"];
+  const AI_MOBILE_ONLY = ["postViaBridge", "parseSseChunk"];
   const branchFiles = Object.keys(sync.BRANCH_FILES || {});
   if (!branchFiles.length) { warn("sync-www 未暴露分支清单，跳过嗅探"); return; }
   let sniffBad = 0;
