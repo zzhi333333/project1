@@ -813,7 +813,7 @@ window.AI = (function () {
       var regen = document.createElement("button");
       regen.className = "mini-btn";
       regen.style.marginTop = "6px";
-      regen.innerHTML = "<svg class=ico><use href=#i-rocket></use></svg> 重新生成";
+      regen.textContent = "重新生成";
       regen.addEventListener("click", function () {
         if (window.CHATHISTORY && CHATHISTORY.removeLastOf) CHATHISTORY.removeLastOf("ai");
         if (aiHistory.length >= 2) aiHistory.splice(-2);
