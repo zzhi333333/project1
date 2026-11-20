@@ -390,6 +390,9 @@ window.AI = (function () {
     if (c.cases.length) s += "\n【参考案例】\n" + c.cases.map(function (x) {
       return "· " + (x.no ? x.no + " " : "") + x.title + "：" + (x.gist || x.ruling || "");
     }).join("\n");
+    /* A-1 对话 RAG 约束（与 agent 版资料区同款硬约束）：回答引用法条须与资料一致，
+       资料未涵盖的问题如实说明——不得凭训练记忆编造条文号或数字 */
+    if (c.laws.length) s += "\n【核验约束】回答中引用法条时须与上述「相关法条」一致（法名+条号）；上述资料未涵盖的问题，如实告知「本资料未涉及，建议咨询执业律师」，不得凭训练记忆编造条文编号或具体数字。";
     /* 用户技能：启用的技能追加专项分析框架（位于核验约束之后，免责声明由代码级追加） */
     if (window.SKILLS && window.SKILLS.promptBlock) s += window.SKILLS.promptBlock();
     if (budget && s.length > budget) s = s.slice(0, budget) + "\n（系统资料过长已截断——完整条文请到法条页检索）";

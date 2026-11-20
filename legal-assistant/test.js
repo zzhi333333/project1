@@ -770,6 +770,26 @@ T("核验盲区：中文数字断言入核验 + 废止法名黑名单", function
   if ((v2.citations || [])[0] && v2.citations[0].status === "fail") throw new Error("《劳动合同法》被黑名单误伤");
 });
 T("verify-apk.js 常驻门禁在位（出包快照落后收口）", function () {
+/* C-2 内容工业化：FAQ 跨域重复检测（新增领域内容防抄重） */
+T("FAQ 跨域重复度：同题不跨域重复（防内容抄重）", function () {
+  const vm2 = require("vm");
+  const fs3 = require("fs");
+  const c2 = { window: {}, console };
+  vm2.createContext(c2);
+  ["js/registry.js", "js/data/faq.js"].concat(fs3.readdirSync(path.join(__dirname, "js", "domains")).filter(d => d.endsWith(".js")).map(d => "js/domains/" + d), ["js/data/scenarios.js"]).forEach(f => {
+    vm2.runInContext(fs3.readFileSync(path.join(__dirname, f), "utf8"), c2, { filename: f });
+  });
+  vm2.runInContext(fs3.readFileSync(path.join(__dirname, "js", "data", "scenarios.js"), "utf8"), c2, { filename: "scenarios.js" });
+  const faq = c2.window.FAQ || [];
+  if (!faq.length) throw new Error("FAQ 未加载（" + faq.length + "）");
+  const seen = {};
+  faq.forEach(f => {
+    const key = String(f.q).replace(/[s？?，,。.]/g, "");
+    if (seen[key] && seen[key] !== f.domain) throw new Error("FAQ 跨域重复：" + f.q + "（" + seen[key] + " 与 " + f.domain + "）");
+    seen[key] = f.domain;
+  });
+});
+
   const p = path.join(__dirname, "..", "legal-assistant mobile", "tools", "verify-apk.js");
   const src = fs.readFileSync(p, "utf8");
   if (src.indexOf("verify-apk") === -1 || src.indexOf("实质不一致") === -1) throw new Error("verify-apk.js 缺失或被改坏");

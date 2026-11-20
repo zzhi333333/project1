@@ -164,8 +164,10 @@ window.CONTRACT = (function () {
       (res.missing.length ? res.missing.map(function (f) { return '<span class="fact-chip" style="color:var(--warn)">✗ ' + esc(f) + '</span>'; }).join("") : '<span class="fact-chip" style="color:var(--ok)">核心条款齐全</span>') + '</div></div>';
     html += '<div class="report-sec"><div class="report-sec-title"><svg class=ico><use href=#i-warn></use></svg> 高危语句识别</div>';
     if (res.risks.length) {
+      /* A-3 风险分级：warn 含「极高/显失公平/无效」判高危（红），其余为提示（橙）——零人工分类 */
       html += '<ul class="report-list risk">' + res.risks.map(function (r) {
-        return '<li>「' + esc(r.snippet) + '」— ' + esc(r.warn) + '</li>';
+        var level = /极高|显失公平|无效|一律/.test(r.warn) ? "🔴 高危" : "🟠 提示";
+        return '<li>[' + level + '] 「' + esc(r.snippet) + '」— ' + esc(r.warn) + '</li>';
       }).join("") + '</ul>';
     } else {
       html += '<div class="dim">未命中已知高危模式（不等于无风险，AI 审查可进一步分析）。</div>';
