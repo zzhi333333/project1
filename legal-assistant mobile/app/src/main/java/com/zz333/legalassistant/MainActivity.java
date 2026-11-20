@@ -513,10 +513,6 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (recognizer != null) {
-            recognizer.destroy();
-            recognizer = null;
-        }
         if (web != null) {
             web.destroy();
             web = null;
