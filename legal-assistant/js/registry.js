@@ -63,7 +63,8 @@ window.DomainRegistry = (function () {
     labor: "i-d-labor", company: "i-d-company", patent: "i-d-patent", trade: "i-d-trade",
     jiashi: "i-d-jiashi", biaozhu: "i-d-biaozhu", minfa: "i-d-minfa", minsusong: "i-d-mss",
     zulin: "i-d-zulin",
-    gig: "i-d-labor"
+    gig: "i-d-labor",
+    xiaofei: "i-d-minfa"
   };
   /* 领域线性图标（SVG sprite 引用，单色跟随主题）；icon 字段的 emoji 仅保留作纯文本兜底 */
   function iconSvg(id) {

@@ -76,7 +76,28 @@ var FLK_HEADERS = function (extra) {
   }, extra || {});
 };
 
+/* 内存缓存（A2 修正版：只做缓存不做限流——本机单人代理，缓存降上游压力/提命中率；
+ * TTL 24h，上限 200 条 FIFO 淘汰，防无界增长） */
+var FLK_CACHE = { map: new Map(), TTL: 24 * 60 * 60 * 1000, MAX: 200, hits: 0, miss: 0 };
+function flkCacheGet(k) {
+  var v = FLK_CACHE.map.get(k);
+  if (!v) { FLK_CACHE.miss++; return null; }
+  if (Date.now() - v.t > v.ttl) { FLK_CACHE.map.delete(k); FLK_CACHE.miss++; return null; }
+  FLK_CACHE.hits++;
+  return v.v;
+}
+function flkCacheSet(k, v, ttl) {
+  if (FLK_CACHE.map.size >= FLK_CACHE.MAX) {
+    var first = FLK_CACHE.map.keys().next().value;
+    FLK_CACHE.map.delete(first);
+  }
+  FLK_CACHE.map.set(k, { t: Date.now(), ttl: ttl || FLK_CACHE.TTL, v: v });
+}
+
 function flkSearch(q, page, cb) {
+  var cacheKey = "s:" + (q || "") + ":" + (page || 1);
+  var cached = flkCacheGet(cacheKey);
+  if (cached) return cb(null, cached);
   /* POST /law-search/search/list —— 2026 新版接口（旧 POST /api/ 已下线） */
   var payload = JSON.stringify({
     searchContent: q, searchRange: 1, searchType: 2,
@@ -107,7 +128,9 @@ function flkSearch(q, page, cb) {
         status: String(it.sxx)   /* 1=已废止 2=已被修改 3=有效 4=尚未生效 */
       };
     });
-    cb(null, { total: json.total || list.length, list: list });
+    var out = { total: json.total || list.length, list: list };
+    flkCacheSet(cacheKey, out);
+    cb(null, out);
   });
 }
 
@@ -125,6 +148,10 @@ function htmlToText(html) {
 }
 
 function flkDetail(id, cb) {
+  /* 缓存优先（正文含签名下载直链——签名直链有时效性，缓存 TTL 降到 1h） */
+  var cacheKey = "d:" + id;
+  var cached = flkCacheGet(cacheKey);
+  if (cached) return cb(null, cached);
   /* GET /law-search/search/flfgDetails?bbbs=... → 元数据 + 官方文件（正文以 Word/PDF 文件提供） */
   var detailPath = "/law-search/search/flfgDetails?bbbs=" + encodeURIComponent(id);
   request({
@@ -169,14 +196,16 @@ function flkDetail(id, cb) {
     function tryFinish() {
       if (!finished && pending === 0) {
         finished = true;
-        cb(null, {
+        var out = {
           title: d.title, text: "",
           meta: {
             flxz: d.flxz, office: d.zdjgName, publish: d.gbrq,
             expiry: d.sxrq, status: String(d.sxx)
           },
           links: links
-        });
+        };
+        flkCacheSet(cacheKey, out, 60 * 60 * 1000); /* 1h——内含签名下载直链，时效敏感 */
+        cb(null, out);
       }
     }
     pending++;

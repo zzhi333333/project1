@@ -276,12 +276,14 @@ window.ONLINE = (function () {
     if (!list.length) { box.innerHTML = '<div class="empty">内置指导性案例中没有匹配「' + esc(kw) + '」的条目，可换关键词或在上方在线检索。</div>'; return; }
     box.innerHTML = list.map(function (g) {
       var d = window.DOMAINS[g.domain];
+      /* C5 权威溯源：官方原文检索指引（诚实口径——不编造直链，给检索路径） */
       return '<div class="case-card">' +
         '<div class="case-domain" style="background:' + d.color + '1a;color:' + d.color + '">' + g.no + ' · ' + d.name + '</div>' +
         '<div class="case-title">' + esc(g.title) + '</div>' +
         '<div class="case-sec"><b>基本案情</b>' + esc(g.facts) + '</div>' +
         '<div class="case-sec"><b>裁判要点</b>' + esc(g.gist) + '</div>' +
         '<div class="case-lesson"><svg class=ico><use href=#i-d-patent></use></svg> <b>适用解析</b>' + esc(g.analysis) + '</div>' +
+        '<div class="cw-url">来源：最高人民法院发布' + esc(g.no) + '——可在 court.gov.cn 检索「' + esc(g.no.replace("指导案例", "指导性案例")) + '」核对官方原文</div>' +
         '</div>';
     }).join("");
   }
