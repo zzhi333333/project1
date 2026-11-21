@@ -42,6 +42,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
   background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.65;
+  font-variant-numeric: tabular-nums;   /* 等宽数字：30 日/2N/金额对齐不跳动（法律核对刚需） */
 }
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; font-size: 14px; }
@@ -544,7 +545,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .law-name { font-size: 13px; color: var(--ink-2); }
 .law-article { font-size: 13px; font-weight: 700; color: var(--primary); }
 .law-title { font-size: 15.5px; font-weight: 700; margin-bottom: 4px; }
-.law-text { font-size: 14px; color: var(--ink); }
+.law-text { font-size: 14px; color: var(--ink); line-height: 1.75; }
 .law-note {
   margin-top: 8px; font-size: 13px; color: var(--warn); background: var(--warn-soft);
   border: 1px solid var(--warn-border); border-radius: 8px; padding: 7px 10px;
@@ -1171,3 +1172,9 @@ html[data-fontscale="large2"] { zoom: 1.3; }   /* v4.0.21 特大档 */
 .tool-check.tool-ok { background: var(--ok-soft, rgba(52,199,89,.12)); border: 1px solid var(--ok); color: var(--ink); }
 .tool-check.tool-warn { background: var(--warn-soft, rgba(255,159,10,.12)); border: 1px solid var(--warn); color: var(--ink); }
 .tool-check b { color: var(--ink); }
+
+/* 窄屏收纳（外部 UI 审计：web 版手机浏览器访问时输入行 5 元素溢出——语音 SR 兼容差先收、间距缩） */
+@media (max-width: 480px) {
+  #voice-btn { display: none; }
+  .input-row { gap: 6px; }
+}
