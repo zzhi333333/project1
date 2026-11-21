@@ -257,4 +257,14 @@ for (let i = 1; i <= 8 && !ok; i++) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000);
 }
 if (!ok) die("推送 8 次未达（" + lastErr + "）——提交已在本地，网络恢复后手动 git push origin main 即可");
+/* Releases 上传（分发链路空档补齐）：LA_GH_TOKEN 存在时自动上传 APK，否则提示手动流程。
+ * upload-release.js 同时打印 SHA256——审核方核对「出的是不是这个包」的核对锚 */
+if (process.env.LA_GH_TOKEN) {
+  step("6. 上传 GitHub Releases");
+  const up = spawnSync(process.execPath, [path.join(MOB_ROOT, "tools", "upload-release.js"), apkPath], { encoding: "utf8" });
+  console.log(up.stdout || "");
+  if (up.status !== 0) console.log("⚠ 上传未完成（APK 仍在本地 dist，可手动重跑 tools/upload-release.js " + apkPath + "）");
+} else {
+  console.log("⚠ 未设 LA_GH_TOKEN——APK 仅在本地 dist，手动上传：node tools/upload-release.js " + apkPath);
+}
 console.log("\n✅ 出包完成：v" + versionName + "（versionCode " + newCode + "）· " + kb + "KB · MD5 " + md5);
