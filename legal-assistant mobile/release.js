@@ -237,7 +237,8 @@ const staged = spawnSync("git", ["diff", "--cached", "--name-only"], { encoding:
 const ALLOWED_STAGE = /^(version\.js|app\/build\.gradle|app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|dist\/legal-assistant-mobile-v|LEGAL_CHANGELOG\.md|FEATURES\.md|MANUAL\.md|README\.md)/;
 const illegalStaged = staged.filter(f => !ALLOWED_STAGE.test(f));
 if (illegalStaged.length) die("暂存区含非发布文件，已中止（git add -A 曾致仓库根文件误提交）：\n  " + illegalStaged.join("\n  "));
-const msg = commitMsg || ("移动端 v" + versionName + "（versionCode " + newCode + "）出包：release.js 流水线（版本对齐自动化+包内双验证）");
+/* commit 附 APK 哈希（对侧审核建议）：审核方可用哈希核对「对侧出的是不是这个包」——恢复 dist 迁 Releases 后的可验证性 */
+const msg = commitMsg || ("移动端 v" + versionName + "（versionCode " + newCode + "）出包：release.js 流水线 · APK MD5 " + md5 + " · 真机回归后 verify-apk 收口");
 git(["commit", "-m", msg]);
 const pushed = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" }).stdout.trim();
 let ok = false, lastErr = "";
