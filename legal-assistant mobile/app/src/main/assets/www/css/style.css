@@ -342,6 +342,7 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 #consult-input { resize: none; overflow-y: auto; min-height: 44px; max-height: 132px; height: 44px; line-height: 1.5; transition: height .12s ease; }
 .send-btn {
   flex: 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  border: 1px solid #92701e;   /* 金底描边（固定 40×40 border-box 外径不变，同 .primary-btn） */
   background: var(--primary-fill); color: var(--on-primary); font-size: 15px; font-weight: 600;
   display: grid; place-items: center;
 }
@@ -456,7 +457,9 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .analysis-editor textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .analysis-actions { display: flex; flex-direction: column; }
 .primary-btn {
-  margin-top: 10px; width: 100%; padding: 13px; border-radius: 13px;
+  margin-top: 10px; width: 100%; padding: 12px; border-radius: 13px;
+  /* 金色实心按钮浅色下与背景仅 1.73:1（WCAG 1.4.11 ≥3:1）——深金描边锁轮廓（v4.0.35 审核 P1）；padding 13→12 抵消 border 2px 外扩 */
+  border: 1px solid #92701e;
   background: var(--primary-fill); color: var(--on-primary); font-size: 15.5px; font-weight: 700;
 }
 .primary-btn:active { background: var(--primary-2); }
@@ -501,7 +504,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 }
 .search-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .search-row button {
-  flex: 0 0 auto; padding: 0 18px; border-radius: 12px;
+  flex: 0 0 auto; padding: 0 17px; border-radius: 12px;
+  border: 1px solid #92701e;   /* 金底描边+横向 padding 18→17 尺寸补偿（同 .primary-btn） */
   background: var(--primary-fill); color: var(--on-primary); font-size: 14.5px; font-weight: 600;
 }
 .search-row button:active { background: var(--primary-2); }
@@ -554,7 +558,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 .check-line { flex-direction: row !important; align-items: center; gap: 8px !important; font-size: 13px; }
 .check-line input { width: 18px; height: 18px; accent-color: var(--primary); }
 .calc-btn {
-  margin-top: 4px; padding: 12px; border-radius: 12px;
+  margin-top: 4px; padding: 11px; border-radius: 12px;
+  border: 1px solid #92701e;   /* 金底描边+padding 12→11 尺寸补偿（同 .primary-btn） */
   background: var(--primary-fill); color: var(--on-primary); font-size: 15px; font-weight: 700;
 }
 .calc-btn:active { background: var(--primary-2); }

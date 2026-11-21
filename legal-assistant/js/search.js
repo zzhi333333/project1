@@ -177,8 +177,10 @@
       if (!chips) return "";
       return '<div class="law-related" style="margin:6px 0 0;font-size:12px;color:var(--ink-2)">配套条文：<div class="chips" style="margin-top:4px">' + chips + '</div></div>';
     }
-    /* 「加载更多」：results 超 PAGE 时追加下一批（全量建 DOM 卡顿防护） */
-    if (results.length > shown) {
+    /* 「加载更多」：results 超 PAGE 时追加下一批（全量建 DOM 卡顿防护）
+       递归重建（v4.0.35 审核 P1：旧版点击后按钮消失不重建，剩余条目锁死无法显示） */
+    (function showMore() {
+      if (results.length <= shown) return;
       const moreBtn = document.createElement("button");
       moreBtn.className = "mini-btn";
       moreBtn.style.cssText = "display:block;margin:10px auto";
@@ -186,11 +188,12 @@
       moreBtn.addEventListener("click", function () {
         moreBtn.remove();
         const prev = shown;
-        shown += PAGE;
+        shown = Math.min(shown + PAGE, results.length);
         results.slice(prev, shown).forEach(renderCard);
+        showMore();   /* 还有剩余则重建按钮，渲染完自然不再建 */
       });
       container.appendChild(moreBtn);
-    }
+    })()
     container.addEventListener("click", function (e) {
       var rel = e.target.closest ? e.target.closest(".rel-law-chip") : null;
       if (!rel) return;
@@ -208,6 +211,7 @@
     refreshNow: function () { if (_refresh) _refresh(); },
     search: search,   /* 评测与外部调用（test.js 别名金问题） */
     expandAlias: expandAlias,   /* v4.0.21：AI matchContext 同源别名扩展（口语词→规范词命中法条） */
+    _test: { renderList: renderList },   /* 分页断言入口（test.js 加载更多回归） */
     init: function () {
       var input = document.getElementById("law-search-input");
       var btn = document.getElementById("law-search-btn");

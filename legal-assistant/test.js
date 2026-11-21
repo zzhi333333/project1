@@ -1112,6 +1112,42 @@ T("检索别名：无别名词不误扩（「竞业限制」正常检索且 last
   if (!n) throw new Error("常规检索异常");
   if ((sandbox.window.LAWSEARCH.lastAlias || []).length) throw new Error("常规词不应触发别名扩展");
 });
+section("法条检索分页测试（search.js 加载更多重建 · v4.0.35 审核 P1 回归）");
+/* 分页渲染需要 DOMAINS 全域（sandbox 只加载了 7 个 domains js，缺的补最小桩；iconSvg 已有 i-cases 兜底） */
+["labor", "company", "gig", "xiaofei"].forEach(function (d) {
+  sandbox.window.DOMAINS[d] = sandbox.window.DOMAINS[d] || { name: d, color: "#000" };
+});
+T("检索分页：点一次后按钮重建，可持续渲染至全部结果", function () {
+  const appended = [];
+  const container = {
+    innerHTML: "",
+    appendChild(el) { appended.push(el); },
+    addEventListener() {}
+  };
+  sandbox.window.LAWSEARCH._test.renderList(container, "法");
+  const total = sandbox.window.LAWSEARCH.search("法").length;
+  if (total <= 60) throw new Error("「法」命中数应 >60 才能暴露分页缺陷（实测 " + total + "）");
+  const countCards = () => appended.filter(e => e.className === "law-card").length;
+  const moreBtns = () => appended.filter(e => e.className === "mini-btn");
+  if (countCards() !== 30) throw new Error("首屏应 30 条：" + countCards());
+  if (!moreBtns().length) throw new Error("首屏应有「加载更多」按钮");
+  moreBtns()[moreBtns().length - 1].click();   /* 点最新按钮（旧按钮已 remove，桩记录不移除） */
+  if (countCards() !== 60) throw new Error("点 1 次后应 60 条：" + countCards());
+  if (moreBtns().length !== 2) throw new Error("点 1 次后按钮必须重建（v4.0.35 P1 修复点）");
+  let guard = 0;
+  while (guard < 30) {
+    const before = moreBtns().length;
+    moreBtns()[moreBtns().length - 1].click();
+    guard++;
+    const after = moreBtns().length;
+    if (countCards() >= total) {
+      if (after !== before) throw new Error("渲染完后不应再新建「加载更多」按钮");
+      break;
+    }
+    if (after !== before + 1) throw new Error("每次点击后必须重建按钮（v4.0.35 P1 修复点）");
+  }
+  if (countCards() !== total) throw new Error("最终应渲染全部 " + total + " 条：" + countCards());
+});
 section("AI 体验纵深测试（js/ai.js P1/P2 · js/history.js P4/P5）");
 vm.runInContext(fs.readFileSync(path.join(root, "js", "history.js"), "utf8"), sandbox, { filename: "js/history.js" });
 T("P1 trimHistory：预算截断→摘要行置顶+最近一对保留（v4.0.21 摘要压缩）", function () {

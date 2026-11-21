@@ -57,7 +57,10 @@ window.CHATHISTORY = (function () {
 
   /* 写合并：800ms 尾延迟；页面隐藏/关闭前强制落盘兜底（防尾部消息丢失） */
   /* 容量估算（外部诊断）：超 80% 提示导出备份——QuotaExceededError 前的最后一道提示 */
+  var lastEstimate = 0;
   function estimateStorage() {
+    if (Date.now() - lastEstimate < 60000) return;   /* 60s 节流（审核 P3：高频 persist 下异步 estimate 白开销） */
+    lastEstimate = Date.now();
     if (!(navigator.storage && navigator.storage.estimate)) return;
     navigator.storage.estimate().then(function (est) {
       if (est.quota && est.usage / est.quota > 0.8) {
