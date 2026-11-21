@@ -238,12 +238,15 @@ const releasePaths = [
   path.join(WEB_ROOT, "version.js"),
   path.join(MOB_ROOT, "app/src/main/AndroidManifest.xml"), path.join(MOB_ROOT, "app/src/main/assets/www"),
   path.join(WEB_ROOT, "LEGAL_CHANGELOG.md"), path.join(WEB_ROOT, "FEATURES.md"),
-  path.join(MOB_ROOT, "MANUAL.md"), path.join(MOB_ROOT, "README.md")
+  path.join(MOB_ROOT, "MANUAL.md"), path.join(MOB_ROOT, "README.md"),
+  /* 版本链对齐目标补齐（P1 三连根因：v4.0.28/29/30 连续三轮 build.bat+web index.html
+     被 targets 对齐改号却不在 add 清单——commit 不含致版本漂移，check 时序在 add 前看不出） */
+  path.join(MOB_ROOT, "build.bat"), path.join(WEB_ROOT, "index.html")
 ].map(p => path.relative(REPO_ROOT, p).replace(/\\/g, "/"));
 const gitAdd = spawnSync("git", ["add", "--"].concat(releasePaths), { encoding: "utf8", cwd: REPO_ROOT });
 if (gitAdd.status !== 0) die("git add 失败：" + (gitAdd.stderr || gitAdd.stdout));
 const staged = spawnSync("git", ["diff", "--cached", "--name-only"], { encoding: "utf8", cwd: REPO_ROOT }).stdout.split("\n").filter(Boolean);
-const ALLOWED_STAGE = /^(legal-assistant\/version\.js|legal-assistant\/js\/|legal-assistant mobile\/app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|legal-assistant mobile\/release\.js|legal-assistant mobile\/tools\/|legal-assistant\/LEGAL_CHANGELOG\.md|legal-assistant\/FEATURES\.md|legal-assistant mobile\/MANUAL\.md|legal-assistant mobile\/README\.md)/;
+const ALLOWED_STAGE = /^(legal-assistant\/version\.js|legal-assistant\/js\/|legal-assistant\/index\.html|legal-assistant mobile\/app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|legal-assistant mobile\/build\.bat|legal-assistant mobile\/release\.js|legal-assistant mobile\/tools\/|legal-assistant\/LEGAL_CHANGELOG\.md|legal-assistant\/FEATURES\.md|legal-assistant mobile\/MANUAL\.md|legal-assistant mobile\/README\.md)/;
 const illegalStaged = staged.filter(f => !ALLOWED_STAGE.test(f));
 if (illegalStaged.length) die("暂存区含非发布文件，已中止（git add -A 曾致仓库根文件误提交）：\n  " + illegalStaged.join("\n  "));
 /* commit 附 APK 哈希（对侧审核建议）：审核方可用哈希核对「对侧出的是不是这个包」——恢复 dist 迁 Releases 后的可验证性 */
