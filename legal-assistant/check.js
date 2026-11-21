@@ -439,6 +439,25 @@ head("CSS 完整性（令牌循环 / 非法拼接 / 暗色浅底）");
       for (var c = 0; c < closes; c++) stack.pop();
     });
     if (lightHits.length) errs.push("令牌块外浅色背景 hex ×" + lightHits.length + "（" + lightHits.slice(0, 3).join("、") + "）——请收敛进语义令牌");
+    /* 玻璃令牌双端门禁（对侧 v4.0.32 审核发现：手动深色块漏 --card-glass 致玻璃白块 1.29:1——
+     * 静态拦截「两深色块漂移」，双端读 css 防 mobile 盲区假安全感） */
+    const glassFiles = [
+      { name: "web", p: path.join(root, "css", "style.css") },
+      { name: "mobile", p: path.join(root, "..", "legal-assistant mobile", "app", "src", "main", "assets", "www", "css", "style.css") }
+    ];
+    glassFiles.forEach(function (gf) {
+      const gsrc = fs.readFileSync(gf.p, "utf8");
+      const darkBlocks = (gsrc.match(/data-theme="dark"][^{]*{[^}]*}/g) || []).filter(b => b.indexOf("--bg") > -1);
+      const withGlass = darkBlocks.filter(b => b.indexOf("--card-glass") > -1).length;
+      const without = darkBlocks.length - withGlass;
+      /* --card-glass 仅 mobile 要求（毛玻璃只在 mobile 实现，web 无此令牌需求） */
+      if (gf.name === "mobile") {
+        if (without > 0) bad("mobile 端 " + without + "/" + darkBlocks.length + " 个深色块缺 --card-glass（玻璃白块缺陷复发）");
+        else ok("mobile 端深色块玻璃令牌齐备（" + darkBlocks.length + " 块）");
+      } else {
+        ok("web 端无毛玻璃令牌需求（玻璃只在 mobile 实现）");
+      }
+    });
     if (errs.length) errs.forEach(function (e2) { bad(f.rel + "：" + e2); });
     else ok(f.rel + "：无自引用 / 非法拼接 / 暗色失明浅底");
   });

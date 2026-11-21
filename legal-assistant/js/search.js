@@ -21,7 +21,7 @@
       if (law.article.indexOf(t) > -1) score += 8;
       if (law.title.indexOf(t) > -1) score += 5;
       law.tags.forEach(function (tag) { if (tag.indexOf(t) > -1) score += 4; });
-      if (law.text.indexOf(t) > -1) score += 2;
+      if (law.text.indexOf(t) > -1 && t.length >= 3) score += 2;
       if (law.note && law.note.indexOf(t) > -1) score += 1;
     });
     return score;
@@ -141,8 +141,10 @@
       hint.textContent = "已按别名扩展检索：" + aliasNote;
       container.appendChild(hint);
     }
+    /* 限流渲染（外部诊断：全量建 DOM 上百卡片移动端卡顿）：首屏 30 条+「加载更多」 */
+    var PAGE = 30, shown = PAGE;
     var favs = getFavs();
-    results.forEach(function (l) {
+    function renderCard(l) {
       var d = window.DOMAINS[l.domain];
       var card = document.createElement("div");
       card.className = "law-card";
@@ -160,7 +162,8 @@
         '<div class="law-tags">' + l.tags.map(function (t) { return '<i>#' + esc(t) + '</i>'; }).join("") + '</div>' +
         relatedLaws(l);
       container.appendChild(card);
-    });
+    }
+    results.slice(0, shown).forEach(renderCard);
     /* 配套条文 chips（法条关联网络）：点击跳转同页检索 */
     function relatedLaws(l) {
       var LINKS = (window.CLAIMS && window.CLAIMS.LAW_LINKS) || {};
@@ -174,7 +177,20 @@
       if (!chips) return "";
       return '<div class="law-related" style="margin:6px 0 0;font-size:12px;color:var(--ink-2)">配套条文：<div class="chips" style="margin-top:4px">' + chips + '</div></div>';
     }
-    /* 配套条文点击：法条页内直接跳到该条文检索结果 */
+    /* 「加载更多」：results 超 PAGE 时追加下一批（全量建 DOM 卡顿防护） */
+    if (results.length > shown) {
+      const moreBtn = document.createElement("button");
+      moreBtn.className = "mini-btn";
+      moreBtn.style.cssText = "display:block;margin:10px auto";
+      moreBtn.textContent = "加载更多（还有 " + (results.length - shown) + " 条）";
+      moreBtn.addEventListener("click", function () {
+        moreBtn.remove();
+        const prev = shown;
+        shown += PAGE;
+        results.slice(prev, shown).forEach(renderCard);
+      });
+      container.appendChild(moreBtn);
+    }
     container.addEventListener("click", function (e) {
       var rel = e.target.closest ? e.target.closest(".rel-law-chip") : null;
       if (!rel) return;

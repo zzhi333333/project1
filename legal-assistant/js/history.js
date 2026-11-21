@@ -56,7 +56,21 @@ window.CHATHISTORY = (function () {
   }
 
   /* 写合并：800ms 尾延迟；页面隐藏/关闭前强制落盘兜底（防尾部消息丢失） */
+  /* 容量估算（外部诊断）：超 80% 提示导出备份——QuotaExceededError 前的最后一道提示 */
+  function estimateStorage() {
+    if (!(navigator.storage && navigator.storage.estimate)) return;
+    navigator.storage.estimate().then(function (est) {
+      if (est.quota && est.usage / est.quota > 0.8) {
+        if (!window.__quotaWarned) {
+          window.__quotaWarned = true;
+          if (window.UIKIT && window.UIKIT.toast) window.UIKIT.toast('本地存储空间已用 ' + Math.round(est.usage / est.quota * 100) + '%，建议导出备份后清理旧数据');
+        }
+      }
+    }).catch(function () {});
+  }
+
   function persist() {
+    estimateStorage();
     dirty = true;
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(function () { persistTimer = null; persistNow(); }, 800);
@@ -75,7 +89,14 @@ window.CHATHISTORY = (function () {
     return null;
   }
 
-  function trim() { if (sessions.length > MAX) sessions = sessions.slice(0, MAX); }
+  var pendingNotice = null;   /* 静默裁剪改为用户可见提示（对侧审核 P1：法律场景会话丢失必须告知） */
+  function trim() {
+    if (sessions.length > MAX) {
+      const removed = sessions.length - MAX;
+      sessions = sessions.slice(0, MAX);
+      pendingNotice = '本地会话已达上限 ' + MAX + ' 条，最旧的 ' + removed + ' 条已被移出列表（建议先导出备份再继续）';
+    }
+  }
 
   /* 确保存在当前会话；空会话复用，避免累积 */
   function ensureCurrent() {
@@ -118,6 +139,11 @@ window.CHATHISTORY = (function () {
     listTimer = setTimeout(function () {
       listTimer = null;
       if (window.renderSessionList) window.renderSessionList();
+      /* 裁剪告知（对侧审核 P1）：静默裁剪改用户可见 */
+      if (pendingNotice && window.UIKIT && window.UIKIT.toast) {
+        window.UIKIT.toast(pendingNotice);
+        pendingNotice = null;
+      }
     }, 1200);
   }
 
