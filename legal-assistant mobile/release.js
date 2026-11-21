@@ -230,22 +230,24 @@ const git = (gitArgs, allowFail) => {
 };
 /* 显式暂存（对侧审核 P1：git add -A 不受 cwd 限制，仓库根未跟踪文件/密钥会被误提交
  * ——实测 cd 子目录下 -A 等价于 :/ 仓库根作用域。只暂存发布链明确文件+暂存区白名单硬门禁。
- * v4.0.29 修复：git add 的 pathspec 必须位于 cwd 内——WEB_ROOT cwd 下 MOB_ROOT 文件全 did not match
- * （对侧 70c820f 版本 cwd=WEB_ROOT+MOB_ROOT 视角路径错位），改 spawnSync cwd=仓库根 + 仓库根相对路径 */
+ * v4.0.29 合并修复：pathspec 必须位于 cwd 内（WEB_ROOT cwd 下 MOB_ROOT 文件全 did not match），
+ * 改 spawnSync cwd=仓库根 + 仓库根相对路径；dist/...apk 不进 pathspec（dist/ 已被 ignore，
+ * add 被 ignore 路径会退出码 1 die）——APK 走 upload-release.js 上传 Releases */
 const REPO_ROOT = path.join(MOB_ROOT, "..");
 const releasePaths = [
   path.join(WEB_ROOT, "version.js"),
   path.join(MOB_ROOT, "app/src/main/AndroidManifest.xml"), path.join(MOB_ROOT, "app/src/main/assets/www"),
   path.join(WEB_ROOT, "LEGAL_CHANGELOG.md"), path.join(WEB_ROOT, "FEATURES.md"),
   path.join(MOB_ROOT, "MANUAL.md"), path.join(MOB_ROOT, "README.md")
-].map(p => path.relative(REPO_ROOT, p).replace(/\\/g, "/"));   /* APK/指导书自 v4.0.25 迁 Releases 不入库 */
+].map(p => path.relative(REPO_ROOT, p).replace(/\\/g, "/"));
 const gitAdd = spawnSync("git", ["add", "--"].concat(releasePaths), { encoding: "utf8", cwd: REPO_ROOT });
 if (gitAdd.status !== 0) die("git add 失败：" + (gitAdd.stderr || gitAdd.stdout));
-const staged = spawnSync("git", ["diff", "--cached", "--name-only"], { encoding: "utf8", cwd: WEB_ROOT }).stdout.split("\n").filter(Boolean);
-const ALLOWED_STAGE = /^(legal-assistant\/version\.js|legal-assistant mobile\/app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|legal-assistant mobile\/dist\/legal-assistant-mobile-v|legal-assistant\/LEGAL_CHANGELOG\.md|legal-assistant\/FEATURES\.md|legal-assistant mobile\/MANUAL\.md|legal-assistant mobile\/README\.md)/;
+const staged = spawnSync("git", ["diff", "--cached", "--name-only"], { encoding: "utf8", cwd: REPO_ROOT }).stdout.split("\n").filter(Boolean);
+const ALLOWED_STAGE = /^(legal-assistant\/version\.js|legal-assistant\/js\/|legal-assistant mobile\/app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|legal-assistant mobile\/release\.js|legal-assistant mobile\/tools\/|legal-assistant\/LEGAL_CHANGELOG\.md|legal-assistant\/FEATURES\.md|legal-assistant mobile\/MANUAL\.md|legal-assistant mobile\/README\.md)/;
 const illegalStaged = staged.filter(f => !ALLOWED_STAGE.test(f));
 if (illegalStaged.length) die("暂存区含非发布文件，已中止（git add -A 曾致仓库根文件误提交）：\n  " + illegalStaged.join("\n  "));
-const msg = commitMsg || ("移动端 v" + versionName + "（versionCode " + newCode + "）出包：release.js 流水线（版本对齐自动化+包内双验证）");
+/* commit 附 APK 哈希（对侧审核建议）：审核方可用哈希核对「对侧出的是不是这个包」——恢复 dist 迁 Releases 后的可验证性 */
+const msg = commitMsg || ("移动端 v" + versionName + "（versionCode " + newCode + "）出包：release.js 流水线 · APK MD5 " + md5 + " · 真机回归后 verify-apk 收口");
 git(["commit", "-m", msg]);
 const pushed = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" }).stdout.trim();
 let ok = false, lastErr = "";
@@ -265,44 +267,15 @@ for (let i = 1; i <= 8 && !ok; i++) {
 }
 if (!ok) die("推送 8 次未达（" + lastErr + "）——提交已在本地，网络恢复后手动 git push origin main 即可");
 
-/* ---------- GitHub Releases 发布（v4.0.29：APK 自 v4.0.25 迁 Releases 分发——分发闭环） ----------
- * git credential 取 push 同源 token → API 建 release（tag v版本，失败可手建后重跑）→ 上传 APK asset。
- * 任何一步失败仅告警不中止（出包本体已完成；手动上传路径：Releases 页 Draft a new release）。 */
-try {
-  const relTag = "v" + versionName;
-  const credFill = spawnSync("git", ["credential", "fill"], { input: "protocol=https\nhost=github.com\n\n", encoding: "utf8" });
-  const ghToken = (credFill.stdout.match(/password=(.+)/) || [])[1];
-  if (!ghToken) {
-    console.log("  ⚠ 无 GitHub 凭证（git credential fill 空）——跳过 Releases 上传，可手动上传 APK");
-  } else {
-    const relBody = JSON.stringify({
-      tag_name: relTag, target_commitish: head,
-      name: "法律咨询助手 " + relTag,
-      body: "Android 安装包（versionCode " + newCode + "）。\n\nMD5 (APK): " + md5 + "\n\n⚠️ 免责声明：本工具所有输出均为基于公开法律信息的规则化参考，不构成法律意见或代理服务；具体案件请咨询执业律师。",
-      draft: false, prerelease: false
-    });
-    const bodyPath = path.join(OUT, "rel-body.json");
-    fs.writeFileSync(bodyPath, relBody);
-    const relRes = spawnSync("curl", ["-s", "-m", "60", "-X", "POST",
-      "-H", "Authorization: Bearer " + ghToken, "-H", "Accept: application/vnd.github+json",
-      "-H", "Content-Type: application/json; charset=utf-8",
-      "https://api.github.com/repos/zzhi333333/project1/releases", "-d", "@" + bodyPath.replace(/\\/g, "/")], { encoding: "utf8" });
-    const rel = JSON.parse(relRes.stdout || "{}");
-    if (!rel.id) {
-      console.log("  ⚠ Releases 创建失败：" + String((rel.message || "unknown")).slice(0, 120) + "——可手动上传 APK");
-    } else {
-      const assetName = "legal-assistant-mobile-v" + versionName + ".apk";
-      const upl = spawnSync("curl", ["-s", "-m", "300", "-X", "POST",
-        "-H", "Authorization: Bearer " + ghToken, "-H", "Content-Type: application/octet-stream",
-        "https://uploads.github.com/repos/zzhi333333/project1/releases/" + rel.id + "/assets?name=" + assetName,
-        "--data-binary", "@" + apkPath.replace(/\\/g, "/")], { encoding: "utf8" });
-      const asset = JSON.parse(upl.stdout || "{}");
-      console.log(asset.id && asset.state === "uploaded"
-        ? "  ✅ GitHub Releases 已发布 " + relTag + "（APK " + asset.size + " 字节：" + (asset.browser_download_url || "").slice(0, 80) + "）"
-        : "  ⚠ APK 上传异常：" + String((asset.message || "unknown")).slice(0, 100));
-    }
-    fs.unlinkSync(bodyPath);
-  }
-} catch (e) { console.log("  ⚠ Releases 上传异常（不中止）：" + String(e.message).slice(0, 100)); }
+/* Releases 上传（分发链路空档补齐）：LA_GH_TOKEN 存在时自动上传 APK，否则提示手动流程。
+ * upload-release.js 同时打印 SHA256——审核方核对「出的是不是这个包」的核对锚 */
+if (process.env.LA_GH_TOKEN) {
+  step("6. 上传 GitHub Releases");
+  const up = spawnSync(process.execPath, [path.join(MOB_ROOT, "tools", "upload-release.js"), apkPath], { encoding: "utf8" });
+  console.log(up.stdout || "");
+  if (up.status !== 0) console.log("⚠ 上传未完成（APK 仍在本地 dist，可手动重跑 tools/upload-release.js " + apkPath + "）");
+} else {
+  console.log("⚠ 未设 LA_GH_TOKEN——APK 仅在本地 dist，手动上传：node tools/upload-release.js " + apkPath);
+}
 
 console.log("\n✅ 出包完成：v" + versionName + "（versionCode " + newCode + "）· " + kb + "KB · MD5 " + md5);
