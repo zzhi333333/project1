@@ -604,8 +604,6 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 /* ============ AI 设置弹层（底部弹层） ============ */
 .modal { position: fixed; inset: 0; z-index: 60; }
 .modal-mask { position: absolute; inset: 0; background: rgba(15, 23, 42, .45); backdrop-filter: blur(6px); }
-/* 计算历史弹层：内联 width:92% 是 web 居中布局的写法，mobile 底部弹层应全宽贴底（覆盖内联样式） */
-#calc-history-modal .modal-card { width: auto !important; max-width: none !important; }
 .modal-card {
   position: absolute; left: 0; right: 0; bottom: 0;
   max-height: 88vh; max-height: 88dvh; overflow-y: auto;
@@ -615,6 +613,17 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
   animation: sheet-up .24s ease;
 }
 @keyframes sheet-up { from { transform: translateY(40%); opacity: .4; } to { transform: none; opacity: 1; } }
+/* 居中弹窗：显式给 width 的 modal-card 走居中定位（left:0;right:0 与显式 width 并存时 right 被忽略，必然偏左——
+   12+ 弹窗系统性缺陷，缺陷报告-弹窗卡片偏左.md 定案）；属性选择器只改定位不改 width，不与内联样式打架；
+   无内联宽度的 modal-card（index.html 8 个真底部抽屉）不受影响 */
+.modal-card[style*="width"] {
+  left: 50%; right: auto; bottom: auto; top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 20px;
+  padding-bottom: 16px;
+  animation: modal-pop .2s ease;
+}
+@keyframes modal-pop { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
 .modal-grab { width: 40px; height: 4px; border-radius: 999px; background: var(--line-2); margin: 4px auto 10px; }
 .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; font-family: var(--font-serif); }
 .modal-body { display: flex; flex-direction: column; gap: 11px; }
