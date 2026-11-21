@@ -4,7 +4,7 @@
 /* 品牌衬线 webfont（思源宋体 Bold 子集 38.8KB=216 字：品牌位+九抬头+16 弹层+2 抽屉+动态弹层全集——字符集唯一真源 tools/subset-chars.txt，新增标题加字重出 woff2，check.js 抬头守护自动拦缺字） */
 @font-face { font-family: "BrandSerif"; src: url("../fonts/brand-serif.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
-  --soft: #f1f3f7; --hover: #eef0f5; --soft-2: #f8fafc; --field: #fbfcfe;
+  --soft: #f5f0e8; --hover: #f2ede4; --soft-2: #faf9f5; --field: #fbfaf6;
   --ok-soft: #ecfdf5; --ok-border: #a7f3d0;
   --warn-soft: #fffbeb; --warn-border: #fde68a;
   --danger-soft: #fef2f2; --danger-border: #fecaca;
@@ -12,13 +12,13 @@
   --fact-bg: rgba(217, 119, 6, .13);
   --sel-bg: #e9dcba; --sel-bg-2: #d8c48d; --sel-ink: #3a2b16;
   --on-primary: #2b2115;
-  --bg: #f6f7f9;
+  --bg: #faf9f5;
   --card: #ffffff;
-  --line: #e6e8ef;
+  --line: #e6dfd8;
   --knob: #ffffff;
-  --line-2: #dfe3ec;
+  --line-2: #ddd5ca;
   --ink: #14161a;
-  --ink-2: #6b7280;
+  --ink-2: #6c6a64;
   --primary: #92701e;
   --primary-fill: #d8b57a;
   --primary-2: #6e5217;
