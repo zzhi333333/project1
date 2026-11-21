@@ -229,12 +229,13 @@ const git = (gitArgs, allowFail) => {
   return r;
 };
 /* 显式暂存（对侧审核 P1：git add -A 不受 cwd 限制，仓库根未跟踪文件/密钥会被误提交
- * ——实测 cd 子目录下 -A 等价于 :/ 仓库根作用域。只暂存发布链明确文件+暂存区白名单硬门禁 */
+ * ——实测 cd 子目录下 -A 等价于 :/ 仓库根作用域。只暂存发布链明确文件+暂存区白名单硬门禁。
+ * dist/...apk 不进 pathspec：dist/ 已被 ignore，add 被 ignore 路径会退出码 1 die（v4.0.28 补传审核发现）——APK 走 upload-release.js 上传 Releases */
 git(["add", "--", "version.js", "app/build.gradle", "app/src/main/AndroidManifest.xml",
-  "app/src/main/assets/www", "dist/legal-assistant-mobile-v" + versionName + ".apk",
+  "app/src/main/assets/www",
   "LEGAL_CHANGELOG.md", "FEATURES.md", "MANUAL.md", "README.md"]);
 const staged = spawnSync("git", ["diff", "--cached", "--name-only"], { encoding: "utf8", cwd: WEB_ROOT }).stdout.split("\n").filter(Boolean);
-const ALLOWED_STAGE = /^(version\.js|app\/build\.gradle|app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|dist\/legal-assistant-mobile-v|LEGAL_CHANGELOG\.md|FEATURES\.md|MANUAL\.md|README\.md)/;
+const ALLOWED_STAGE = /^(version\.js|app\/build\.gradle|app\/src\/main\/(AndroidManifest\.xml|assets\/www\/)|LEGAL_CHANGELOG\.md|FEATURES\.md|MANUAL\.md|README\.md)/;
 const illegalStaged = staged.filter(f => !ALLOWED_STAGE.test(f));
 if (illegalStaged.length) die("暂存区含非发布文件，已中止（git add -A 曾致仓库根文件误提交）：\n  " + illegalStaged.join("\n  "));
 /* commit 附 APK 哈希（对侧审核建议）：审核方可用哈希核对「对侧出的是不是这个包」——恢复 dist 迁 Releases 后的可验证性 */
