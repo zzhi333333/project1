@@ -344,7 +344,7 @@ window.AGENT = (function () {
         '<div class="tool-warn">本地知识库未收录该条文的原文——请到「法条」页检索核实（联网模式可查国家法律法规数据库）。</div>';
     }
     w.innerHTML = '<div class="modal-mask"></div><div class="modal-card" style="max-width:600px;width:94%">' +
-      '<div class="modal-title"><span class="ico ico-books"></span> 引用条文原文</div>' +
+      '<div class="modal-title"><svg class="ico"><use href="#i-book"/></svg> 引用条文原文</div>' +
       '<div class="modal-body" style="max-height:60vh;overflow-y:auto">' + body + '</div>' +
       '<div class="modal-foot"><button class="primary" id="lawcard-go"><svg class=ico><use href=#i-search></use></svg> 到法条页检索</button><button id="lawcard-close">关闭</button></div>' +
       '<div class="modal-note" style="padding:0 18px 12px;font-size:11px">条文原文仅供阅读核对，以官方公布文本为准。</div></div>';
