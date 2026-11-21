@@ -870,7 +870,7 @@ html[data-fontscale="large"] { zoom: 1.15; }
 html[data-fontscale="large2"] { zoom: 1.3; }   /* v4.0.21 特大档 */
 :root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]):not([data-theme="warm"]) {
     --bg: #0e1013; --card: #161a21; --card-glass: rgba(22, 26, 33, .82); --line: #262c37; --line-2: #303745; --knob: #ffffff;
     --ink: #e8eaf0; --ink-2: #98a0ad;
     --primary: #e4c88f; --primary-fill: #e4c88f; --primary-2: #f0d9a8;
@@ -888,7 +888,7 @@ html[data-fontscale="large2"] { zoom: 1.3; }   /* v4.0.21 特大档 */
   }
 }
 :root[data-theme="dark"] {
-    --bg: #0e1013; --card: #161a21; --line: #262c37; --line-2: #303745;
+    --bg: #0e1013; --card: #161a21; --card-glass: rgba(22, 26, 33, .82); --knob: #ffffff; --line: #262c37; --line-2: #303745;
     --ink: #e8eaf0; --ink-2: #98a0ad;
     --primary: #e4c88f; --primary-fill: #e4c88f; --primary-2: #f0d9a8;
     --primary-soft: #2e2818; --primary-border: #554828;
