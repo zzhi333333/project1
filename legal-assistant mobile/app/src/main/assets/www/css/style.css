@@ -604,6 +604,8 @@ mark { background: var(--mark-bg); padding: 0 2px; border-radius: 3px; }
 /* ============ AI 设置弹层（底部弹层） ============ */
 .modal { position: fixed; inset: 0; z-index: 60; }
 .modal-mask { position: absolute; inset: 0; background: rgba(15, 23, 42, .45); backdrop-filter: blur(6px); }
+/* 计算历史弹层：内联 width:92% 是 web 居中布局的写法，mobile 底部弹层应全宽贴底（覆盖内联样式） */
+#calc-history-modal .modal-card { width: auto !important; max-width: none !important; }
 .modal-card {
   position: absolute; left: 0; right: 0; bottom: 0;
   max-height: 88vh; max-height: 88dvh; overflow-y: auto;
